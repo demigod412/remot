@@ -1,0 +1,473 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/forms';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    /* Fonts */
+    --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: ui-monospace, ui-monospace, 'SF Mono', Menlo, monospace;
+
+    /* Job Station Primary — Dark Blue */
+    --color-primary-50:  #eef1fd;
+    --color-primary-100: #d6defb;
+    --color-primary-200: #adbdf7;
+    --color-primary-300: #7e95f1;
+    --color-primary-400: #5570e8;
+    --color-primary-500: #2f54eb;
+    --color-primary-600: #2442c4;
+    --color-primary-700: #1d349e;
+    --color-primary-800: #1b2d7e;
+    --color-primary-900: #1a2a66;
+
+    /* Urgent / Instant jobs — Orange */
+    --color-urgent-50:  #fff4f1;
+    --color-urgent-100: #ffe4dc;
+    --color-urgent-200: #ffbfad;
+    --color-urgent-300: #ff9c82;
+    --color-urgent-400: #ff8a6b;
+    --color-urgent-500: #FF7A59;
+    --color-urgent-600: #e8613e;
+    --color-urgent-700: #c44a2b;
+
+    /* Coin — Gold */
+    --color-coin-50:  #fffde7;
+    --color-coin-100: #fff9c4;
+    --color-coin-200: #fff176;
+    --color-coin-300: #f5d547;
+    --color-coin-400: #F5D547;
+    --color-coin-500: #e6c400;
+    --color-coin-600: #c9a800;
+
+    /* Dark UI Surfaces */
+    --color-dark-950: #0A0A0B;
+    --color-dark-900: #111114;
+    --color-dark-800: #17171B;
+    --color-dark-700: #1E1E23;
+    --color-dark-600: #26262C;
+    --color-dark-500: #313138;
+    --color-dark-400: #3F3F46;
+    --color-dark-300: #52525B;
+
+    /* Status Colors */
+    --color-success-500: #22C55E;
+    --color-success-600: #16a34a;
+    --color-danger-500:  #EF4444;
+    --color-danger-600:  #DC2626;
+    --color-warning-500: #F59E0B;
+    --color-info-500:    #60A5FA;
+}
+
+/* =========================================
+   Design Tokens (mirror design system)
+   ========================================= */
+:root {
+    --accent:       #2f54eb;
+    --accent-soft:  rgba(47,84,235, 0.12);
+    --accent-hover: #2442c4;
+    --urgent:       #FF7A59;
+    --urgent-soft:  rgba(255, 122, 89, 0.14);
+    --coin:         #F5D547;
+    --success:      #22C55E;
+    --danger:       #EF4444;
+    --warn:         #F59E0B;
+
+    /* Light theme surfaces */
+    --bg:           #F4F4F5;
+    --bg-2:         #FAFAFA;
+    --surface:      #FFFFFF;
+    --surface-2:    #F4F4F5;
+    --surface-3:    #E9E9EC;
+    --border:       rgba(0,0,0,0.07);
+    --border-strong:rgba(0,0,0,0.12);
+    --fg:           #09090B;
+    --fg-2:         #3F3F46;
+    --fg-3:         #71717A;
+    --fg-4:         #A1A1AA;
+}
+
+/* =========================================
+   Dark Mode — overrides light tokens
+   ========================================= */
+html.dark {
+    --bg:           #0A0A0B;
+    --bg-2:         #111114;
+    --surface:      #17171B;
+    --surface-2:    #1E1E23;
+    --surface-3:    #26262C;
+    --border:       rgba(255,255,255,0.06);
+    --border-strong:rgba(255,255,255,0.10);
+    --fg:           #FAFAFA;
+    --fg-2:         #D4D4D8;
+    --fg-3:         #A1A1AA;
+    --fg-4:         #71717A;
+}
+
+html.dark body { background-color: var(--bg); color: var(--fg); }
+
+/* User dashboard top-bar in dark mode */
+html.dark .user-top-bar {
+    background: rgba(17,17,20,0.92) !important;
+}
+
+/* Hide Alpine x-cloak elements until Alpine initializes */
+[x-cloak] { display: none !important; }
+
+/* =========================================
+   Base Styles
+   ========================================= */
+html { font-feature-settings: 'cv11', 'ss01'; }
+
+body {
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    letter-spacing: -0.005em;
+}
+
+.mono {
+    font-family: ui-monospace, ui-monospace, 'SF Mono', Menlo, monospace;
+    font-feature-settings: 'tnum';
+    font-variant-numeric: tabular-nums;
+}
+
+/* =========================================
+   Job Station Component Classes
+   ========================================= */
+
+.card,
+.jobstation-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+}
+
+.jobstation-card-2 {
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+}
+
+/* =========================================
+   Inputs
+   ========================================= */
+.jobstation-input,
+input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=range]),
+select,
+textarea {
+    background-color: var(--surface);
+    border: 1px solid var(--border-strong);
+    color: var(--fg);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color 0.14s, box-shadow 0.14s;
+}
+
+/* Tailwind's preflight sets appearance:none on <select>, stripping the native
+   dropdown arrow — restore a themed chevron so selects are visibly dropdowns. */
+select {
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: pointer;
+    padding-right: 34px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M4 6l4 4 4-4' stroke='%2371717A' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 14px 14px;
+}
+
+.jobstation-input:focus,
+input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=range]):focus,
+select:focus,
+textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+    outline: none;
+}
+
+.jobstation-input::placeholder,
+input::placeholder,
+textarea::placeholder {
+    color: var(--fg-4);
+}
+
+/* =========================================
+   Buttons
+   ========================================= */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 500;
+    border: 1px solid var(--border-strong);
+    background: transparent;
+    color: var(--fg);
+    cursor: pointer;
+    transition: all 0.14s;
+    font-family: inherit;
+    letter-spacing: -0.005em;
+}
+.btn:hover { background: var(--surface-2); }
+
+.btn-primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 6px 18px -6px rgba(47,84,235,0.55);
+}
+.btn-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.15) inset, 0 8px 22px -6px rgba(47,84,235,0.6);
+}
+
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border-radius: 999px;
+    font-size: 13.5px;
+    font-weight: 500;
+    border: 1px solid var(--border-strong);
+    background: transparent;
+    color: var(--fg-2);
+    cursor: pointer;
+    transition: all 0.14s;
+    font-family: inherit;
+    letter-spacing: -0.005em;
+    text-decoration: none;
+}
+.btn-secondary:hover { background: var(--surface-2); color: var(--fg); }
+
+.btn-sm { padding: 6px 10px; font-size: 12px; border-radius: 999px; }
+.btn-ghost { border-color: transparent; }
+.btn-danger {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+.btn-danger:hover { background: rgba(239,68,68,0.08); }
+
+/* =========================================
+   Chips & Badges
+   ========================================= */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--fg-2);
+    letter-spacing: 0.01em;
+}
+.chip-instant { color: var(--urgent); background: var(--urgent-soft); border-color: rgba(255,122,89,0.3); }
+.chip-hiring  { color: #60A5FA; background: rgba(96,165,250,0.12); border-color: rgba(96,165,250,0.25); }
+.chip-contract{ color: #34D399; background: rgba(52,211,153,0.12); border-color: rgba(52,211,153,0.25); }
+.chip-coin    { color: var(--coin); background: rgba(245,213,71,0.1); border-color: rgba(245,213,71,0.3); }
+
+/* Legacy badge aliases (keep for existing views) */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+.badge-success { background: rgba(34,197,94,0.14);  color: #22C55E; }
+.badge-warning { background: rgba(245,158,11,0.14);  color: #F59E0B; }
+.badge-danger  { background: rgba(239,68,68,0.14);   color: #EF4444; }
+.badge-info    { background: rgba(96,165,250,0.14);  color: #60A5FA; }
+.badge-default { background: var(--surface-2);       color: var(--fg-3); }
+.badge-green   { background: rgba(34,197,94,0.14);   color: #22C55E; }
+.badge-red     { background: rgba(239,68,68,0.14);   color: #EF4444; }
+.badge-yellow  { background: rgba(245,158,11,0.14);  color: #F59E0B; }
+.badge-blue    { background: rgba(96,165,250,0.14);  color: #60A5FA; }
+.badge-purple  { background: rgba(47,84,235,0.14);  color: #5570e8; }
+.badge-gray    { background: var(--surface-2);       color: var(--fg-3); }
+
+/* Status pill with dot */
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 8px 3px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+}
+.status-pill::before {
+    content: '';
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+}
+.status-approved { background: rgba(34,197,94,0.14);  color: #22C55E; }
+.status-pending  { background: rgba(245,158,11,0.14); color: #F59E0B; }
+.status-rejected { background: rgba(239,68,68,0.14);  color: #EF4444; }
+.status-active   { background: rgba(47,84,235,0.14); color: #2f54eb; }
+.status-live     { background: rgba(255,122,89,0.14); color: #FF7A59; }
+.status-draft    { background: var(--surface-2);      color: var(--fg-3); }
+
+/* =========================================
+   Coin display
+   ========================================= */
+.coin-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(245,213,71,0.1);
+    border: 1px solid rgba(245,213,71,0.3);
+    color: var(--coin);
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 12px;
+    font-family: ui-monospace, monospace;
+}
+
+.coin-glyph {
+    color: var(--coin);
+    font-weight: 600;
+    font-family: ui-monospace, monospace;
+}
+
+/* =========================================
+   Pulse dot (instant/urgent indicator)
+   ========================================= */
+.pulse-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--urgent);
+    box-shadow: 0 0 0 0 var(--urgent);
+    animation: jobstation-pulse 1.6s infinite;
+}
+@keyframes jobstation-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255,122,89,0.55); }
+    70%  { box-shadow: 0 0 0 8px rgba(255,122,89,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,122,89,0); }
+}
+
+/* =========================================
+   Label (section headers)
+   ========================================= */
+.label {
+    font-size: 11px;
+    color: var(--fg-3);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    font-weight: 500;
+}
+
+/* =========================================
+   Sidebar navigation
+   ========================================= */
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 7px;
+    color: var(--fg-2);
+    font-size: 13px;
+    font-weight: 400;
+    transition: all 0.14s;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-family: inherit;
+    letter-spacing: -0.005em;
+    text-decoration: none;
+    width: 100%;
+    text-align: left;
+}
+
+.sidebar-link:hover {
+    color: var(--fg);
+    background: var(--surface-2);
+}
+
+.sidebar-link.active {
+    color: var(--fg);
+    background: var(--surface-2);
+    font-weight: 500;
+}
+
+.sidebar-link.active svg,
+.sidebar-link.active i,
+.sidebar-link.active [data-lucide] {
+    color: var(--accent) !important;
+}
+
+/* =========================================
+   Placeholder image slot
+   ========================================= */
+.placeholder-img {
+    background: repeating-linear-gradient(135deg, var(--surface-2) 0 12px, var(--surface-3) 12px 24px);
+    color: var(--fg-3);
+    font-family: ui-monospace, monospace;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+
+/* =========================================
+   Thin divider
+   ========================================= */
+.hr { height: 1px; background: var(--border); width: 100%; }
+
+/* =========================================
+   Dark sidebar (admin) — keep links readable on #27272A
+   ========================================= */
+.dark-sidebar .sidebar-link {
+    color: rgba(255,255,255,0.58);
+}
+.dark-sidebar .sidebar-link:hover {
+    color: rgba(255,255,255,0.9);
+    background: rgba(255,255,255,0.08);
+}
+.dark-sidebar .sidebar-link.active {
+    color: #fff;
+    background: rgba(255,255,255,0.12);
+}
+.dark-sidebar .label {
+    color: rgba(255,255,255,0.28);
+}
+
+/* =========================================
+   Scrollbar
+   ========================================= */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* =========================================
+   Utility: GSAP entrance (keep existing)
+   ========================================= */
+.gsap-enter { opacity: 0; }

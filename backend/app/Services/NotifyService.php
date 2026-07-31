@@ -1,0 +1,311 @@
+<?php
+
+namespace App\Services;
+
+use App\Mail\UserNotification;
+use App\Models\NotificationLog;
+use App\Models\NotificationTemplate;
+use App\Models\User;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use App\Services\FcmService;
+
+class NotifyService
+{
+    /** Acts that carry one-time codes — kept out of the persistent in-app feed. */
+    private const FEED_EXCLUDED_ACTS = [
+        'EMAIL_VERIFICATION', 'PHONE_VERIFICATION', 'PASSWORD_RESET', 'TWO_FA_CODE',
+    ];
+
+    /**
+     * Send a notification to a user by template act key.
+     *
+     * @param  User   $user
+     * @param  string $act   Template act key (e.g. 'TOPUP_APPROVED')
+     * @param  array  $data  Shortcode replacements (e.g. ['coins' => 100])
+     */
+    public static function send(User $user, string $act, array $data = []): void
+    {
+        $template = NotificationTemplate::getByAct($act);
+
+        if (! $template) {
+            Log::warning("NotifyService: no template found for act [{$act}]");
+            return;
+        }
+
+        $gs = gs();
+
+        // Build global shortcode data
+        $baseData = array_merge([
+            'name'        => $user->fullname,
+            'email'       => $user->email,
+            'username'    => $user->username,
+            'site_name'   => $gs->site_name ?? config('app.name'),
+            'coin_name'   => $gs->coin_name ?? coinName(),
+            'coin_symbol' => $gs->coin_symbol ?? coinSymbol(),
+            'balance'     => number_format((float) $user->coin_balance, 0),
+        ], $data);
+
+        // Send email
+        if ($template->email_status && $gs->email_notify) {
+            $subject = static::replacePlaceholders($template->subj, $baseData);
+            $body    = static::replacePlaceholders($template->email_body, $baseData);
+            static::sendEmailTo($user, $subject, $body);
+        }
+
+        // Send SMS
+        if ($template->sms_status && $gs->sms_notify && $user->mobile) {
+            $message = static::replacePlaceholders($template->sms_body, $baseData);
+            static::sendSmsTo($user, $message);
+        }
+
+        // Shared title/body for the in-app feed and the push payload.
+        $pushTitle = static::replacePlaceholders($template->subj, $baseData);
+        $pushBody  = trim(strip_tags(static::replacePlaceholders(
+            $template->sms_body ?: $template->email_body,
+            $baseData
+        )));
+        $pushBody  = mb_strimwidth($pushBody, 0, 200, '…');
+
+        // In-app notification feed (the bell icon). Persisted for every act
+        // except one-time security codes, which only belong in email/SMS.
+        if (! in_array($act, static::FEED_EXCLUDED_ACTS, true)) {
+            $meta = static::feedMeta($act);
+            \App\Models\UserNotification::notify(
+                $user->id,
+                $meta['type'],
+                $pushTitle,
+                $pushBody,
+                $meta['url'],
+                $meta['icon'],
+            );
+        }
+
+        // Send FCM push notification (if the user has any registered devices).
+        if ($user->relationLoaded('deviceTokens')
+            ? $user->deviceTokens->isNotEmpty()
+            : $user->deviceTokens()->exists()
+        ) {
+            FcmService::sendToUser($user, $pushTitle, $pushBody);
+        }
+    }
+
+    /** Map a template act key to an in-app feed type + lucide icon. */
+    private static function feedMeta(string $act): array
+    {
+        return match (true) {
+            in_array($act, ['TOPUP_APPROVED', 'TOPUP_REJECTED', 'CASHOUT_APPROVED', 'CASHOUT_REJECTED', 'REFERRAL_BONUS'], true)
+                => ['type' => 'wallet', 'icon' => 'wallet', 'url' => '/wallet'],
+            in_array($act, ['SUBMISSION_APPROVED', 'SUBMISSION_REJECTED', 'WORK_APPROVED', 'WORK_REJECTED'], true)
+                => ['type' => 'work', 'icon' => 'zap', 'url' => '/submissions'],
+            str_starts_with($act, 'CONTRACT_')
+                => ['type' => 'contract', 'icon' => 'handshake', 'url' => '/contracts'],
+            default
+                => ['type' => 'system', 'icon' => 'bell', 'url' => null],
+        };
+    }
+
+    /**
+     * Send a raw email directly (bypasses template system).
+     */
+    public static function sendEmailTo(User $user, string $subject, string $body): void
+    {
+        $gs = gs();
+
+        try {
+            static::configureMailer($gs->mail_config ?? []);
+
+            Mail::to($user->email, $user->fullname)
+                ->send(new UserNotification($subject, $body));
+
+            NotificationLog::create([
+                'user_id'           => $user->id,
+                'sender'            => $gs->site_name ?? config('app.name'),
+                'sent_from'         => $gs->email_from ?? config('mail.from.address'),
+                'sent_to'           => $user->email,
+                'subject'           => $subject,
+                'message'           => $body,
+                'notification_type' => 'email',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("NotifyService email failed for user #{$user->id}: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Send a raw SMS directly.
+     */
+    public static function sendSmsTo(User $user, string $message): void
+    {
+        $gs        = gs();
+        $smsConfig = $gs->sms_config ?? [];
+        $driver    = $smsConfig['driver'] ?? 'off';
+        $mobile    = $user->country_code . $user->mobile;
+
+        try {
+            match ($driver) {
+                'twilio'   => static::sendViaTwilio($mobile, $message, $smsConfig),
+                'nexmo'    => static::sendViaNexmo($mobile, $message, $smsConfig),
+                'nextsms'  => static::sendViaNextsms($mobile, $message, $smsConfig),
+                default    => null,
+            };
+
+            NotificationLog::create([
+                'user_id'           => $user->id,
+                'sender'            => $gs->site_name ?? config('app.name'),
+                'sent_from'         => $smsConfig['from'] ?? '',
+                'sent_to'           => $mobile,
+                'subject'           => 'SMS',
+                'message'           => $message,
+                'notification_type' => 'sms',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("NotifyService SMS failed for user #{$user->id}: " . $e->getMessage());
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // Private helpers
+    // ─────────────────────────────────────────────────────────────
+
+    /**
+     * Replace {{key}} placeholders in a string.
+     */
+    private static function replacePlaceholders(string $text, array $data): string
+    {
+        foreach ($data as $key => $value) {
+            $text = str_replace(['{{' . $key . '}}', '[[' . $key . ']]'], $value, $text);
+        }
+        return $text;
+    }
+
+    /**
+     * Dynamically configure Laravel mail from AppSetting.mail_config.
+     */
+    private static function configureMailer(array $mailConfig): void
+    {
+        if (empty($mailConfig)) return;
+
+        $driver = $mailConfig['driver'] ?? 'smtp';
+
+        config([
+            'mail.default'                => $driver,
+            'mail.mailers.smtp.host'      => $mailConfig['host'] ?? env('MAIL_HOST', 'smtp.mailgun.org'),
+            'mail.mailers.smtp.port'      => $mailConfig['port'] ?? env('MAIL_PORT', 587),
+            'mail.mailers.smtp.username'  => $mailConfig['username'] ?? env('MAIL_USERNAME'),
+            'mail.mailers.smtp.password'  => $mailConfig['password'] ?? env('MAIL_PASSWORD'),
+            'mail.mailers.smtp.encryption'=> $mailConfig['encryption'] ?? env('MAIL_ENCRYPTION', 'tls'),
+            'mail.from.address'           => $mailConfig['from_address'] ?? env('MAIL_FROM_ADDRESS'),
+            'mail.from.name'              => $mailConfig['from_name'] ?? env('MAIL_FROM_NAME'),
+        ]);
+    }
+
+    /**
+     * Send SMS via Twilio.
+     */
+    private static function sendViaTwilio(string $to, string $message, array $config): void
+    {
+        $sid   = $config['account_sid'] ?? '';
+        $token = $config['auth_token'] ?? '';
+        $from  = $config['from'] ?? '';
+
+        if (! $sid || ! $token || ! $from) {
+            throw new \RuntimeException('Twilio credentials incomplete.');
+        }
+
+        $url  = "https://api.twilio.com/2010-04-01/Accounts/{$sid}/Messages.json";
+        $data = http_build_query(['To' => $to, 'From' => $from, 'Body' => $message]);
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_USERPWD        => "{$sid}:{$token}",
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => $data,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode >= 400) {
+            throw new \RuntimeException("Twilio error {$httpCode}: {$response}");
+        }
+    }
+
+    /**
+     * Send SMS via NextSMS (HTTP GET link method).
+     */
+    private static function sendViaNextsms(string $to, string $message, array $config): void
+    {
+        $token = $config['token'] ?? '';
+        $from  = $config['from'] ?? 'INFO';
+
+        if (! $token) {
+            throw new \RuntimeException('NextSMS token is missing.');
+        }
+
+        $url = 'https://messaging-service.co.tz/link/sms/v2/text/single?' . http_build_query([
+            'token' => $token,
+            'from'  => $from,
+            'to'    => ltrim($to, '+'),
+            'text'  => $message,
+        ]);
+
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode >= 400) {
+            throw new \RuntimeException("NextSMS error {$httpCode}: {$response}");
+        }
+
+        $result = json_decode($response, true);
+        if (isset($result['code']) && (int) $result['code'] !== 200) {
+            throw new \RuntimeException('NextSMS failed: ' . ($result['message'] ?? 'Unknown error'));
+        }
+    }
+
+    /**
+     * Send SMS via Nexmo/Vonage.
+     */
+    private static function sendViaNexmo(string $to, string $message, array $config): void
+    {
+        $apiKey    = $config['api_key'] ?? '';
+        $apiSecret = $config['api_secret'] ?? '';
+        $from      = $config['from'] ?? 'Job Station';
+
+        if (! $apiKey || ! $apiSecret) {
+            throw new \RuntimeException('Nexmo credentials incomplete.');
+        }
+
+        $url    = 'https://rest.nexmo.com/sms/json';
+        $params = http_build_query([
+            'api_key'    => $apiKey,
+            'api_secret' => $apiSecret,
+            'to'         => ltrim($to, '+'),
+            'from'       => $from,
+            'text'       => $message,
+        ]);
+
+        $ch = curl_init($url . '?' . $params);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        $result = json_decode($response, true);
+        $status = $result['messages'][0]['status'] ?? '1';
+        if ($status !== '0') {
+            throw new \RuntimeException("Nexmo error: " . ($result['messages'][0]['error-text'] ?? 'Unknown'));
+        }
+    }
+}

@@ -1,0 +1,202 @@
+<?php
+
+namespace Database\Seeders;
+
+use App\Models\NotificationTemplate;
+use Illuminate\Database\Seeder;
+
+class NotificationTemplateSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $templates = [
+            [
+                'act'          => 'WELCOME',
+                'name'         => 'Welcome Email',
+                'subj'         => 'Welcome to {{site_name}}!',
+                'email_body'   => '<p>Hi {{name}},</p><p>Welcome to {{site_name}}! Your account has been created successfully.</p>',
+                'sms_body'     => 'Welcome to {{site_name}}, {{name}}! Your account is ready.',
+                'shortcodes'   => '[[name]], [[site_name]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'EMAIL_VERIFICATION',
+                'name'         => 'Email Verification',
+                'subj'         => 'Verify your email — {{site_name}}',
+                'email_body'   => '<p>Hi {{name}},</p><p>Please verify your email by clicking the link below:</p><p><a href="{{url}}">Verify Email</a></p>',
+                'sms_body'     => '',
+                'shortcodes'   => '[[name]], [[url]], [[site_name]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'PASSWORD_RESET',
+                'name'         => 'Password Reset',
+                'subj'         => 'Reset your password — {{site_name}}',
+                'email_body'   => '<p>Hi {{name}},</p><p>Click the link below to reset your password:</p><p><a href="{{url}}">Reset Password</a></p><p>This link expires in 60 minutes.</p>',
+                'sms_body'     => 'Your {{site_name}} password reset OTP is: {{otp}}',
+                'shortcodes'   => '[[name]], [[url]], [[otp]], [[site_name]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'TOPUP_APPROVED',
+                'name'         => 'Coin Top-up Approved',
+                'subj'         => 'Your top-up of {{coins}} {{coin_symbol}} is confirmed',
+                'email_body'   => '<p>Hi {{name}},</p><p>Your coin top-up of <strong>{{coins}} {{coin_symbol}}</strong> has been approved. Your new balance is {{balance}} {{coin_symbol}}.</p>',
+                'sms_body'     => 'Your top-up of {{coins}} {{coin_symbol}} is confirmed. Balance: {{balance}} {{coin_symbol}}.',
+                'shortcodes'   => '[[name]], [[coins]], [[coin_symbol]], [[balance]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'TOPUP_REJECTED',
+                'name'         => 'Coin Top-up Rejected',
+                'subj'         => 'Your top-up request was rejected',
+                'email_body'   => '<p>Hi {{name}},</p><p>Your coin top-up of <strong>{{coins}} {{coin_symbol}}</strong> has been rejected.</p><p>Reason: {{reason}}</p>',
+                'sms_body'     => 'Your top-up of {{coins}} {{coin_symbol}} was rejected. Reason: {{reason}}',
+                'shortcodes'   => '[[name]], [[coins]], [[coin_symbol]], [[reason]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'CASHOUT_APPROVED',
+                'name'         => 'Cashout Approved',
+                'subj'         => 'Your cashout of {{coins}} {{coin_symbol}} has been processed',
+                'email_body'   => '<p>Hi {{name}},</p><p>Your cashout of <strong>{{coins}} {{coin_symbol}}</strong> has been approved and sent.</p>',
+                'sms_body'     => 'Your cashout of {{coins}} {{coin_symbol}} has been approved.',
+                'shortcodes'   => '[[name]], [[coins]], [[coin_symbol]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'CASHOUT_REJECTED',
+                'name'         => 'Cashout Rejected',
+                'subj'         => 'Your cashout request was rejected',
+                'email_body'   => '<p>Hi {{name}],</p><p>Your cashout of <strong>{{coins}} {{coin_symbol}}</strong> has been rejected.</p><p>Reason: {{reason}}</p>',
+                'sms_body'     => 'Your cashout of {{coins}} {{coin_symbol}} was rejected.',
+                'shortcodes'   => '[[name]], [[coins]], [[coin_symbol]], [[reason]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'WORK_APPROVED',
+                'name'         => 'Work Approved',
+                'subj'         => 'Your work "{{work_title}}" is now live',
+                'email_body'   => '<p>Hi {{name}},</p><p>Your work <strong>{{work_title}}</strong> has been approved and is now live on the platform.</p>',
+                'sms_body'     => 'Your work "{{work_title}}" is now live!',
+                'shortcodes'   => '[[name]], [[work_title]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'WORK_REJECTED',
+                'name'         => 'Work Rejected',
+                'subj'         => 'Your work "{{work_title}}" was rejected',
+                'email_body'   => '<p>Hi {{name}},</p><p>Your work <strong>{{work_title}}</strong> has been rejected.</p><p>Reason: {{reason}}</p>',
+                'sms_body'     => 'Your work "{{work_title}}" was rejected.',
+                'shortcodes'   => '[[name]], [[work_title]], [[reason]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'SUBMISSION_APPROVED',
+                'name'         => 'Submission Approved',
+                'subj'         => 'Your submission was approved — {{coins}} {{coin_symbol}} earned!',
+                'email_body'   => '<p>Hi {{name}},</p><p>Your submission for <strong>{{work_title}}</strong> has been approved. <strong>{{coins}} {{coin_symbol}}</strong> have been added to your wallet.</p>',
+                'sms_body'     => 'Your submission for "{{work_title}}" approved! {{coins}} {{coin_symbol}} earned.',
+                'shortcodes'   => '[[name]], [[work_title]], [[coins]], [[coin_symbol]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'SUBMISSION_REJECTED',
+                'name'         => 'Submission Rejected',
+                'subj'         => 'Your submission was rejected',
+                'email_body'   => '<p>Hi {{name}},</p><p>Your submission for <strong>{{work_title}}</strong> has been rejected.</p><p>Reason: {{reason}}</p>',
+                'sms_body'     => 'Your submission for "{{work_title}}" was rejected.',
+                'shortcodes'   => '[[name]], [[work_title]], [[reason]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'KYC_APPROVED',
+                'name'         => 'KYC Approved',
+                'subj'         => 'Your identity has been verified',
+                'email_body'   => '<p>Hi {{name}},</p><p>Your KYC documents have been verified successfully. You now have full access to all features.</p>',
+                'sms_body'     => 'Your identity on {{site_name}} has been verified.',
+                'shortcodes'   => '[[name]], [[site_name]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'KYC_REJECTED',
+                'name'         => 'KYC Rejected',
+                'subj'         => 'Your KYC submission was rejected',
+                'email_body'   => '<p>Hi {{name}},</p><p>Your KYC submission has been rejected.</p><p>Reason: {{reason}}</p><p>Please re-submit with correct documents.</p>',
+                'sms_body'     => 'Your KYC on {{site_name}} was rejected. Please resubmit.',
+                'shortcodes'   => '[[name]], [[site_name]], [[reason]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'REFERRAL_BONUS',
+                'name'         => 'Referral Bonus',
+                'subj'         => 'You earned a referral bonus of {{coins}} {{coin_symbol}}!',
+                'email_body'   => '<p>Hi {{name}},</p><p>Congratulations! Your referral <strong>{{referred_name}}</strong> has joined {{site_name}}. You earned <strong>{{coins}} {{coin_symbol}}</strong>!</p>',
+                'sms_body'     => 'You earned {{coins}} {{coin_symbol}} from a referral!',
+                'shortcodes'   => '[[name]], [[referred_name]], [[coins]], [[coin_symbol]], [[site_name]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'TICKET_REPLY',
+                'name'         => 'Help Ticket Reply',
+                'subj'         => 'Reply to your support ticket #{{ticket_id}}',
+                'email_body'   => '<p>Hi {{name}},</p><p>You have a new reply on your support ticket <strong>#{{ticket_id}}</strong>:</p><p>{{message}}</p>',
+                'sms_body'     => 'New reply on your ticket #{{ticket_id}}.',
+                'shortcodes'   => '[[name]], [[ticket_id]], [[message]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+            [
+                'act'          => 'PHONE_VERIFICATION',
+                'name'         => 'Phone Verification OTP',
+                'subj'         => 'Your {{site_name}} phone verification code',
+                'email_body'   => '<p>Hi {{name}},</p><p>Your phone verification code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px;color:#ffffff;">{{code}}</p><p>This code expires in 30 minutes. Do not share it with anyone.</p>',
+                'sms_body'     => 'Your {{site_name}} phone verification code is: {{code}}. Expires in 30 minutes.',
+                'shortcodes'   => '[[name]], [[code]], [[site_name]]',
+                'email_status' => 0,
+                'sms_status'   => 1,
+            ],
+            [
+                'act'          => 'TWO_FA_CODE',
+                'name'         => '2FA Login Code',
+                'subj'         => 'Your {{site_name}} login verification code',
+                'email_body'   => '<p>Hi {{name}},</p><p>Your two-factor authentication code is:</p><p style="font-size:28px;font-weight:700;letter-spacing:6px;color:#ffffff;">{{code}}</p><p>This code expires in 10 minutes. If you did not request this, please secure your account immediately.</p>',
+                'sms_body'     => 'Your {{site_name}} 2FA code is: {{code}}. Expires in 10 minutes.',
+                'shortcodes'   => '[[name]], [[code]], [[site_name]]',
+                'email_status' => 1,
+                'sms_status'   => 1,
+            ],
+            [
+                'act'          => 'KYC_REQUEST_DOCS',
+                'name'         => 'KYC — Request More Documents',
+                'subj'         => 'Action required: additional KYC documents needed',
+                'email_body'   => '<p>Hi {{name}},</p><p>Our team has reviewed your KYC submission and requires additional information or clearer documents before we can complete verification.</p><p>{{message}}</p><p>Please log in and re-upload your documents from your profile page.</p>',
+                'sms_body'     => 'Action required on {{site_name}}: additional KYC documents needed. Please log in to re-upload.',
+                'shortcodes'   => '[[name]], [[message]], [[site_name]]',
+                'email_status' => 1,
+                'sms_status'   => 0,
+            ],
+        ];
+
+        foreach ($templates as $template) {
+            NotificationTemplate::updateOrCreate(
+                ['act' => $template['act']],
+                $template
+            );
+        }
+    }
+}

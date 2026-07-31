@@ -1,0 +1,22 @@
+{
+    "app": "Job Station",
+    "version": "1.0.0",
+    "purchase_code": "7yyyyy",
+    "license": {
+        "verified": true,
+        "online": false,
+        "mode": "local-bypass",
+        "message": "License check skipped (local testing environment).",
+        "buyer": "Local Tester",
+        "item": "Job Station (local)",
+        "item_id": null,
+        "license_type": "testing",
+        "supported_until": null,
+        "sold_at": null,
+        "verified_at": "2026-07-31T12:36:57+00:00"
+    },
+    "admin_email": "admin@gmail.com",
+    "app_url": "http:\/\/localhost:8000",
+    "demo_seeded": true,
+    "installed_at": "2026-07-31T12:44:33+00:00"
+}

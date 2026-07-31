@@ -1,0 +1,63 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: app
+    volumes:
+      - ./backend:/var/www
+    working_dir: /var/www
+    networks:
+      - laravel
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "8000:80"
+    volumes:
+      - ./backend:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - laravel
+
+  db:
+    image: mysql:8.0
+    container_name: db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: laravel
+      MYSQL_USER: laravel
+      MYSQL_PASSWORD: secret
+      MYSQL_ROOT_PASSWORD: secret
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - laravel
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: scheduler
+    volumes:
+      - ./backend:/var/www
+    working_dir: /var/www
+    depends_on:
+      - app
+      - db
+    networks:
+      - laravel
+    entrypoint: >
+      sh -c "while true; do php artisan schedule:run >> /dev/null 2>&1; sleep 60; done"
+
+networks:
+  laravel:
+    driver: bridge
+
+volumes:
+  db_data:
