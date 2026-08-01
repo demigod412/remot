@@ -9,6 +9,7 @@ class Work extends Model
     protected $fillable = [
         'poster_id', 'poster_type', 'category_id', 'subcategory_id',
         'topup_id', 'slug', 'title', 'cover_image', 'worker_slots',
+        'display_application_boost',
         'description', 'total_coins', 'coins_per_worker', 'avg_minutes',
         'work_status', 'approval_status', 'rejection_reason',
         'expires_at', 'auto_approve_hours',
@@ -31,6 +32,7 @@ class Work extends Model
             'poster_type'      => 'integer',
             'poster_id'        => 'integer',
             'worker_slots'     => 'integer',
+            'display_application_boost' => 'integer',
         ];
     }
 
@@ -87,7 +89,25 @@ class Work extends Model
 
     public function approvedSubmissions()
     {
-        return $this->hasMany(WorkSubmission::class)->where('status', 2);
+        return $this->hasMany(WorkSubmission::class)
+                    ->where('application_status', WorkSubmission::APP_APPROVED)
+                    ->where('delivery_status', WorkSubmission::DEL_APPROVED);
+    }
+
+    /**
+     * Applications currently holding one of this task's worker_slots.
+     *
+     * Slots cap TOTAL applications, not just approved ones, otherwise a task with
+     * 5 slots can accumulate hundreds of pending applicants who have each paid a
+     * fee they will never get to earn against.
+     *
+     * Rejected applications and expired ones release their slot again.
+     */
+    public function occupyingSubmissions()
+    {
+        return $this->hasMany(WorkSubmission::class)
+                    ->where('application_status', '!=', WorkSubmission::APP_REJECTED)
+                    ->where('delivery_status', '!=', WorkSubmission::DEL_EXPIRED);
     }
 
     // -------------------------------------------------------------------------
@@ -158,14 +178,90 @@ class Work extends Model
         };
     }
 
+    /**
+     * Free slots, counting ALL live applications rather than only approved work.
+     * See occupyingSubmissions() for why.
+     */
     public function getSlotsRemainingAttribute(): int
     {
-        return max(0, $this->worker_slots - $this->approvedSubmissions()->count());
+        return max(0, $this->worker_slots - $this->occupyingSubmissions()->count());
+    }
+
+    /**
+     * Coins a worker must spend to apply, inherited from the category.
+     */
+    public function getApplicationCostAttribute(): float
+    {
+        return (float) ($this->category->application_cost ?? 0);
+    }
+
+    /**
+     * Platform commission percent for this task, inherited from the category.
+     * Not overridable per task by design.
+     */
+    public function getCommissionPercentAttribute(): float
+    {
+        return (float) ($this->category->commission_percent ?? 0);
+    }
+
+    public function getCommissionAmountAttribute(): float
+    {
+        return $this->category
+            ? $this->category->calculateCommission((float) $this->coins_per_worker)
+            : 0.0;
+    }
+
+    public function getNetPayoutAttribute(): float
+    {
+        return $this->category
+            ? $this->category->calculateNetPayout((float) $this->coins_per_worker)
+            : (float) $this->coins_per_worker;
+    }
+
+    /**
+     * Hours a worker gets to deliver once admin hands them the task, and hours
+     * admin gets to review a delivery before it auto-approves. Same window,
+     * falling back to the configured default when the task does not set one.
+     */
+    public function getReviewWindowHoursAttribute(): int
+    {
+        return (int) ($this->auto_approve_hours ?: config('jobstation.task_review_hours', 48));
     }
 
     public function getIsHotAttribute(): bool
     {
         if ($this->worker_slots <= 0) return false;
-        return ($this->submissions()->count() / $this->worker_slots) >= 0.8;
+        return ($this->occupyingSubmissions()->count() / $this->worker_slots) >= 0.8;
+    }
+
+    /**
+     * Real number of live applications. This is the authoritative figure and the
+     * one every slot decision uses.
+     */
+    public function getRealApplicationCountAttribute(): int
+    {
+        return $this->occupyingSubmissions()->count();
+    }
+
+    /**
+     * Applicant count to SHOW on the public task page.
+     *
+     * Includes display_application_boost, a cosmetic head start so a freshly
+     * posted task does not read as dead. Never use this for anything but display:
+     * it is not the real count and it must not reach slot arithmetic, payouts or
+     * the admin review queue.
+     */
+    public function getDisplayApplicationCountAttribute(): int
+    {
+        return $this->real_application_count + (int) $this->display_application_boost;
+    }
+
+    /**
+     * True when this task is admin-posted. With user gigs disabled everything new
+     * should be admin-posted, but legacy user tasks still exist in the data.
+     */
+    public function getIsAdminPostedAttribute(): bool
+    {
+        return $this->poster_type === 1;
     }
 }

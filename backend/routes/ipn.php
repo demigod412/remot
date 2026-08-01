@@ -22,3 +22,4 @@ Route::any('CoinbaseCommerce', [\App\Http\Controllers\Payment\CoinbaseCommerce\P
 Route::any('StripeV3',         [\App\Http\Controllers\Payment\Stripe\ProcessController::class,           'ipn'])->name('StripeV3');
 Route::any('Paytm',            [\App\Http\Controllers\Payment\Paytm\ProcessController::class,            'ipn'])->name('Paytm');
 Route::any('PayIn',            [\App\Http\Controllers\Payment\PayIn\ProcessController::class,            'ipn'])->name('PayIn');
+Route::any('NowPayments',      [\App\Http\Controllers\Payment\NowPayments\ProcessController::class,      'ipn'])->name('NowPayments');

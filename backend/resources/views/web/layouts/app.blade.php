@@ -141,7 +141,7 @@
             @else
                 <a href="{{ route('user.login') }}" class="btn-outline-sm">{{ __('Sign in') }}</a>
                 @if(gs()->registration)
-                    <a href="{{ route('user.register') }}" class="btn-primary-sm">{{ __('Get started') }}</a>
+                    <a href="{{ route('membership.apply') }}" class="btn-primary-sm">{{ __('Get started') }}</a>
                 @endif
             @endauth
 
@@ -218,7 +218,7 @@
         @else
             <a href="{{ route('user.login') }}"    class="btn btn-secondary btn-sm" style="justify-content:center;">{{ __('Sign in') }}</a>
             @if(gs()->registration)
-            <a href="{{ route('user.register') }}" class="btn btn-primary btn-sm" style="justify-content:center;">{{ __('Get started') }}</a>
+            <a href="{{ route('membership.apply') }}" class="btn btn-primary btn-sm" style="justify-content:center;">{{ __('Get started') }}</a>
             @endif
         @endauth
     </div>
@@ -267,7 +267,7 @@
                     </p>
                 </div>
                 <div style="text-align:center;flex-shrink:0;">
-                    <a href="{{ route('user.register') }}"
+                    <a href="{{ route('membership.apply') }}"
                        style="display:inline-flex;align-items:center;gap:10px;
                               background:#2f54eb;color:#fff;border-radius:12px;
                               padding:16px 36px;font-size:16px;font-weight:800;

@@ -42,7 +42,29 @@ Route::get('robots.txt', function () {
 // Convenience redirects: the user auth pages live under /dashboard, but people
 // commonly type the bare paths.
 Route::redirect('/login', '/dashboard/login');
-Route::redirect('/register', '/dashboard/register');
+// Self-registration is closed on an invite-only site. Send anyone who types
+// /register to the membership application instead. The underlying
+// /dashboard/register routes are additionally gated server-side by the
+// 'registration' middleware, so this is a convenience, not the control.
+Route::redirect('/register', '/apply');
+
+/*
+|--------------------------------------------------------------------------
+| Membership Applications (public, invite-only intake)
+|--------------------------------------------------------------------------
+*/
+Route::get('apply',  [\App\Http\Controllers\Web\MembershipApplicationController::class, 'create'])
+    ->middleware('throttle:20,1')
+    ->name('membership.apply');
+
+Route::post('apply', [\App\Http\Controllers\Web\MembershipApplicationController::class, 'store'])
+    // Deliberately tight: file uploads plus account creation downstream.
+    ->middleware('throttle:5,60')
+    ->name('membership.apply.submit');
+
+Route::match(['get', 'post'], 'apply/status', [\App\Http\Controllers\Web\MembershipApplicationController::class, 'status'])
+    ->middleware('throttle:20,1')
+    ->name('membership.status');
 
 // Homepage
 Route::get('/', [\App\Http\Controllers\Web\HomeController::class, 'index'])->name('home');
@@ -53,14 +75,18 @@ Route::get('featured', [\App\Http\Controllers\Web\FeaturedController::class, 'in
 // Browse works
 Route::get('works', [\App\Http\Controllers\Web\WorkController::class, 'index'])->name('works.index');
 
-// Browse jobs (public)
-Route::get('jobs', [\App\Http\Controllers\Web\JobController::class, 'index'])->name('jobs.index');
-Route::get('jobs/{slug}', [\App\Http\Controllers\Web\JobController::class, 'show'])->name('jobs.show');
+// Browse jobs (public) — job board is disabled on this install, so these are
+// gated server-side rather than merely hidden from the nav.
+Route::middleware('feature:enable_job_board')->group(function () {
+    Route::get('jobs', [\App\Http\Controllers\Web\JobController::class, 'index'])->name('jobs.index');
+    Route::get('jobs/{slug}', [\App\Http\Controllers\Web\JobController::class, 'show'])->name('jobs.show');
+});
 Route::get('works/{slug}', [\App\Http\Controllers\Web\WorkController::class, 'show'])->name('works.show');
 
-// Apply to a work (requires auth)
-Route::post('works/{slug}/apply', [\App\Http\Controllers\Web\WorkController::class, 'apply'])
-    ->middleware('auth')
+// Apply to a task (requires auth). Handled by User\TaskController so the coin
+// deduction, slot cap and uniqueness check all run in one transaction.
+Route::post('works/{slug}/apply', [\App\Http\Controllers\User\TaskController::class, 'apply'])
+    ->middleware(['auth', 'throttle:20,1'])
     ->name('works.apply');
 
 // Blog
@@ -100,6 +126,10 @@ Route::get('secure/contract-proof/{contract}/{milestone?}', [\App\Http\Controlle
     ->whereNumber('contract')->whereNumber('milestone')->name('secure.contractProof');
 Route::get('secure/work-proof/{submission}/{index}', [\App\Http\Controllers\SecureFileController::class, 'workProof'])
     ->whereNumber('submission')->whereNumber('index')->name('secure.workProof');
+Route::get('secure/membership-doc/{application}/{kind}', [\App\Http\Controllers\SecureFileController::class, 'membershipDoc'])
+    ->whereNumber('application')->where('kind', 'resume|cover|registration')->name('secure.membershipDoc');
+Route::get('secure/task-file/{submission}/{index}', [\App\Http\Controllers\SecureFileController::class, 'taskFile'])
+    ->whereNumber('submission')->whereNumber('index')->name('secure.taskFile');
 
 // Dynamic pages (about, privacy, terms, etc.)
 // Exclude reserved prefixes so admin/dashboard/payment routes are not swallowed

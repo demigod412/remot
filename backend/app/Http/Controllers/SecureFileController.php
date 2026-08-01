@@ -140,6 +140,56 @@ class SecureFileController extends Controller
      * A work-submission proof file (by array index). Viewable by the work poster,
      * the worker who submitted it, an admin, or via a signed URL.
      */
+    /**
+     * Membership application documents (CV, cover letter, business registration).
+     *
+     * Admin only. Applicants have no account yet, so there is no owner to check
+     * against, and these files contain personal data.
+     */
+    public function membershipDoc(Request $request, int $application, string $kind)
+    {
+        abort_unless(
+            $request->hasValidSignature() || Auth::guard('admin')->check(),
+            403
+        );
+
+        $app = \App\Models\MembershipApplication::findOrFail($application);
+
+        $filename = match ($kind) {
+            'resume'       => $app->resume_path,
+            'cover'        => $app->cover_letter_path,
+            'registration' => $app->business_registration_doc,
+            default        => null,
+        };
+
+        abort_if(! $filename, 404);
+
+        $path = trim(config('jobstation.upload_paths.membership_docs', 'uploads/membership/documents'), '/');
+
+        return $this->stream($path . '/' . $filename);
+    }
+
+    /**
+     * A task package file delivered to an assigned worker.
+     */
+    public function taskFile(Request $request, int $submission, int $index)
+    {
+        $row = \App\Models\WorkSubmission::findOrFail($submission);
+
+        $authorised = $request->hasValidSignature()
+            || Auth::guard('admin')->check()
+            || $this->isViewer($row->worker_id);
+
+        abort_unless($authorised, 403);
+
+        $filename = ($row->task_files ?? [])[$index] ?? null;
+        abort_if(! $filename, 404);
+
+        $path = trim(config('jobstation.upload_paths.task_files', 'uploads/tasks/packages'), '/');
+
+        return $this->stream($path . '/' . $filename);
+    }
+
     public function workProof(Request $request, int $submission, int $index)
     {
         $row      = WorkSubmission::with('work')->findOrFail($submission);

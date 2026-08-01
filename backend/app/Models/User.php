@@ -23,6 +23,8 @@ class User extends Authenticatable
         'two_fa_enabled', 'two_fa_verified', 'two_fa_secret', 'ban_reason',
         'avatar', 'password_reset_token', 'locale', 'account_type',
         'firebase_uid',
+        // 1=individual, 2=business. Separate concept from account_type.
+        'user_type', 'must_change_password',
     ];
 
     protected $hidden = ['password', 'remember_token', 'two_fa_secret'];
@@ -40,8 +42,14 @@ class User extends Authenticatable
             'phone_verified'      => 'boolean',
             'two_fa_enabled'      => 'boolean',
             'two_fa_verified'     => 'boolean',
+            'user_type'           => 'integer',
+            'must_change_password' => 'boolean',
+            'strikes_cleared_at'  => 'datetime',
         ];
     }
+
+    public const TYPE_INDIVIDUAL = 1;
+    public const TYPE_BUSINESS   = 2;
 
     // -------------------------------------------------------------------------
     // Accessors
@@ -50,6 +58,16 @@ class User extends Authenticatable
     public function getFullnameAttribute(): string
     {
         return trim("{$this->firstname} {$this->lastname}");
+    }
+
+    public function getUserTypeLabelAttribute(): string
+    {
+        return $this->user_type === self::TYPE_BUSINESS ? 'Business' : 'Individual';
+    }
+
+    public function getIsBusinessAttribute(): bool
+    {
+        return $this->user_type === self::TYPE_BUSINESS;
     }
 
     // -------------------------------------------------------------------------
@@ -192,6 +210,21 @@ class User extends Authenticatable
     public function scopeActive($query)
     {
         return $query->where('status', 1);
+    }
+
+    public function scopeIndividual($query)
+    {
+        return $query->where('user_type', self::TYPE_INDIVIDUAL);
+    }
+
+    public function scopeBusiness($query)
+    {
+        return $query->where('user_type', self::TYPE_BUSINESS);
+    }
+
+    public function scopeMustChangePassword($query)
+    {
+        return $query->where('must_change_password', 1);
     }
 
     public function scopeBanned($query)

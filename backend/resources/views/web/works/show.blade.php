@@ -147,12 +147,28 @@
                         <span style="font-weight:500; color:var(--text);">~{{ $work->time_limit }} min</span>
                     </div>
                     @endif
+                    {{--
+                        Spots available is the REAL figure. display_application_boost is
+                        deliberately not applied here: overstating scarcity to someone
+                        about to spend a non-refundable fee is a different thing from a
+                        soft popularity signal.
+                    --}}
                     <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
                         <span style="color:var(--muted);">Spots available</span>
                         <span style="font-weight:600; color:{{ $slotsRemaining < 5 ? 'var(--urgent)' : 'var(--text)' }};">
                             {{ $slotsRemaining }} <span style="color:var(--muted); font-weight:400;">of {{ $work->worker_slots }}</span>
                         </span>
                     </div>
+
+                    {{-- Applicant count. Includes the admin display boost. --}}
+                    @if($work->display_application_count > 0)
+                    <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
+                        <span style="color:var(--muted);">Workers applied</span>
+                        <span style="font-weight:500; color:var(--text);">
+                            {{ number_format($work->display_application_count) }}
+                        </span>
+                    </div>
+                    @endif
                     @if($work->auto_approve_hours)
                     <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
                         <span style="color:var(--muted);">Review SLA</span>

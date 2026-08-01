@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\AdminNotification;
 use App\Models\LedgerEntry;
 use App\Models\User;
+use App\Services\ActivityLogger;
+use App\Services\WorkerReliabilityService;
 use App\Models\WorkSubmission;
 use App\Services\NotifyService;
 use Illuminate\Http\Request;
@@ -109,7 +111,9 @@ class UserController extends Controller
             ->limit(5)
             ->get();
 
-        return view('admin.users.show', compact('user', 'stats', 'recentLedger', 'recentSubmissions'));
+        $reliability = app(WorkerReliabilityService::class)->summary($user);
+
+        return view('admin.users.show', compact('user', 'stats', 'recentLedger', 'recentSubmissions', 'reliability'));
     }
 
     // -------------------------------------------------------------------------
@@ -155,6 +159,16 @@ class UserController extends Controller
 
             $msg = "User {$user->username} has been unbanned.";
         }
+
+        // Irreversible from the user's point of view, so it gets an audit row.
+        ActivityLogger::log(
+            $user->status == 0 ? 'user.ban' : 'user.unban',
+            $user,
+            [
+                'username' => $user->username,
+                'reason'   => $user->ban_reason,
+            ]
+        );
 
         // Notify admin
         AdminNotification::notify(
@@ -209,6 +223,17 @@ class UserController extends Controller
                 'category'      => 'admin',
             ]);
         });
+
+        ActivityLogger::logMoney(
+            $data['type'] === 'add' ? 'user.credit' : 'user.debit',
+            $user,
+            $amount,
+            $user->id,
+            [
+                'reason'        => $data['reason'],
+                'balance_after' => (float) $user->fresh()->coin_balance,
+            ]
+        );
 
         $action = $data['type'] === 'add' ? 'added to' : 'deducted from';
         return back()->with('success', formatCoins($amount) . " {$action} {$user->username}'s balance.");
@@ -354,6 +379,22 @@ class UserController extends Controller
     // -------------------------------------------------------------------------
     // Login As User (impersonate)
     // -------------------------------------------------------------------------
+
+    /**
+     * Forgive a worker's reliability strikes.
+     *
+     * Sets users.strikes_cleared_at rather than editing any submission, so the
+     * underlying history stays intact and auditable.
+     */
+    public function clearStrikes(int $id)
+    {
+        $user = User::findOrFail($id);
+
+        app(WorkerReliabilityService::class)
+            ->clearStrikes($user, Auth::guard('admin')->id());
+
+        return back()->with('success', "Reliability strikes cleared for {$user->username}.");
+    }
 
     public function loginAsUser(int $id)
     {

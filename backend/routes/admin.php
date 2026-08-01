@@ -36,6 +36,9 @@ Route::middleware('admin')->group(function () {
 
     // Users
     Route::prefix('users')->name('users.')->group(function () {
+        // Forgive worker reliability strikes (audited).
+        Route::post('{id}/clear-strikes', [\App\Http\Controllers\Admin\UserController::class, 'clearStrikes'])
+            ->whereNumber('id')->name('clear-strikes');
         Route::get('/',                          [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('index');
         Route::get('kyc',                        [\App\Http\Controllers\Admin\UserController::class, 'kycList'])->name('kyc');
         Route::get('{id}',                       [\App\Http\Controllers\Admin\UserController::class, 'show'])->name('show');
@@ -68,7 +71,38 @@ Route::middleware('admin')->group(function () {
         Route::post('{id}/feature', [\App\Http\Controllers\Admin\WorkController::class, 'toggleFeature'])->name('feature');
     });
 
-    // Submissions
+    /*
+    |--------------------------------------------------------------------------
+    | Membership Applications (invite-only intake queue)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('membership')->name('membership.')->group(function () {
+        Route::get('/',            [\App\Http\Controllers\Admin\MembershipApplicationController::class, 'index'])->name('index');
+        Route::get('{id}',         [\App\Http\Controllers\Admin\MembershipApplicationController::class, 'show'])->whereNumber('id')->name('show');
+        Route::post('{id}/approve', [\App\Http\Controllers\Admin\MembershipApplicationController::class, 'approve'])->whereNumber('id')->name('approve');
+        Route::post('{id}/reject',  [\App\Http\Controllers\Admin\MembershipApplicationController::class, 'reject'])->whereNumber('id')->name('reject');
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Task Review (two-axis application + delivery lifecycle)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('task-review')->name('task-review.')->group(function () {
+        Route::get('/',    [\App\Http\Controllers\Admin\TaskReviewController::class, 'index'])->name('index');
+        Route::get('{id}', [\App\Http\Controllers\Admin\TaskReviewController::class, 'show'])->whereNumber('id')->name('show');
+
+        Route::post('{id}/application/approve', [\App\Http\Controllers\Admin\TaskReviewController::class, 'approveApplication'])->whereNumber('id')->name('application.approve');
+        Route::post('{id}/application/reject',  [\App\Http\Controllers\Admin\TaskReviewController::class, 'rejectApplication'])->whereNumber('id')->name('application.reject');
+        Route::post('{id}/revision',            [\App\Http\Controllers\Admin\TaskReviewController::class, 'requestRevision'])->whereNumber('id')->name('revision');
+        Route::post('{id}/delivery/approve',    [\App\Http\Controllers\Admin\TaskReviewController::class, 'approveSubmission'])->whereNumber('id')->name('delivery.approve');
+        Route::post('{id}/delivery/reject',     [\App\Http\Controllers\Admin\TaskReviewController::class, 'rejectSubmission'])->whereNumber('id')->name('delivery.reject');
+    });
+
+    // Audit log
+    Route::get('audit-log', [\App\Http\Controllers\Admin\AuditLogController::class, 'index'])->name('audit-log');
+
+    // Submissions (legacy screens, kept for historical records)
     Route::prefix('submissions')->name('submissions.')->group(function () {
         Route::get('/',              [\App\Http\Controllers\Admin\WorkSubmissionController::class, 'index'])->name('index');
         Route::get('{id}',           [\App\Http\Controllers\Admin\WorkSubmissionController::class, 'show'])->name('show');
@@ -173,7 +207,7 @@ Route::middleware('admin')->group(function () {
     });
 
     // Job Listings
-    Route::prefix('jobs/listings')->name('jobs.listings.')->group(function () {
+    Route::middleware('feature:enable_job_board')->prefix('jobs/listings')->name('jobs.listings.')->group(function () {
         Route::get('/',             [\App\Http\Controllers\Admin\JobListingController::class, 'index'])->name('index');
         Route::get('{id}',          [\App\Http\Controllers\Admin\JobListingController::class, 'show'])->name('show');
         Route::post('{id}/approve', [\App\Http\Controllers\Admin\JobListingController::class, 'approve'])->name('approve');

@@ -133,6 +133,40 @@ class NotifyService
     }
 
     /**
+     * Send an email to an address with no User row behind it.
+     *
+     * Needed for membership application rejections: the applicant was never
+     * given an account, so there is no User to key sendEmailTo() off. Logged
+     * with user_id 0 so the notification history still shows it went out.
+     */
+    public static function sendRawEmail(
+        string $email,
+        string $name,
+        string $subject,
+        string $body
+    ): void {
+        $gs = gs();
+
+        try {
+            static::configureMailer($gs->mail_config ?? []);
+
+            Mail::to($email, $name)->send(new UserNotification($subject, $body));
+
+            NotificationLog::create([
+                'user_id'           => 0,
+                'sender'            => $gs->site_name ?? config('app.name'),
+                'sent_from'         => $gs->email_from ?? config('mail.from.address'),
+                'sent_to'           => $email,
+                'subject'           => $subject,
+                'message'           => $body,
+                'notification_type' => 'email',
+            ]);
+        } catch (\Throwable $e) {
+            Log::error("NotifyService raw email failed for {$email}: " . $e->getMessage());
+        }
+    }
+
+    /**
      * Send a raw SMS directly.
      */
     public static function sendSmsTo(User $user, string $message): void
