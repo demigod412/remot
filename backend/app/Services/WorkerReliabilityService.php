@@ -78,7 +78,7 @@ class WorkerReliabilityService
         $counts = WorkSubmission::query()
             ->where('worker_id', $user->id)
             ->where('worker_type', 2)
-            ->where('updated_at', '>=', $since)
+            ->where('updated_at', '>', $since)
             ->selectRaw('delivery_status, COUNT(*) as total')
             ->groupBy('delivery_status')
             ->pluck('total', 'delivery_status');
