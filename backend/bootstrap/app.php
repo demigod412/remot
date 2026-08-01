@@ -26,7 +26,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 ->group(base_path('routes/ipn.php'));
 
             // API served under /api/v1/
-            Route::middleware('api')
+            // Gated by jobstation.features.enable_api (default false). The API has
+            // its own register / works.store / jobs.store / works.apply endpoints
+            // which bypass the marketplace rules, so it is off by default.
+            Route::middleware(['api', \App\Http\Middleware\EnsureApiEnabled::class])
                 ->prefix('api/v1')
                 ->group(base_path('routes/api.php'));
 
@@ -69,6 +72,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'locale'         => \App\Http\Middleware\LocaleMiddleware::class,
             'demo'           => \App\Http\Middleware\DemoMode::class,
             'kyc'            => \App\Http\Middleware\RequireKyc::class,
+            'api.enabled'    => \App\Http\Middleware\EnsureApiEnabled::class,
+            'feature'        => \App\Http\Middleware\FeatureEnabled::class,
+            'force.password' => \App\Http\Middleware\ForcePasswordChange::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

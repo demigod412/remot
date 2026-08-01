@@ -7,6 +7,7 @@ use App\Models\AdminNotification;
 use App\Models\Cashout;
 use App\Models\LedgerEntry;
 use App\Models\User;
+use App\Services\ActivityLogger;
 use App\Services\NotifyService;
 use App\Services\Payout\PayoutService;
 use Illuminate\Http\Request;
@@ -128,6 +129,10 @@ class CashoutController extends Controller
             ]);
         }
 
+        ActivityLogger::logMoney('cashout.approve', $cashout, (float) $cashout->net_coins_deducted, $cashout->user_id, [
+            'reference' => $cashout->reference,
+        ]);
+
         return back()->with('success', 'Cashout approved.');
     }
 
@@ -212,6 +217,12 @@ class CashoutController extends Controller
             $cashout->update([
                 'status'     => 2,
                 'admin_note' => $data['admin_note'],
+            ]);
+
+            ActivityLogger::logMoney('cashout.reject', $cashout, (float) $cashout->net_coins_deducted, $cashout->user_id, [
+                'reference'  => $cashout->reference,
+                'admin_note' => $data['admin_note'],
+                'refunded'   => true,
             ]);
         });
 

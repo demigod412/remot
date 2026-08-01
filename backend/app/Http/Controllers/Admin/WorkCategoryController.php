@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\WorkCategory;
 use App\Models\WorkSubcategory;
+use App\Services\ResultSchemaValidator;
 use Illuminate\Http\Request;
 
 class WorkCategoryController extends Controller
@@ -17,11 +18,16 @@ class WorkCategoryController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:100', 'unique:work_categories,name'],
-            'icon' => ['nullable', 'string', 'max:50'],
-        ]);
-        $data['status'] = 1;
+        $data = $request->validate($this->rules());
+
+        [$schema, $error] = $this->parseSchema($request->input('result_schema'));
+        if ($error) {
+            return back()->withInput()->withErrors(['result_schema' => $error]);
+        }
+        $data['result_schema'] = $schema;
+        $data['schema_strict'] = $request->boolean('schema_strict');
+        $data['status']        = 1;
+
         WorkCategory::create($data);
         return back()->with('success', 'Category created.');
     }
@@ -29,12 +35,75 @@ class WorkCategoryController extends Controller
     public function update(Request $request, int $id)
     {
         $cat  = WorkCategory::findOrFail($id);
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:100', "unique:work_categories,name,{$id}"],
-            'icon' => ['nullable', 'string', 'max:50'],
-        ]);
+        $data = $request->validate($this->rules($id));
+
+        [$schema, $error] = $this->parseSchema($request->input('result_schema'));
+        if ($error) {
+            return back()->withInput()->withErrors(['result_schema' => $error]);
+        }
+        $data['result_schema'] = $schema;
+        $data['schema_strict'] = $request->boolean('schema_strict');
+
         $cat->update($data);
         return back()->with('success', 'Category updated.');
+    }
+
+    /**
+     * Commission, application cost and eligibility are set per category and
+     * inherited by every task in it. They are deliberately not overridable on the
+     * individual task form, so pricing stays consistent within a category.
+     */
+    protected function rules(?int $id = null): array
+    {
+        $unique = $id ? "unique:work_categories,name,{$id}" : 'unique:work_categories,name';
+
+        return [
+            'name'               => ['required', 'string', 'max:100', $unique],
+            'icon'               => ['nullable', 'string', 'max:50'],
+            'description'        => ['nullable', 'string', 'max:2000'],
+            // Platform cut on the worker payout.
+            'commission_percent' => ['required', 'numeric', 'min:0', 'max:100'],
+            // Coins a worker spends to apply to any task in this category.
+            'application_cost'   => ['required', 'numeric', 'min:0', 'max:99999999'],
+            // 0 = both, 1 = individuals only, 2 = businesses only.
+            'eligible_user_type' => ['required', 'integer', 'in:0,1,2'],
+        ];
+    }
+
+    /**
+     * Turn the textarea contents into a stored schema.
+     *
+     * Blank clears it, which switches this category back to "any valid JSON".
+     * A malformed schema is refused rather than saved, because a broken schema
+     * would silently reject every submission from then on.
+     *
+     * @return array{0: ?array, 1: ?string}  [schema, error message]
+     */
+    protected function parseSchema(?string $raw): array
+    {
+        $raw = trim((string) $raw);
+
+        if ($raw === '') {
+            return [null, null];
+        }
+
+        $decoded = json_decode($raw, true, 32);
+
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            return [null, 'The schema is not valid JSON: ' . json_last_error_msg() . '.'];
+        }
+
+        if (! is_array($decoded) || $decoded === []) {
+            return [null, 'The schema must be a JSON object.'];
+        }
+
+        $problems = app(ResultSchemaValidator::class)->validateSchema($decoded);
+
+        if ($problems !== []) {
+            return [null, 'Schema problems: ' . implode(' ', array_slice($problems, 0, 5))];
+        }
+
+        return [$decoded, null];
     }
 
     public function destroy(int $id)

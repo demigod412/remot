@@ -14,9 +14,15 @@ use Illuminate\Support\Facades\Route;
 // Guest routes
 Route::middleware('guest')->group(function () {
     Route::get('login', [\App\Http\Controllers\User\Auth\LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('login', [\App\Http\Controllers\User\Auth\LoginController::class, 'login'])->name('login.submit')->middleware('throttle:6,1');
-    Route::get('register', [\App\Http\Controllers\User\Auth\RegisterController::class, 'showRegistrationForm'])->name('register');
-    Route::post('register', [\App\Http\Controllers\User\Auth\RegisterController::class, 'register'])->name('register.submit')->middleware('throttle:6,1');
+    Route::post('login', [\App\Http\Controllers\User\Auth\LoginController::class, 'login'])->name('login.submit')->middleware('throttle:5,1');
+    // Self-registration is closed on an invite-only site. The 'registration'
+    // middleware already existed in this codebase but was applied to nothing;
+    // hanging it here is what actually shuts the door. Redirecting /register in
+    // web.php only changes a link.
+    Route::middleware('registration')->group(function () {
+        Route::get('register', [\App\Http\Controllers\User\Auth\RegisterController::class, 'showRegistrationForm'])->name('register');
+        Route::post('register', [\App\Http\Controllers\User\Auth\RegisterController::class, 'register'])->name('register.submit')->middleware('throttle:6,1');
+    });
     Route::get('forgot-password', [\App\Http\Controllers\User\Auth\ForgotPasswordController::class, 'showForm'])->name('forgot-password');
     Route::post('forgot-password', [\App\Http\Controllers\User\Auth\ForgotPasswordController::class, 'sendCode'])->name('forgot-password.send')->middleware('throttle:6,1');
     Route::get('verify-code', [\App\Http\Controllers\User\Auth\ForgotPasswordController::class, 'showVerifyForm'])->name('verify-code');
@@ -30,7 +36,11 @@ Route::middleware('guest')->group(function () {
 });
 
 // Authenticated routes
-Route::middleware('auth')->group(function () {
+//
+// force.password sits on the whole group so an admin-created account on a
+// temporary password cannot reach anything by deep-linking. The middleware
+// allows through only the change-password screen and logout.
+Route::middleware(['auth', 'force.password'])->group(function () {
 
     Route::post('logout', [\App\Http\Controllers\User\Auth\LoginController::class, 'logout'])->name('logout');
 
@@ -45,8 +55,28 @@ Route::middleware('auth')->group(function () {
     Route::get('complete-profile', [\App\Http\Controllers\User\DashboardController::class, 'onboarding'])->name('onboarding');
     Route::post('complete-profile', [\App\Http\Controllers\User\DashboardController::class, 'completeOnboarding'])->name('onboarding.submit');
 
+    // Forced password change for admin-created accounts. Must sit OUTSIDE the
+    // force.password middleware or the user is trapped in a redirect loop.
+    Route::get('change-password',  [\App\Http\Controllers\User\PasswordChangeController::class, 'show'])->name('password.change');
+    Route::post('change-password', [\App\Http\Controllers\User\PasswordChangeController::class, 'update'])
+        ->middleware('throttle:10,1')->name('password.change.submit');
+
     // Dashboard
     Route::get('/', [\App\Http\Controllers\User\DashboardController::class, 'index'])->name('dashboard');
+
+    /*
+    |--------------------------------------------------------------------------
+    | My Tasks (microtask lifecycle)
+    |--------------------------------------------------------------------------
+    */
+    Route::prefix('tasks')->name('tasks.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\User\TaskController::class, 'index'])->name('index');
+        Route::get('{id}', [\App\Http\Controllers\User\TaskController::class, 'show'])->name('show');
+        Route::get('{id}/files/{index}', [\App\Http\Controllers\User\TaskController::class, 'downloadTaskFile'])
+            ->whereNumber(['id', 'index'])->name('files');
+        Route::post('{id}/submit', [\App\Http\Controllers\User\TaskController::class, 'submitResult'])
+            ->middleware('throttle:20,1')->name('submit');
+    });
 
     // Browse Works (dashboard-internal)
     Route::get('browse-works', [\App\Http\Controllers\User\WorkBrowseController::class, 'index'])->name('browse.works');
@@ -70,7 +100,10 @@ Route::middleware('auth')->group(function () {
     })->name('works.subcategories');
 
     // My Works (posted)
-    Route::prefix('works')->name('works.')->group(function () {
+    // User-posted gigs are disabled on this install. The whole group is gated
+    // server-side, so a hand-crafted POST to works.store gets a 403 rather than
+    // creating a task.
+    Route::middleware('feature:enable_user_gigs')->prefix('works')->name('works.')->group(function () {
         Route::get('/', [\App\Http\Controllers\User\WorkController::class, 'index'])->name('index');
         Route::get('create', [\App\Http\Controllers\User\WorkController::class, 'create'])->middleware('kyc')->name('create');
         Route::post('/', [\App\Http\Controllers\User\WorkController::class, 'store'])->middleware('kyc')->name('store');
