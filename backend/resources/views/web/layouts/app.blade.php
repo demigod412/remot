@@ -140,8 +140,16 @@
                 <a href="{{ route('user.dashboard') }}" class="btn-primary-sm">{{ __('Dashboard') }}</a>
             @else
                 <a href="{{ route('user.login') }}" class="btn-outline-sm">{{ __('Sign in') }}</a>
-                @if(gs()->registration)
-                    <a href="{{ route('membership.apply') }}" class="btn-primary-sm">{{ __('Get started') }}</a>
+                {{--
+                    On an invite-only site the public entry point is the membership
+                    application, so this must NOT be gated on gs()->registration.
+                    That flag now switches self-registration OFF, which would have
+                    hidden the apply button and left no way in at all.
+                --}}
+                @if(config('jobstation.features.invite_only', true))
+                    <a href="{{ route('membership.apply') }}" class="btn-primary-sm">{{ __('Apply to join') }}</a>
+                @elseif(gs()->registration)
+                    <a href="{{ route('user.register') }}" class="btn-primary-sm">{{ __('Get started') }}</a>
                 @endif
             @endauth
 
@@ -217,8 +225,10 @@
             <a href="{{ route('user.dashboard') }}" class="btn btn-primary btn-sm" style="justify-content:center;">{{ __('Dashboard') }}</a>
         @else
             <a href="{{ route('user.login') }}"    class="btn btn-secondary btn-sm" style="justify-content:center;">{{ __('Sign in') }}</a>
-            @if(gs()->registration)
-            <a href="{{ route('membership.apply') }}" class="btn btn-primary btn-sm" style="justify-content:center;">{{ __('Get started') }}</a>
+            @if(config('jobstation.features.invite_only', true))
+            <a href="{{ route('membership.apply') }}" class="btn btn-primary btn-sm" style="justify-content:center;">{{ __('Apply to join') }}</a>
+            @elseif(gs()->registration)
+            <a href="{{ route('user.register') }}" class="btn btn-primary btn-sm" style="justify-content:center;">{{ __('Get started') }}</a>
             @endif
         @endauth
     </div>
