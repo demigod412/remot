@@ -3,52 +3,55 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LedgerEntry extends Model
 {
-    public const SYSTEM_ACCOUNT_ID = 0;
-
     protected $fillable = [
-        'user_id',
-        'type',
-        'amount',
-        'currency',
-        'reference',
-        'description',
-        'balance_after',
+        'user_id', 'coins', 'fee', 'balance_after',
+        'entry_type', 'reference', 'description', 'category',
     ];
 
-    protected $casts = [
-        'amount'        => 'decimal:4',
-        'balance_after' => 'decimal:4',
-    ];
-
-    public function user(): BelongsTo
+    protected function casts(): array
     {
-        return $this->belongsTo(User::class)->withDefault([
-            'name'  => 'Platform (System)',
-            'email' => null,
-        ]);
+        return [
+            'coins'        => 'decimal:8',
+            'fee'          => 'decimal:8',
+            'balance_after'=> 'decimal:8',
+        ];
     }
 
-    public function isSystemAccount(): bool
+    public function user()
     {
-        return (int) $this->user_id === self::SYSTEM_ACCOUNT_ID;
+        return $this->belongsTo(User::class);
     }
 
-    public function scopeCoin($query)
+    public function scopeCredits($query)
     {
-        return $query->where('currency', 'coin');
+        return $query->where('entry_type', '+');
     }
 
-    public function scopeUsd($query)
+    public function scopeDebits($query)
     {
-        return $query->where('currency', 'usd');
+        return $query->where('entry_type', '-');
     }
 
-    public function scopeForReference($query, string $reference)
+    public function scopeByCategory($query, string $category)
     {
-        return $query->where('reference', $reference);
+        return $query->where('category', $category);
+    }
+
+    public function getIsDebitAttribute(): bool
+    {
+        return $this->entry_type === '-';
+    }
+
+    public function getIsCreditAttribute(): bool
+    {
+        return $this->entry_type === '+';
+    }
+
+    public function getCategoryLabelAttribute(): string
+    {
+        return config('jobstation.ledger_categories')[$this->category] ?? ucfirst($this->category ?? '');
     }
 }
