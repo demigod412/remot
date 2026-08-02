@@ -1,0 +1,1882 @@
+diff --git a/SESSION-NOTES.md b/SESSION-NOTES.md
+new file mode 100644
+index 0000000..9b19313
+--- /dev/null
++++ b/SESSION-NOTES.md
+@@ -0,0 +1,204 @@
++# Session notes — integration gaps + apply page rebuild
++
++Worked against `main`. Every diagnosis in the handover doc was checked against the
++actual file before anything was changed, and every edit was grep-confirmed
++afterwards.
++
++**Not verified by running tests.** There is no PHP/Composer in the environment this
++was done in and Packagist was unreachable, so `php artisan test` was never run.
++PHP files were checked with `php -l`. Blade templates were checked with a
++purpose-built compiler emulation (see "Blade linting" below). Treat the test suite
++as unverified until you run it.
++
++---
++
++## 1. Corrections to the handover doc
++
++| Doc said | Actually |
++|---|---|
++| `main` has moved on, reconcile before merging | `main` and `feature/admin-curated-marketplace` are byte-identical. PR #1 is merged (`2e665d7`). Nothing to reconcile. |
++| Worker accountability disabled via `JOBSTATION_MAX_STRIKES=0` | `config/jobstation.php` defaults `max_strikes` to **6**, i.e. enabled. The disable must live in `.env`, which is not in the repo. Confirm before assuming strikes are off. |
++| 6.2: category filtering is probably a missing UI affordance | The filter UI **already exists** in both places: a radio sidebar in `web/works/index.blade.php` (~line 66) and a `<select name="category">` in `user/works/browse.blade.php` (~line 63). `category_id` is `required` in `Admin\WorkController` validation, and categories are force-created with `status = 1`. Query layer, data layer and filter UI are all sound. See §4. |
++| 6.8: `Api/Auth/RegisterController.php:75` is one known offender | There are **23** raw `increment`/`decrement('coin_balance')` call sites outside `CoinService`. See §5. |
++
++---
++
++## 2. Root cause fixed (doc §5) — new admin screens wired into the nav
++
++`resources/views/admin/layouts/app.blade.php`
++
++- **Task Review** added to the Works submenu, with a pending badge counting
++  `application_status = APP_APPLIED OR delivery_status = DEL_SUBMITTED`.
++- Legacy **Submissions** relabelled `Submissions (legacy)`, badge removed, and
++  commented to say its approve path bypasses category commission.
++- **Membership** added as a top-level link with a pending-applications badge.
++- **Audit Log** added as the first entry under Reports.
++- Parent `active` classes and Alpine `open` state updated so the right submenu
++  expands on each of these routes.
++
++`resources/views/user/layouts/app.blade.php`
++
++- **My Tasks** added (`user.tasks.index`). Its absence is what made the JSON
++  result upload (doc 6.6) unreachable rather than broken.
++
++### Dead nav links not mentioned in the doc
++
++The worker sidebar linked five routes that `FeatureEnabled` 403s server-side: the
++whole **Jobs** section (`enable_job_board`) and **My Works** (`enable_user_gigs`).
++Both are now gated behind their own flags with array spreads, so flipping the env
++value restores the nav and the routes together instead of leaving one without the
++other.
++
++---
++
++## 3. Free-application hole (doc 6.4 — root cause is different)
++
++`app/Http/Controllers/User/WorkBrowseController.php::start()`
++
++6.4 was reported as "applying immediately says start work". It was not a display
++bug. `start()` was a second, parallel application path that called
++`WorkSubmission::create()` directly and therefore:
++
++- **charged no application fee at all** — no `CoinService` call, no ledger row, no
++  `fee_reference`, so the coin maths could never reconcile;
++- left `application_status` / `delivery_status` at their column defaults instead of
++  moving through the lifecycle;
++- honoured `works.allow_multiple_submissions`, retired in migration 0070;
++- skipped the eligibility, user-type, KYC and reliability checks;
++- redirected to the **legacy proof form**, which is why the task read as started
++  before an admin had approved anything or delivered a package.
++
++This also accounts for a slice of 6.8 that the legacy-admin-screen diagnosis does
++not cover: coins were never deducted on the way *in*, not merely mis-credited on
++the way out.
++
++`start()` is now a thin wrapper over `TaskApplicationService::apply()` — the same
++tested path `works.apply` uses — mirroring `User\TaskController::apply()`. The
++route name is unchanged so existing links keep working.
++
++Also in that controller: the `allow_multiple_submissions` re-apply branch is gone.
++One application per worker per task is now absolute, matching the unique index.
++
++`resources/views/user/works/detail.blade.php` now shows `lifecycle_label` instead
++of "Already started", links to `user.tasks.show` instead of the legacy proof form,
++states the non-refundable fee **before** the click, and offers no work-start
++affordance until `isApprovedToWork()` is true.
++
++---
++
++## 4. Fake applicant count (doc 6.3) and reliability card
++
++- `admin/works/create.blade.php` and `edit.blade.php` now
++  `@include('admin.partials.work-display-boost-field', ...)`, passing `work`
++  explicitly (`null` on create, `$work` on edit) per the `@forelse` leak rule.
++  Validation already existed at `Admin\WorkController` lines 93 and 179.
++- `admin/users/show.blade.php` now includes
++  `admin.partials.user-reliability-card`. `Admin\UserController::show()` already
++  passed `$reliability` (line 114).
++
++Re-run these two after applying, since they assert the boost never touches slots:
++`test_display_boost_inflates_shown_count_but_not_slots`,
++`test_boosted_task_still_accepts_a_full_set_of_real_workers`.
++
++---
++
++## 5. Apply page rebuilt (doc 6.1)
++
++`resources/views/web/membership/apply.blade.php`, plus two new partials:
++
++- `web/membership/partials/file-drop.blade.php` — drag-and-drop zone with
++  filename and human-readable size display, a Remove button, keyboard access
++  (Enter/Space), and client-side extension + size checks that read their limits
++  from `config('jobstation.membership.*')` so they can never drift from
++  `MembershipApplicationRequest`. Dropped files are assigned onto the real
++  `<input type="file">`, so submission is still a plain multipart POST with no
++  AJAX, and the field degrades to a native picker without JavaScript.
++- `web/membership/partials/step-heading.blade.php` — numbered step headings.
++
++The form is now four visually separated steps, the applicant type is a pair of
++selectable cards rather than bare radios, every field has inline `@error` output
++and a red border on failure, and the submit button disables itself and shows a
++spinner plus "do not close this page" while documents upload.
++
++Stack unchanged: Blade + Alpine + existing CSS variables. No new frontend
++dependency. Inline styles were kept because that is the convention in every
++sibling view and Tailwind v4 here has no config file, so class scanning over these
++templates is not something I could confirm.
++
++Client-side validation is a courtesy only. The server re-validates both type and
++size.
++
++---
++
++## 6. Blade linting
++
++The doc notes the views are never exercised by any test and that this is where
++every bug has been found. Since the suite could not be run, the Blade layer was
++checked instead by emulating the compiler's regex passes in the correct order
++(raw PHP extracted before comments are stripped, non-greedy echo matching so the
++`}}}` early-termination trap reproduces rather than hides) and running `php -l`
++over the output.
++
++**All 162 templates in `resources/views` parse cleanly**, including the three new
++and six modified ones. Two apparent failures during the sweep turned out to be
++gaps in the emulation (`@forelse`/`@empty`/`@endforelse` nesting, and
++`@auth`/`@guest` with `@else`), not defects in the templates.
++
++This is worth turning into a real smoke test — a feature test that GETs each
++route and asserts 200 would have caught every Blade bug in this project's history.
++It is the single highest-value test you do not yet have.
++
++---
++
++## 7. Audit finding, deliberately not acted on
++
++23 raw balance mutations exist outside `CoinService`:
++
++```
++app/Services/Payment/PaymentService.php:58
++app/Services/Payout/PayoutService.php:85
++app/Http/Controllers/Api/WalletController.php:325,408,421
++app/Http/Controllers/Api/WorkSubmissionController.php:117
++app/Http/Controllers/Api/Auth/RegisterController.php:75
++app/Http/Controllers/Api/WorkController.php:213,274
++app/Http/Controllers/Admin/WorkSubmissionController.php:96,179
++app/Http/Controllers/Admin/CashoutController.php:202
++app/Http/Controllers/Admin/WorkController.php:313
++app/Http/Controllers/Admin/CoinTopupController.php:70
++app/Http/Controllers/Admin/UserController.php:203,209
++app/Http/Controllers/User/WalletController.php:338
++app/Http/Controllers/User/WorkSubmissionController.php:145,245
++app/Http/Controllers/User/Auth/RegisterController.php:88
++app/Http/Controllers/User/WorkController.php:100,170
++```
++
++Triage:
++
++- `Api/*` — unreachable, `EnsureApiEnabled` 404s the whole group.
++- `User/WorkSubmissionController.php:145,245` and `User/WorkController.php` —
++  behind `feature:enable_user_gigs`, so unreachable while gigs are off. Worth
++  noting that 145/245 credit `coins_per_worker` with **no commission deduction**,
++  so they must not be re-enabled as-is.
++- `Admin/WorkSubmissionController.php:96,179` — the known legacy path. Reachable.
++  Resolution depends on Q2.
++- The rest (topup, cashout, transfers, admin adjustments) are pre-existing script
++  code that writes its own ledger rows.
++
++None were changed. That is money code, and the project's own rules say not to
++touch it without the suite green, which could not be done here.
++
++---
++
++## 8. Still outstanding
++
++- **6.2** — needs Q4 answered. The filter UI already exists in both browse views,
++  so the only thing left to build is a discovery affordance (category tiles or a
++  landing page), which is precisely what Q4 asks about. Building the wrong one is
++  wasted work.
++- **6.7** — `php artisan db:seed --class=MarketplaceSeeder`. A command to run, not
++  code to write.
++- **6.9** — blocked on Q1. The doc is explicit that the balance model must be
++  agreed before coding, and this moves money.
++- **Q2, Q3, Q5** — unanswered.
++- Nothing was committed. Review the working tree, then commit in reviewable
++  chunks.
+diff --git a/backend/app/Http/Controllers/Admin/WorkSubmissionController.php b/backend/app/Http/Controllers/Admin/WorkSubmissionController.php
+deleted file mode 100644
+index befd7e1..0000000
+--- a/backend/app/Http/Controllers/Admin/WorkSubmissionController.php
++++ /dev/null
+@@ -1,206 +0,0 @@
+-<?php
+-
+-namespace App\Http\Controllers\Admin;
+-
+-use App\Http\Controllers\Controller;
+-use App\Models\LedgerEntry;
+-use App\Models\User;
+-use App\Models\Work;
+-use App\Models\WorkCategory;
+-use App\Models\WorkSubmission;
+-use App\Services\NotifyService;
+-use Illuminate\Http\Request;
+-use Illuminate\Support\Facades\DB;
+-
+-class WorkSubmissionController extends Controller
+-{
+-    // -------------------------------------------------------------------------
+-    // Index
+-    // -------------------------------------------------------------------------
+-
+-    public function index(Request $request)
+-    {
+-        $query = WorkSubmission::with(['work', 'worker']);
+-
+-        if ($request->filled('work_id')) {
+-            $query->where('work_id', $request->input('work_id'));
+-        }
+-
+-        if ($request->filled('status')) {
+-            $query->where('status', $request->input('status'));
+-        }
+-
+-        if ($search = $request->input('search')) {
+-            $query->whereHas('worker', fn ($q) =>
+-                $q->where('username', 'like', "%{$search}%")
+-                  ->orWhere('email', 'like', "%{$search}%")
+-            )->orWhereHas('work', fn ($q) =>
+-                $q->where('title', 'like', "%{$search}%")
+-            );
+-        }
+-
+-        // Mark all loaded submissions as read
+-        $query->latest();
+-        $submissions = $query->paginate(config('jobstation.per_page', 20))->withQueryString();
+-
+-        WorkSubmission::whereIn('id', $submissions->pluck('id'))->update(['is_read' => 1]);
+-
+-        $stats = [
+-            'total'    => WorkSubmission::count(),
+-            'pending'  => WorkSubmission::where('status', 1)->count(),
+-            'approved' => WorkSubmission::where('status', 2)->count(),
+-            'rejected' => WorkSubmission::where('status', 3)->count(),
+-        ];
+-
+-        // Work filter hint
+-        $filterWork = $request->filled('work_id')
+-            ? Work::find($request->input('work_id'))
+-            : null;
+-
+-        return view('admin.submissions.index', compact('submissions', 'stats', 'filterWork'));
+-    }
+-
+-    // -------------------------------------------------------------------------
+-    // Show
+-    // -------------------------------------------------------------------------
+-
+-    public function show(int $id)
+-    {
+-        $submission = WorkSubmission::with(['work', 'worker', 'workPoster'])->findOrFail($id);
+-        $submission->update(['is_read' => 1]);
+-
+-        return view('admin.submissions.show', compact('submission'));
+-    }
+-
+-    // -------------------------------------------------------------------------
+-    // Approve
+-    // -------------------------------------------------------------------------
+-
+-    public function approve(Request $request, int $id)
+-    {
+-        $submission = WorkSubmission::with('work')->findOrFail($id);
+-
+-        if ($submission->status === 2) {
+-            return back()->with('error', 'Submission is already approved.');
+-        }
+-
+-        DB::transaction(function () use ($submission) {
+-            $submission->status       = 2;
+-            $submission->submitted_at = $submission->submitted_at ?? now();
+-            $submission->save();
+-
+-            // Credit worker
+-            $worker = User::find($submission->worker_id);
+-            if ($worker && $submission->work) {
+-                $reward = (float) $submission->work->coins_per_worker;
+-                $worker->increment('coin_balance', $reward);
+-                $worker->refresh();
+-
+-                LedgerEntry::create([
+-                    'user_id'       => $worker->id,
+-                    'coins'         => $reward,
+-                    'fee'           => 0,
+-                    'balance_after' => $worker->coin_balance,
+-                    'entry_type'    => '+',
+-                    'reference'     => generateReference(),
+-                    'description'   => 'Earned: "' . $submission->work->title . '"',
+-                    'category'      => 'work_earn',
+-                ]);
+-            }
+-        });
+-
+-        $submission->load('worker', 'work');
+-        if ($submission->worker) {
+-            NotifyService::send($submission->worker, 'SUBMISSION_APPROVED', [
+-                'work_title' => $submission->work->title ?? '',
+-                'coins'      => number_format($submission->work->coins_per_worker ?? 0, 0),
+-            ]);
+-        }
+-
+-        return back()->with('success', 'Submission approved and coins credited.');
+-    }
+-
+-    // -------------------------------------------------------------------------
+-    // Reject
+-    // -------------------------------------------------------------------------
+-
+-    public function reject(Request $request, int $id)
+-    {
+-        $submission = WorkSubmission::with(['worker', 'work'])->findOrFail($id);
+-
+-        $data = $request->validate([
+-            'rejection_reason' => ['required', 'string', 'max:500'],
+-        ]);
+-
+-        if ($submission->status === 2) {
+-            return back()->with('error', 'Cannot reject an already approved submission.');
+-        }
+-
+-        $submission->status           = 3;
+-        $submission->rejection_reason = $data['rejection_reason'];
+-        $submission->save();
+-
+-        if ($submission->worker) {
+-            NotifyService::send($submission->worker, 'SUBMISSION_REJECTED', [
+-                'work_title' => $submission->work->title ?? '',
+-                'reason'     => $data['rejection_reason'],
+-            ]);
+-        }
+-
+-        return back()->with('success', 'Submission rejected.');
+-    }
+-
+-    // -------------------------------------------------------------------------
+-    // Bulk Approve
+-    // -------------------------------------------------------------------------
+-
+-    public function bulkApprove(Request $request)
+-    {
+-        $data = $request->validate([
+-            'ids'   => ['required', 'array', 'min:1'],
+-            'ids.*' => ['integer', 'exists:work_submissions,id'],
+-        ]);
+-
+-        $approved = 0;
+-
+-        DB::transaction(function () use ($data, &$approved) {
+-            $submissions = WorkSubmission::with('work')
+-                ->whereIn('id', $data['ids'])
+-                ->where('status', '!=', 2)
+-                ->get();
+-
+-            foreach ($submissions as $submission) {
+-                $submission->status = 2;
+-                $submission->save();
+-
+-                $worker = User::find($submission->worker_id);
+-                if ($worker && $submission->work) {
+-                    $reward = (float) $submission->work->coins_per_worker;
+-                    $worker->increment('coin_balance', $reward);
+-                    $worker->refresh();
+-
+-                    LedgerEntry::create([
+-                        'user_id'       => $worker->id,
+-                        'coins'         => $reward,
+-                        'fee'           => 0,
+-                        'balance_after' => $worker->coin_balance,
+-                        'entry_type'    => '+',
+-                        'reference'     => generateReference(),
+-                        'description'   => 'Earned: "' . $submission->work->title . '"',
+-                        'category'      => 'work_earn',
+-                    ]);
+-                }
+-                $approved++;
+-
+-                if ($worker && $submission->work) {
+-                    NotifyService::send($worker, 'SUBMISSION_APPROVED', [
+-                        'work_title' => $submission->work->title,
+-                        'coins'      => number_format($submission->work->coins_per_worker, 0),
+-                    ]);
+-                }
+-            }
+-        });
+-
+-        return back()->with('success', "{$approved} submission(s) approved and coins credited.");
+-    }
+-}
+diff --git a/backend/app/Http/Controllers/User/WorkBrowseController.php b/backend/app/Http/Controllers/User/WorkBrowseController.php
+index bc149be..5e876c4 100644
+--- a/backend/app/Http/Controllers/User/WorkBrowseController.php
++++ b/backend/app/Http/Controllers/User/WorkBrowseController.php
+@@ -8,11 +8,17 @@
+ use App\Models\WorkBookmark;
+ use App\Models\WorkCategory;
+ use App\Models\WorkSubmission;
++use App\Services\ApplicationException;
++use App\Services\TaskApplicationService;
+ use Illuminate\Http\Request;
+ use Illuminate\Support\Facades\Auth;
+ 
+ class WorkBrowseController extends Controller
+ {
++    public function __construct(protected TaskApplicationService $applications)
++    {
++    }
++
+     public function index(Request $request)
+     {
+         $user = Auth::guard('web')->user();
+@@ -63,7 +69,10 @@ public function index(Request $request)
+             ->pluck('work_id')
+             ->flip();
+ 
+-        $categories = WorkCategory::where('status', 1)->orderBy('name')->get();
++        $categories = WorkCategory::where('status', 1)
++            ->withCount(['works' => fn ($q) => $q->active()])
++            ->orderBy('name')
++            ->get();
+         $skills     = Skill::active()->orderBy('name')->get();
+ 
+         return view('user.works.browse', compact('works', 'appliedIds', 'bookmarkedIds', 'categories', 'skills'));
+@@ -82,15 +91,12 @@ public function show(string $slug)
+             ->latest()
+             ->first();
+ 
+-        $alreadyApplied = false;
++        // One application per worker per task, enforced by a unique index on
++        // work_submissions (work_id, worker_id). allow_multiple_submissions was
++        // retired in migration 0070, so there is no re-apply branch any more:
++        // any existing row means this worker is done applying to this task.
++        $alreadyApplied = (bool) $userSubmission;
+         $canReapply     = false;
+-        if ($userSubmission) {
+-            if ($work->allow_multiple_submissions && $userSubmission->status === 2) {
+-                $canReapply = true;
+-            } else {
+-                $alreadyApplied = true;
+-            }
+-        }
+ 
+         $similar = Work::active()
+             ->where('category_id', $work->category_id)
+@@ -102,45 +108,41 @@ public function show(string $slug)
+     }
+ 
+     /** Start a task from the dashboard → create the submission → go to the proof form. */
++    /**
++     * Apply to a task from the in-dashboard task detail page.
++     *
++     * This used to be a genuine "start work now" action: it called
++     * WorkSubmission::create() directly, which meant it
++     *
++     *   - charged no application fee at all (no CoinService call, no ledger row),
++     *   - left application_status / delivery_status at their column defaults
++     *     instead of going through the lifecycle,
++     *   - honoured works.allow_multiple_submissions, retired in migration 0070,
++     *   - skipped the eligibility, user-type and reliability checks,
++     *   - took the worker straight to the legacy proof form, so the task read as
++     *     started before admin had approved anything or delivered a package.
++     *
++     * It is now a thin wrapper over TaskApplicationService::apply(), the same
++     * tested path Web works.apply uses: row-locked slot check, fee charged once
++     * against a stored fee_reference, application left at Awaiting Review.
++     * The route name is kept so existing links and bookmarks do not break.
++     */
+     public function start(string $slug)
+     {
+-        $work = Work::active()->where('slug', $slug)->firstOrFail();
+         $user = Auth::guard('web')->user();
++        $work = Work::with('category')->where('slug', $slug)->firstOrFail();
+ 
+-        if ($work->slots_remaining <= 0) {
+-            return back()->with('error', 'No slots remaining for this task.');
++        try {
++            $submission = $this->applications->apply($user, $work);
++        } catch (ApplicationException $e) {
++            return back()->with('error', $e->getMessage());
+         }
+ 
+-        $existing = WorkSubmission::where('work_id', $work->id)
+-            ->where('worker_id', $user->id)
+-            ->where('worker_type', 2)
+-            ->latest()
+-            ->first();
+-
+-        if ($existing && (! $work->allow_multiple_submissions || $existing->status !== 2)) {
+-            // Already started — take them straight to the proof form.
+-            return redirect()->route('user.submissions.proof', $existing->id);
+-        }
+-
+-        if ($work->requires_kyc && $user->kyc_status !== 1) {
+-            return back()->with('error', 'This task requires KYC verification. Please complete identity verification first.');
+-        }
+-
+-        if ($work->poster_type === 2 && $work->poster_id === $user->id) {
+-            return back()->with('error', 'You cannot start your own task.');
+-        }
++        $charged = (float) $submission->fee_paid > 0
++            ? ' ' . formatCoins($submission->fee_paid) . ' was deducted.'
++            : '';
+ 
+-        $submission = WorkSubmission::create([
+-            'work_id'          => $work->id,
+-            'work_poster_id'   => $work->poster_id,
+-            'work_poster_type' => $work->poster_type,
+-            'worker_id'        => $user->id,
+-            'worker_type'      => 2,
+-            'status'           => 0,
+-            'deadline_at'      => $work->auto_approve_hours ? now()->addHours($work->auto_approve_hours) : null,
+-        ]);
+-
+-        return redirect()->route('user.submissions.proof', $submission->id)
+-            ->with('success', 'Task started — submit your proof below.');
++        return redirect()->route('user.tasks.index')
++            ->with('success', 'Application submitted and awaiting review.' . $charged);
+     }
+ }
+diff --git a/backend/app/Http/Controllers/Web/WorkController.php b/backend/app/Http/Controllers/Web/WorkController.php
+index a06bf04..fac63b3 100644
+--- a/backend/app/Http/Controllers/Web/WorkController.php
++++ b/backend/app/Http/Controllers/Web/WorkController.php
+@@ -45,7 +45,13 @@ public function index(Request $request)
+         };
+ 
+         $works      = $query->paginate(12)->withQueryString();
+-        $categories = WorkCategory::where('status', 1)->get();
++        // withCount so the category tiles can show a live task count. Constrained
++        // to Work::active() for the same reason the listing is: a category whose
++        // only tasks are held or unapproved should read as empty, not populated.
++        $categories = WorkCategory::where('status', 1)
++            ->withCount(['works' => fn ($q) => $q->active()])
++            ->orderBy('name')
++            ->get();
+         $skills     = Skill::active()->orderBy('name')->get();
+         $jobs       = JobListing::where('status', 1)->with(['employer', 'category'])->latest()->paginate(12);
+         $totalWorks = Work::active()->count();
+diff --git a/backend/resources/views/admin/dashboard.blade.php b/backend/resources/views/admin/dashboard.blade.php
+index 66832e4..6c2f603 100644
+--- a/backend/resources/views/admin/dashboard.blade.php
++++ b/backend/resources/views/admin/dashboard.blade.php
+@@ -6,7 +6,13 @@
+ 
+ @php
+ // Inline queries for sections not passed by controller
+-$pendingSubs     = \App\Models\WorkSubmission::where('status', 1)->count();
++// Count off the two live axes, not the derived legacy `status` mirror. The
++// mirror is lossy by design, and reading it here undercounted the queue: an
++// application still Awaiting Review maps to legacy status 0, so the tile only
++// ever showed submitted deliveries and never the applications waiting on admin.
++$pendingApplications = \App\Models\WorkSubmission::awaitingApplicationReview()->count();
++$pendingDeliveries   = \App\Models\WorkSubmission::awaitingDeliveryReview()->count();
++$pendingSubs         = $pendingApplications + $pendingDeliveries;
+ $pendingKyc      = \App\Models\User::where('kyc_status', 2)->count();
+ $pendingCashouts = \App\Models\Cashout::where('status', 0)->count();
+ 
+@@ -103,7 +109,7 @@
+ 
+         @php
+         $attention = [
+-            ['t' => $pendingSubs.' submissions awaiting review', 'sub' => 'Pending moderation', 'icon' => 'file-check', 'c' => '#F59E0B', 'href' => route('admin.submissions.index', ['status' => 1])],
++            ['t' => $pendingSubs.' submissions awaiting review', 'sub' => $pendingApplications.' applications, '.$pendingDeliveries.' deliveries', 'icon' => 'file-check', 'c' => '#F59E0B', 'href' => route('admin.task-review.index')],
+             ['t' => $pendingKyc.' KYC applications pending', 'sub' => 'Identity verification queue', 'icon' => 'shield-check', 'c' => '#60A5FA', 'href' => route('admin.users.kyc')],
+             ['t' => $stats['pending_topups'].' top-ups awaiting review', 'sub' => 'Deposit requests', 'icon' => 'arrow-down-circle', 'c' => 'var(--accent)', 'href' => route('admin.topups.index', ['status' => 'pending'])],
+             ['t' => $pendingCashouts.' withdrawals queued', 'sub' => 'Payout requests', 'icon' => 'arrow-up-circle', 'c' => '#EF4444', 'href' => route('admin.cashouts.index', ['status' => 'pending'])],
+diff --git a/backend/resources/views/admin/layouts/app.blade.php b/backend/resources/views/admin/layouts/app.blade.php
+index 50ca0ef..18cb4d0 100644
+--- a/backend/resources/views/admin/layouts/app.blade.php
++++ b/backend/resources/views/admin/layouts/app.blade.php
+@@ -71,9 +71,9 @@ class="sidebar-link {{ request()->routeIs('admin.dashboard') ? 'active' : '' }}"
+             </a>
+ 
+             {{-- Works --}}
+-            <div x-data="{ open: {{ request()->routeIs('admin.works*', 'admin.submissions*', 'admin.categories*') ? 'true' : 'false' }} }">
++            <div x-data="{ open: {{ request()->routeIs('admin.works*', 'admin.task-review*', 'admin.categories*') ? 'true' : 'false' }} }">
+                 <button @click="open = !open"
+-                    class="sidebar-link {{ request()->routeIs('admin.works*', 'admin.submissions*', 'admin.categories*') ? 'active' : '' }}"
++                    class="sidebar-link {{ request()->routeIs('admin.works*', 'admin.task-review*', 'admin.categories*') ? 'active' : '' }}"
+                     title="Works">
+                     <i data-lucide="briefcase" style="width:16px;height:16px;flex-shrink:0;"></i>
+                     <span x-show="sidebarOpen" x-transition.opacity class="truncate" style="flex:1;text-align:left;">Works</span>
+@@ -88,12 +88,20 @@ class="sidebar-link {{ request()->routeIs('admin.works*', 'admin.submissions*',
+                     <a href="{{ route('admin.works.pending') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.works.pending') ? 'active' : '' }}">
+                         <i data-lucide="clock" style="width:14px;height:14px;"></i><span>Pending Approval</span>
+                     </a>
+-                    <a href="{{ route('admin.submissions.index') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.submissions*') ? 'active' : '' }}">
+-                        <i data-lucide="file-check" style="width:14px;height:14px;"></i>
+-                        <span>Submissions</span>
+-                        @php $pendingSubs = \App\Models\WorkSubmission::where('status', 1)->count(); @endphp
+-                        @if($pendingSubs > 0)
+-                        <span class="mono" x-show="sidebarOpen" style="margin-left:auto;font-size:10px;padding:2px 6px;background:var(--urgent-soft);color:var(--urgent);border-radius:4px;">{{ $pendingSubs }}</span>
++                    {{-- Task Review: the CURRENT two-axis lifecycle screen. Handles task
++                         package delivery and pays through TaskReviewService, which applies
++                         category commission via CoinService. Use this one. --}}
++                    <a href="{{ route('admin.task-review.index') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.task-review*') ? 'active' : '' }}">
++                        <i data-lucide="clipboard-check" style="width:14px;height:14px;"></i>
++                        <span>Task Review</span>
++                        @php
++                            $pendingReview = \App\Models\WorkSubmission::where(function ($q) {
++                                $q->where('application_status', \App\Models\WorkSubmission::APP_APPLIED)
++                                  ->orWhere('delivery_status', \App\Models\WorkSubmission::DEL_SUBMITTED);
++                            })->count();
++                        @endphp
++                        @if($pendingReview > 0)
++                        <span class="mono" x-show="sidebarOpen" style="margin-left:auto;font-size:10px;padding:2px 6px;background:var(--urgent-soft);color:var(--urgent);border-radius:4px;">{{ $pendingReview }}</span>
+                         @endif
+                     </a>
+                     <a href="{{ route('admin.categories.index') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.categories*') ? 'active' : '' }}">
+@@ -130,6 +138,21 @@ class="sidebar-link {{ request()->routeIs('admin.boost-requests*') ? 'active' :
+                 @endif
+             </a>
+ 
++            {{-- Membership Applications: the invite-only intake queue. Approving here
++                 creates the user account and emails a temporary password. --}}
++            <a href="{{ route('admin.membership.index') }}"
++               class="sidebar-link {{ request()->routeIs('admin.membership*') ? 'active' : '' }}"
++               title="Membership Applications">
++                <i data-lucide="user-plus" style="width:16px;height:16px;flex-shrink:0;"></i>
++                <span x-show="sidebarOpen" x-transition.opacity class="truncate">Membership</span>
++                @php
++                    $pendingMembers = \App\Models\MembershipApplication::where('status', \App\Models\MembershipApplication::STATUS_PENDING)->count();
++                @endphp
++                @if($pendingMembers > 0)
++                <span class="mono" x-show="sidebarOpen" style="margin-left:auto;font-size:10px;padding:2px 6px;background:var(--urgent-soft);color:var(--urgent);border-radius:4px;">{{ $pendingMembers }}</span>
++                @endif
++            </a>
++
+             {{-- Contracts --}}
+             <a href="{{ route('admin.contracts.index') }}"
+                class="sidebar-link {{ request()->routeIs('admin.contracts*') ? 'active' : '' }}"
+@@ -218,9 +241,9 @@ class="sidebar-link {{ request()->routeIs('admin.referrals*') ? 'active' : '' }}
+             </a>
+ 
+             {{-- Reports --}}
+-            <div x-data="{ open: {{ request()->routeIs('admin.reports*') ? 'true' : 'false' }} }">
++            <div x-data="{ open: {{ request()->routeIs('admin.reports*', 'admin.audit-log') ? 'true' : 'false' }} }">
+                 <button @click="open = !open"
+-                    class="sidebar-link {{ request()->routeIs('admin.reports*') ? 'active' : '' }}"
++                    class="sidebar-link {{ request()->routeIs('admin.reports*', 'admin.audit-log') ? 'active' : '' }}"
+                     title="Reports">
+                     <i data-lucide="bar-chart-2" style="width:16px;height:16px;flex-shrink:0;"></i>
+                     <span x-show="sidebarOpen" x-transition.opacity class="truncate" style="flex:1;text-align:left;">Reports</span>
+@@ -229,6 +252,10 @@ class="sidebar-link {{ request()->routeIs('admin.reports*') ? 'active' : '' }}"
+                        style="width:14px;height:14px;flex-shrink:0;transition:transform .2s;"></i>
+                 </button>
+                 <div x-show="open && sidebarOpen" x-transition style="padding-left:12px; margin-top:2px; display:flex; flex-direction:column; gap:2px;">
++                    {{-- One row per irreversible admin action, written by ActivityLogger. --}}
++                    <a href="{{ route('admin.audit-log') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.audit-log') ? 'active' : '' }}">
++                        <i data-lucide="scroll-text" style="width:14px;height:14px;"></i><span>Audit Log</span>
++                    </a>
+                     <a href="{{ route('admin.reports.transactions') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.reports.transactions') ? 'active' : '' }}">
+                         <i data-lucide="arrow-left-right" style="width:14px;height:14px;"></i><span>Transactions</span>
+                     </a>
+diff --git a/backend/resources/views/admin/submissions/index.blade.php b/backend/resources/views/admin/submissions/index.blade.php
+deleted file mode 100644
+index 45c4098..0000000
+--- a/backend/resources/views/admin/submissions/index.blade.php
++++ /dev/null
+@@ -1,141 +0,0 @@
+-@extends('admin.layouts.app')
+-@section('title', 'Submissions')
+-@section('page-title', 'Moderation Queue')
+-
+-@section('content')
+-
+-{{-- Context banner when filtered by work --}}
+-@if($filterWork)
+-<div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;background:rgba(47,84,235,0.08);border:1px solid rgba(47,84,235,0.2);margin-bottom:16px;font-size:13px;">
+-    <i data-lucide="briefcase" style="width:15px;height:15px;color:var(--accent);flex-shrink:0;"></i>
+-    <span style="color:var(--fg-2);">Filtered by: <strong style="color:var(--fg);">{{ $filterWork->title }}</strong></span>
+-    <a href="{{ route('admin.submissions.index') }}" style="margin-left:auto;font-size:11.5px;color:var(--fg-3);text-decoration:none;">Clear ×</a>
+-</div>
+-@endif
+-
+-{{-- 4 Stat Tiles --}}
+-<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;">
+-
+-    <div class="jobstation-card" style="padding:18px;">
+-        <div class="label" style="margin-bottom:6px;">Total</div>
+-        <div class="mono" style="font-size:24px;font-weight:600;letter-spacing:-0.6px;">{{ number_format($stats['total']) }}</div>
+-        <div style="font-size:11.5px;color:var(--fg-3);margin-top:4px;">all time</div>
+-    </div>
+-
+-    <div class="jobstation-card" style="padding:18px;">
+-        <div class="label" style="margin-bottom:6px;">Pending review</div>
+-        <div class="mono" style="font-size:24px;font-weight:600;letter-spacing:-0.6px;color:#F59E0B;">{{ number_format($stats['pending']) }}</div>
+-        <div style="font-size:11.5px;color:var(--fg-3);margin-top:4px;">need moderation</div>
+-    </div>
+-
+-    <div class="jobstation-card" style="padding:18px;">
+-        <div class="label" style="margin-bottom:6px;">Approved</div>
+-        <div class="mono" style="font-size:24px;font-weight:600;letter-spacing:-0.6px;color:#22C55E;">{{ number_format($stats['approved']) }}</div>
+-        <div style="font-size:11.5px;color:var(--fg-3);margin-top:4px;">paid out</div>
+-    </div>
+-
+-    <div class="jobstation-card" style="padding:18px;">
+-        <div class="label" style="margin-bottom:6px;">Rejected</div>
+-        <div class="mono" style="font-size:24px;font-weight:600;letter-spacing:-0.6px;color:#EF4444;">{{ number_format($stats['rejected']) }}</div>
+-        <div style="font-size:11.5px;color:var(--fg-3);margin-top:4px;">declined</div>
+-    </div>
+-
+-</div>
+-
+-{{-- Filter Bar + Table --}}
+-<div class="jobstation-card" style="padding:0;overflow:hidden;">
+-
+-    {{-- Toolbar --}}
+-    <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+-        <form method="GET" action="{{ route('admin.submissions.index') }}" style="display:flex;gap:10px;align-items:center;flex:1;flex-wrap:wrap;">
+-            @if($filterWork)
+-                <input type="hidden" name="work_id" value="{{ $filterWork->id }}">
+-            @endif
+-
+-            {{-- Search --}}
+-            <div style="position:relative;flex:1;min-width:200px;max-width:340px;">
+-                <i data-lucide="search" style="position:absolute;left:11px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--fg-3);pointer-events:none;"></i>
+-                <input name="search" value="{{ request('search') }}" placeholder="Search by worker, work title…"
+-                       style="padding-left:34px;width:100%;font-size:12.5px;">
+-            </div>
+-
+-            {{-- Status filter --}}
+-            <select name="status" style="width:auto;padding:7px 10px;font-size:12px;">
+-                <option value="">All statuses</option>
+-                <option value="0" {{ request('status')=='0' ? 'selected' : '' }}>Applied</option>
+-                <option value="1" {{ request('status')=='1' ? 'selected' : '' }}>Under Review</option>
+-                <option value="2" {{ request('status')=='2' ? 'selected' : '' }}>Approved</option>
+-                <option value="3" {{ request('status')=='3' ? 'selected' : '' }}>Rejected</option>
+-            </select>
+-
+-            <button type="submit" class="btn btn-sm">Filter</button>
+-            @if(request()->hasAny(['search','status']))
+-            <a href="{{ route('admin.submissions.index', $filterWork ? ['work_id'=>$filterWork->id] : []) }}" class="btn btn-sm btn-ghost">Clear</a>
+-            @endif
+-        </form>
+-    </div>
+-
+-    {{-- Table Header --}}
+-    <div style="display:grid;grid-template-columns:100px 1fr 130px 130px 90px 90px 110px;gap:14px;padding:11px 18px;font-size:10.5px;color:var(--fg-3);text-transform:uppercase;letter-spacing:0.06em;font-weight:500;background:var(--bg-2);border-bottom:1px solid var(--border);">
+-        <span>ID</span>
+-        <span>Work</span>
+-        <span>Worker</span>
+-        <span>Reward</span>
+-        <span>Submitted</span>
+-        <span>Status</span>
+-        <span></span>
+-    </div>
+-
+-    {{-- Rows --}}
+-    @forelse($submissions as $sub)
+-    @php
+-        $statusMap = [0=>'pending',1=>'pending',2=>'approved',3=>'rejected'];
+-        $statusLabel = [0=>'Applied',1=>'Under Review',2=>'Approved',3=>'Rejected'];
+-        $ini = strtoupper(substr($sub->worker?->username ?? 'U', 0, 1));
+-        $clrs = ['#2f54eb','#FF7A59','#22C55E','#60A5FA','#F59E0B'];
+-        $clr  = $clrs[ord($ini) % count($clrs)];
+-    @endphp
+-    <div style="display:grid;grid-template-columns:100px 1fr 130px 130px 90px 90px 110px;gap:14px;padding:13px 18px;align-items:center;border-bottom:1px solid var(--border);font-size:12.5px;">
+-
+-        <span class="mono" style="font-size:11px;color:var(--fg-3);">SB-{{ str_pad($sub->id, 5, '0', STR_PAD_LEFT) }}</span>
+-
+-        <div style="min-width:0;">
+-            <div style="font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $sub->work?->title ?? '—' }}</div>
+-            <div style="font-size:10.5px;color:var(--fg-3);">{{ coinSymbol() }}{{ number_format($sub->work?->coins_per_worker ?? 0) }} reward</div>
+-        </div>
+-
+-        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+-            <div style="width:22px;height:22px;border-radius:50%;background:{{ $clr }};display:flex;align-items:center;justify-content:center;color:white;font-size:10px;font-weight:600;flex-shrink:0;">{{ $ini }}</div>
+-            <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11.5px;">{{ $sub->worker?->username ?? '—' }}</span>
+-        </div>
+-
+-        <span class="mono" style="color:var(--coin);">{{ coinSymbol() }}{{ number_format($sub->work?->coins_per_worker ?? 0) }}</span>
+-
+-        <span style="font-size:11px;color:var(--fg-3);">{{ $sub->created_at->diffForHumans(null, true) }}</span>
+-
+-        <span class="status-pill status-{{ $statusMap[$sub->status] ?? 'draft' }}" style="width:fit-content;">
+-            {{ $statusLabel[$sub->status] ?? 'Unknown' }}
+-        </span>
+-
+-        <div style="display:flex;gap:6px;justify-content:flex-end;">
+-            <a href="{{ route('admin.submissions.show', $sub->id) }}" class="btn btn-sm">Review</a>
+-        </div>
+-
+-    </div>
+-    @empty
+-    <div style="padding:48px;text-align:center;color:var(--fg-3);">
+-        <i data-lucide="inbox" style="width:32px;height:32px;margin:0 auto 12px;display:block;opacity:0.3;"></i>
+-        <div style="font-size:13px;">No submissions found.</div>
+-    </div>
+-    @endforelse
+-
+-</div>
+-
+-{{-- Pagination --}}
+-@if($submissions->hasPages())
+-<div style="display:flex;justify-content:flex-end;margin-top:16px;font-size:12.5px;">
+-    {{ $submissions->withQueryString()->links() }}
+-</div>
+-@endif
+-
+-@endsection
+diff --git a/backend/resources/views/admin/submissions/show.blade.php b/backend/resources/views/admin/submissions/show.blade.php
+deleted file mode 100644
+index 7991bcc..0000000
+--- a/backend/resources/views/admin/submissions/show.blade.php
++++ /dev/null
+@@ -1,199 +0,0 @@
+-@extends('admin.layouts.app')
+-@section('title', 'Review Submission')
+-@section('page-title', 'Proof Review')
+-
+-@section('content')
+-
+-{{-- Breadcrumb --}}
+-<div style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--fg-3);margin-bottom:20px;">
+-    <a href="{{ route('admin.submissions.index') }}" style="color:var(--fg-3);text-decoration:none;"
+-       onmouseover="this.style.color='var(--fg)'" onmouseout="this.style.color='var(--fg-3)'">Submissions</a>
+-    <i data-lucide="chevron-right" style="width:12px;height:12px;"></i>
+-    <span class="mono" style="color:var(--fg-2);">SB-{{ str_pad($submission->id, 5, '0', STR_PAD_LEFT) }}</span>
+-</div>
+-
+-<div class="jobstation-card" style="padding:0;overflow:hidden;">
+-
+-    {{-- Header --}}
+-    <div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:flex-start;">
+-        <div>
+-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+-                <span class="mono" style="font-size:11px;color:var(--fg-3);">SB-{{ str_pad($submission->id, 5, '0', STR_PAD_LEFT) }}</span>
+-                <span class="chip chip-instant" style="font-size:10px;padding:2px 7px;">
+-                    <i data-lucide="bolt" style="width:10px;height:10px;"></i> INSTANT
+-                </span>
+-                @php
+-                    $statusMap = [0=>'status-draft',1=>'status-pending',2=>'status-approved',3=>'status-rejected'];
+-                    $statusLbl = [0=>'Applied',1=>'Under Review',2=>'Approved',3=>'Rejected'];
+-                @endphp
+-                <span class="status-pill {{ $statusMap[$submission->status] ?? 'status-draft' }}">
+-                    {{ $statusLbl[$submission->status] ?? 'Unknown' }}
+-                </span>
+-            </div>
+-            <h2 style="font-size:18px;font-weight:600;margin:0 0 8px;line-height:1.3;">
+-                {{ $submission->work?->title ?? 'Deleted Work' }}
+-            </h2>
+-            <div style="display:flex;align-items:center;gap:10px;font-size:12px;color:var(--fg-3);">
+-                <span>Submitted {{ ($submission->submitted_at ?? $submission->created_at)->diffForHumans() }}</span>
+-                @if($submission->deadline_at)
+-                <span>·</span>
+-                <span>Deadline: <span style="color:{{ $submission->deadline_at->isPast() ? 'var(--urgent)' : 'var(--fg-2)' }};">{{ $submission->deadline_at->format('M d, H:i') }}</span></span>
+-                @endif
+-            </div>
+-        </div>
+-        @if($submission->work)
+-        <div style="text-align:right;flex-shrink:0;">
+-            <div class="mono" style="font-size:22px;font-weight:600;color:var(--coin);letter-spacing:-0.5px;">{{ coinSymbol() }}{{ number_format($submission->work->coins_per_worker) }}</div>
+-            <div style="font-size:11px;color:var(--fg-3);">reward</div>
+-        </div>
+-        @endif
+-    </div>
+-
+-    {{-- Worker + Client cards --}}
+-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:20px 24px;border-bottom:1px solid var(--border);">
+-
+-        {{-- Worker --}}
+-        @php
+-            $wIni = strtoupper(substr($submission->worker?->username ?? 'U', 0, 1));
+-            $clrs = ['#2f54eb','#FF7A59','#22C55E','#60A5FA','#F59E0B'];
+-            $wClr = $clrs[ord($wIni) % count($clrs)];
+-            $wSubCount = $submission->worker?->workSubmissions()->count() ?? 0;
+-            $wApproved = $submission->worker?->workSubmissions()->where('status', 2)->count() ?? 0;
+-            $wRate     = $wSubCount > 0 ? round(($wApproved / $wSubCount) * 100, 1) : 0;
+-        @endphp
+-        <div class="jobstation-card" style="padding:14px;background:var(--surface-2);">
+-            <div class="label" style="margin-bottom:8px;">Worker</div>
+-            <div style="display:flex;align-items:center;gap:10px;">
+-                <div style="width:34px;height:34px;border-radius:50%;background:{{ $wClr }};display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:600;flex-shrink:0;">{{ $wIni }}</div>
+-                <div style="flex:1;min-width:0;">
+-                    <div style="font-size:13px;font-weight:500;">{{ $submission->worker?->fullname ?? 'Unknown' }} · {{ '@' . ($submission->worker?->username ?? '') }}</div>
+-                    <div style="font-size:11px;color:var(--fg-3);">{{ number_format($wSubCount) }} tasks · {{ $wRate }}% approval</div>
+-                </div>
+-                @if($submission->worker)
+-                <a href="{{ route('admin.users.show', $submission->worker_id) }}" class="btn btn-sm">View</a>
+-                @endif
+-            </div>
+-        </div>
+-
+-        {{-- Client / Poster --}}
+-        @php
+-            $pName = $submission->work?->poster_type == 1 ? 'Admin' : ($submission->workPoster?->username ?? 'Unknown');
+-            $pIni  = strtoupper(substr($pName, 0, 1));
+-            $pClr  = $clrs[ord($pIni) % count($clrs)];
+-        @endphp
+-        <div class="jobstation-card" style="padding:14px;background:var(--surface-2);">
+-            <div class="label" style="margin-bottom:8px;">Client</div>
+-            <div style="display:flex;align-items:center;gap:10px;">
+-                <div style="width:34px;height:34px;border-radius:50%;background:{{ $pClr }};display:flex;align-items:center;justify-content:center;color:white;font-size:13px;font-weight:600;flex-shrink:0;">{{ $pIni }}</div>
+-                <div style="flex:1;min-width:0;">
+-                    <div style="font-size:13px;font-weight:500;">{{ $pName }}</div>
+-                    <div style="font-size:11px;color:var(--fg-3);">
+-                        {{ $submission->work?->category?->name ?? '—' }}
+-                        @if($submission->work) · {{ coinSymbol() }}{{ number_format($submission->work->coins_per_worker) }} reward @endif
+-                    </div>
+-                </div>
+-                @if($submission->work)
+-                <a href="{{ route('admin.works.show', $submission->work_id) }}" class="btn btn-sm">View</a>
+-                @endif
+-            </div>
+-        </div>
+-
+-    </div>
+-
+-    {{-- Proof Files --}}
+-    <div style="padding:20px 24px;border-bottom:1px solid var(--border);">
+-        <div class="label" style="margin-bottom:12px;">
+-            Submitted proof
+-            @if($submission->proof_files) ({{ count($submission->proof_files) }} files) @endif
+-        </div>
+-
+-        @if($submission->proof_files && count($submission->proof_files))
+-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+-            @foreach($submission->proof_files as $index => $file)
+-            @php $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION)); @endphp
+-            @if(in_array($ext, ['jpg','jpeg','png','gif','webp']))
+-            <a href="{{ route('secure.workProof', ['submission' => $submission->id, 'index' => $index]) }}" target="_blank"
+-               style="display:block;border-radius:10px;overflow:hidden;border:1px solid var(--border);">
+-                <img src="{{ route('secure.workProof', ['submission' => $submission->id, 'index' => $index]) }}"
+-                     style="width:100%;height:160px;object-fit:cover;display:block;" alt="">
+-            </a>
+-            @else
+-            <a href="{{ route('secure.workProof', ['submission' => $submission->id, 'index' => $index]) }}" target="_blank"
+-               style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:160px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);text-decoration:none;gap:8px;"
+-               onmouseover="this.style.background='var(--surface-3)'" onmouseout="this.style.background='var(--surface-2)'">
+-                <i data-lucide="file" style="width:28px;height:28px;color:var(--fg-3);display:block;"></i>
+-                <span style="font-size:11px;color:var(--fg-3);text-transform:uppercase;font-weight:500;">{{ $ext }}</span>
+-            </a>
+-            @endif
+-            @endforeach
+-        </div>
+-        @else
+-        <div style="padding:32px;text-align:center;border:1px dashed var(--border);border-radius:10px;color:var(--fg-3);font-size:13px;">
+-            <i data-lucide="paperclip" style="width:24px;height:24px;margin:0 auto 8px;display:block;opacity:0.3;"></i>
+-            No file attachments submitted.
+-        </div>
+-        @endif
+-    </div>
+-
+-    {{-- Worker Notes --}}
+-    @if($submission->proof_note)
+-    <div style="padding:20px 24px;border-bottom:1px solid var(--border);">
+-        <div class="label" style="margin-bottom:10px;">Worker's notes</div>
+-        <div class="jobstation-card" style="padding:14px;background:var(--surface-2);font-size:13px;color:var(--fg-2);line-height:1.6;">
+-            {{ $submission->proof_note }}
+-        </div>
+-    </div>
+-    @endif
+-
+-    {{-- Already rejected message --}}
+-    @if($submission->status == 3 && $submission->rejection_reason)
+-    <div style="padding:16px 24px;border-bottom:1px solid var(--border);">
+-        <div style="display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border-radius:10px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);">
+-            <i data-lucide="alert-circle" style="width:16px;height:16px;color:#EF4444;flex-shrink:0;margin-top:1px;"></i>
+-            <div>
+-                <div style="font-size:12.5px;font-weight:500;color:#EF4444;margin-bottom:3px;">Rejected</div>
+-                <div style="font-size:13px;color:var(--fg-2);">{{ $submission->rejection_reason }}</div>
+-            </div>
+-        </div>
+-    </div>
+-    @endif
+-
+-    {{-- Sticky Action Bar --}}
+-    @if(in_array($submission->status, [0, 1]))
+-    <div x-data="{ rejectOpen: false }"
+-         style="position:sticky;bottom:0;background:var(--bg);padding:16px 24px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:10px;">
+-        <div style="display:flex;gap:10px;align-items:center;">
+-            <button @click="rejectOpen = !rejectOpen"
+-                    class="btn btn-danger" style="flex-shrink:0;">
+-                <i data-lucide="x" style="width:12px;height:12px;"></i> Reject
+-            </button>
+-            <span style="flex:1"></span>
+-            <form method="POST" action="{{ route('admin.submissions.approve', $submission->id) }}">
+-                @csrf
+-                <button type="submit"
+-                        onclick="return confirm('Approve this submission and credit {{ coinSymbol() }}{{ number_format($submission->work?->coins_per_worker ?? 0) }} to the worker?')"
+-                        style="padding:9px 18px;border-radius:8px;background:#22C55E;border:1px solid #22C55E;color:white;font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:6px;">
+-                    <i data-lucide="check" style="width:13px;height:13px;"></i>
+-                    Approve · Pay {{ coinSymbol() }}{{ number_format($submission->work?->coins_per_worker ?? 0) }}
+-                </button>
+-            </form>
+-        </div>
+-
+-        {{-- Reject form (collapsible) --}}
+-        <div x-show="rejectOpen" x-cloak x-transition style="padding:14px;border-radius:10px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);">
+-            <form method="POST" action="{{ route('admin.submissions.reject', $submission->id) }}" style="display:flex;gap:10px;align-items:flex-start;">
+-                @csrf
+-                <textarea name="rejection_reason" rows="2" placeholder="Rejection reason (required)…"
+-                          style="flex:1;font-size:12.5px;resize:none;" required></textarea>
+-                <button type="submit"
+-                        style="padding:9px 16px;border-radius:8px;background:#EF4444;border:none;color:white;font-size:13px;font-weight:500;cursor:pointer;flex-shrink:0;white-space:nowrap;">
+-                    Confirm reject
+-                </button>
+-            </form>
+-        </div>
+-    </div>
+-    @endif
+-
+-</div>
+-
+-@endsection
+diff --git a/backend/resources/views/admin/users/show.blade.php b/backend/resources/views/admin/users/show.blade.php
+index fdfbc0c..ddce9bb 100644
+--- a/backend/resources/views/admin/users/show.blade.php
++++ b/backend/resources/views/admin/users/show.blade.php
+@@ -176,6 +176,10 @@
+             @endif
+         </div>
+ 
++        {{-- Worker reliability: strike count, weighting and the forgive action.
++             $reliability is already supplied by Admin\UserController::show(). --}}
++        @include('admin.partials.user-reliability-card', ['user' => $user, 'reliability' => $reliability])
++
+         {{-- KYC Panel --}}
+         @if($user->kyc_status == 2 && $user->kyc_data)
+         <div class="jobstation-card" style="padding:20px;">
+@@ -278,7 +282,7 @@
+         <div class="jobstation-card" style="padding:0;overflow:hidden;">
+             <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);">
+                 <h3 style="font-size:14px;font-weight:600;margin:0;">Recent submissions</h3>
+-                <a href="{{ route('admin.submissions.index', ['search' => $user->username]) }}"
++                <a href="{{ route('admin.task-review.index', ['search' => $user->username]) }}"
+                    style="font-size:12px;color:var(--accent);text-decoration:none;">View all →</a>
+             </div>
+             @forelse($recentSubmissions as $idx => $sub)
+diff --git a/backend/resources/views/admin/works/create.blade.php b/backend/resources/views/admin/works/create.blade.php
+index fd3f76f..38dd4a3 100644
+--- a/backend/resources/views/admin/works/create.blade.php
++++ b/backend/resources/views/admin/works/create.blade.php
+@@ -93,6 +93,9 @@
+                        min="1" placeholder="e.g. 10">
+             </div>
+         </div>
++
++        {{-- Display-only applicant seed. Never enters slot arithmetic. --}}
++        @include('admin.partials.work-display-boost-field', ['work' => null])
+     </div>
+ 
+     {{-- Status --}}
+diff --git a/backend/resources/views/admin/works/edit.blade.php b/backend/resources/views/admin/works/edit.blade.php
+index ccc769f..32fdefb 100644
+--- a/backend/resources/views/admin/works/edit.blade.php
++++ b/backend/resources/views/admin/works/edit.blade.php
+@@ -96,6 +96,9 @@
+                 <input type="number" name="avg_minutes" value="{{ old('avg_minutes', $work->avg_minutes) }}" min="1">
+             </div>
+         </div>
++
++        {{-- Display-only applicant seed. Never enters slot arithmetic. --}}
++        @include('admin.partials.work-display-boost-field', ['work' => $work])
+     </div>
+ 
+     {{-- Status --}}
+diff --git a/backend/resources/views/admin/works/show.blade.php b/backend/resources/views/admin/works/show.blade.php
+index f8f4b7f..c17365a 100644
+--- a/backend/resources/views/admin/works/show.blade.php
++++ b/backend/resources/views/admin/works/show.blade.php
+@@ -79,7 +79,7 @@
+         <div class="jobstation-card" style="padding:0;overflow:hidden;">
+             <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);">
+                 <h3 style="font-size:14px;font-weight:600;margin:0;">Recent Submissions</h3>
+-                <a href="{{ route('admin.submissions.index', ['work_id' => $work->id]) }}"
++                <a href="{{ route('admin.task-review.index', ['work_id' => $work->id]) }}"
+                    style="font-size:12px;color:var(--accent);text-decoration:none;">View all →</a>
+             </div>
+ 
+@@ -101,7 +101,7 @@
+                     <div style="font-size:11px;color:var(--fg-3);">{{ $sub->created_at->format('M d, Y H:i') }}</div>
+                 </div>
+                 <span class="status-pill status-{{ $statusMap[$sub->status] ?? 'draft' }}" style="font-size:10.5px;">{{ $statusLabel[$sub->status] ?? '—' }}</span>
+-                <a href="{{ route('admin.submissions.show', $sub->id) }}"
++                <a href="{{ route('admin.task-review.show', $sub->id) }}"
+                    style="padding:5px;border-radius:6px;color:var(--fg-3);text-decoration:none;"
+                    onmouseover="this.style.background='var(--surface-2)';this.style.color='var(--fg)'" onmouseout="this.style.background='transparent';this.style.color='var(--fg-3)'">
+                     <i data-lucide="arrow-right" style="width:14px;height:14px;display:block;"></i>
+diff --git a/backend/resources/views/partials/category-tiles.blade.php b/backend/resources/views/partials/category-tiles.blade.php
+new file mode 100644
+index 0000000..920fb9c
+--- /dev/null
++++ b/backend/resources/views/partials/category-tiles.blade.php
+@@ -0,0 +1,63 @@
++{{--
++    Category tiles: a discovery affordance for the task lists.
++
++    Both browse pages already had working category FILTERS (a radio sidebar on the
++    public list, a select on the dashboard list). What was missing was a way to see
++    that categories exist at all before you go looking for a control. These tiles
++    sit above the listing and link into the same ?category= query the filters use,
++    so there is one filtering mechanism, not two.
++
++    Usage:
++        @include('partials.category-tiles', [
++            'categories' => $categories,
++            'routeName'  => 'works.index',
++        ])
++
++    Shared between the public (web.*) and dashboard (user.*) layouts, which use
++    different CSS variable names for the same roles. The var(--fg, var(--text))
++    fallback chain resolves against whichever set is present, so this renders
++    correctly in both without a theme parameter.
++--}}
++@php
++    $categories = $categories ?? collect();
++    $activeId   = request('category');
++
++    // Hide entirely when there is nothing to discover. A single category is not a
++    // choice, and empty tiles are worse than no tiles.
++    $tileCats = $categories->filter(fn ($c) => ($c->works_count ?? 0) > 0);
++@endphp
++
++@if($tileCats->count() > 1)
++<div style="margin-bottom:22px;">
++    <div style="display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:11px;">
++        <h2 style="font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:0.07em; color:var(--fg-3, var(--muted)); margin:0;">
++            {{ __('Browse by category') }}
++        </h2>
++        @if($activeId)
++            <a href="{{ route($routeName) }}"
++               style="font-size:12px; color:var(--accent); text-decoration:none; flex-shrink:0;">
++                {{ __('Show all categories') }}
++            </a>
++        @endif
++    </div>
++
++    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(158px, 1fr)); gap:10px;">
++        @foreach($tileCats as $tile)
++            @php $isActive = (string) $activeId === (string) $tile->id; @endphp
++            <a href="{{ $isActive ? route($routeName) : route($routeName, ['category' => $tile->id]) }}"
++               aria-current="{{ $isActive ? 'true' : 'false' }}"
++               style="display:block; padding:13px 14px; border-radius:10px; text-decoration:none;
++                      border:1.5px solid {{ $isActive ? 'var(--accent)' : 'var(--border)' }};
++                      background:{{ $isActive ? 'rgba(99,102,241,0.07)' : 'transparent' }};
++                      transition:border-color .15s, background .15s;">
++                <div style="font-size:13.5px; font-weight:600; color:var(--fg, var(--text)); line-height:1.35; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
++                    {{ $tile->name }}
++                </div>
++                <div style="font-size:11.5px; color:var(--fg-3, var(--muted)); margin-top:4px;">
++                    {{ trans_choice('{1} :count task|[2,*] :count tasks', $tile->works_count, ['count' => $tile->works_count]) }}
++                </div>
++            </a>
++        @endforeach
++    </div>
++</div>
++@endif
+diff --git a/backend/resources/views/user/layouts/app.blade.php b/backend/resources/views/user/layouts/app.blade.php
+index 26cad97..d4a3b40 100644
+--- a/backend/resources/views/user/layouts/app.blade.php
++++ b/backend/resources/views/user/layouts/app.blade.php
+@@ -66,16 +66,30 @@ class="fixed top-0 left-0 h-full w-60 z-30 flex flex-col transform transition-tr
+                 'Work' => [
+                     ['route' => 'user.dashboard',           'icon' => 'layout-dashboard', 'label' => 'Dashboard'],
+                     ['route' => 'user.browse.works',         'icon' => 'search',           'label' => 'Find Work'],
++                    // The microtask lifecycle screen: application status, task package
++                    // download, JSON result upload. This is where a worker actually works.
++                    ['route' => 'user.tasks.index',          'icon' => 'clipboard-list',   'label' => 'My Tasks'],
+                     ['route' => 'user.works.saved',          'icon' => 'bookmark',         'label' => 'Saved Works'],
+-                    ['route' => 'user.works.index',          'icon' => 'briefcase',        'label' => 'My Works'],
++                    // My Works lists gigs the user posted themselves. The whole
++                    // user.works.* group sits behind feature:enable_user_gigs, so with
++                    // gigs abolished this link 403s. Shown only when the flag is on.
++                    ...(config('jobstation.features.enable_user_gigs') ? [
++                        ['route' => 'user.works.index',      'icon' => 'briefcase',        'label' => 'My Works'],
++                    ] : []),
+                     ['route' => 'user.submissions.index',    'icon' => 'file-check',       'label' => 'My Submissions'],
+                 ],
+-                'Jobs' => [
++
++                // The job board is abolished on this install. FeatureEnabled middleware
++                // 403s these routes server-side, so linking to them unconditionally gave
++                // the worker four dead links. Flip JOBSTATION_ENABLE_JOB_BOARD=true to
++                // restore both the routes and this section together.
++                ...(config('jobstation.features.enable_job_board') ? ['Jobs' => [
+                     ['route' => 'user.jobs.browse',          'icon' => 'building-2',        'label' => 'Find Jobs'],
+                     ['route' => 'user.jobs.listings.index',  'icon' => 'clipboard-list',    'label' => 'My Listings'],
+                     ['route' => 'user.jobs.my-applications', 'icon' => 'send',              'label' => 'My Applications'],
+                     ['route' => 'user.jobs.saved',           'icon' => 'bookmark',          'label' => 'Saved Jobs'],
+-                ],
++                ]] : []),
++
+                 'Contracts' => [
+                     ['route' => 'user.contracts.sent',       'icon' => 'file-output',       'label' => 'Contracts Sent'],
+                     ['route' => 'user.contracts.received',   'icon' => 'file-input',        'label' => 'Contracts Received'],
+diff --git a/backend/resources/views/user/works/browse.blade.php b/backend/resources/views/user/works/browse.blade.php
+index f21b5fa..33a9270 100644
+--- a/backend/resources/views/user/works/browse.blade.php
++++ b/backend/resources/views/user/works/browse.blade.php
+@@ -99,6 +99,9 @@ class="card"
+         </form>
+     </div>
+ 
++    {{-- ── BROWSE BY CATEGORY ──────────────────────────────────────── --}}
++    @include('partials.category-tiles', ['categories' => $categories, 'routeName' => 'user.browse.works'])
++
+     {{-- ── WORK CARDS ──────────────────────────────────────────────── --}}
+     @forelse($works as $work)
+     @php
+diff --git a/backend/resources/views/user/works/detail.blade.php b/backend/resources/views/user/works/detail.blade.php
+index 2b220eb..686e1e2 100644
+--- a/backend/resources/views/user/works/detail.blade.php
++++ b/backend/resources/views/user/works/detail.blade.php
+@@ -110,18 +110,46 @@
+             @endif
+ 
+             @if($alreadyApplied && $userSubmission)
+-            <div style="text-align:center; padding:11px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.25); border-radius:8px; font-size:13px; color:#22C55E; font-weight:500; margin-bottom:10px;">✓ Already started</div>
+-            <a href="{{ route('user.submissions.proof', $userSubmission->id) }}" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px; font-size:13.5px;">Submit / view proof →</a>
++            {{-- Applying is not starting. Until admin approves the application and
++                 delivers the task package there is nothing for the worker to do, so
++                 this shows lifecycle state and never a work-start affordance. --}}
++            <div style="text-align:center; padding:11px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; font-size:13px; color:var(--fg-2); font-weight:500; margin-bottom:10px;">
++                {{ $userSubmission->lifecycle_label }}
++            </div>
++            <a href="{{ route('user.tasks.show', $userSubmission->id) }}" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px; font-size:13.5px;">
++                @if($userSubmission->isOpenForWorker())
++                    Open task →
++                @else
++                    View application →
++                @endif
++            </a>
++            @if(! $userSubmission->isApprovedToWork())
++            <div style="text-align:center; font-size:11.5px; color:var(--fg-3); margin-top:10px;">
++                An admin reviews your application first. You will get the task files and a deadline once it is approved.
++            </div>
++            @endif
+             @elseif($slotsRemaining <= 0)
+             <button disabled class="btn" style="width:100%; justify-content:center; padding:12px; font-size:14px; opacity:0.5; cursor:not-allowed;">No spots remaining</button>
+             @else
+-            <form method="POST" action="{{ route('user.browse.works.start', $work->slug) }}">
++            <form method="POST" action="{{ route('user.browse.works.start', $work->slug) }}"
++                  x-data="{ sending: false }" @submit="sending = true">
+                 @csrf
+-                <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:12px; font-size:14px;">
+-                    ⚡ {{ $canReapply ? 'Do it again' : 'Start task now' }}
++                <button type="submit" class="btn btn-primary" x-bind:disabled="sending"
++                        style="width:100%; justify-content:center; padding:12px; font-size:14px;">
++                    <span x-show="!sending">Apply for this task</span>
++                    <span x-show="sending" x-cloak>Submitting…</span>
+                 </button>
+             </form>
+-            <div style="text-align:center; font-size:11.5px; color:var(--fg-3); margin-top:10px;">Timer starts when you click. Submit before the deadline.</div>
++            <div style="text-align:center; font-size:11.5px; color:var(--fg-3); margin-top:10px; line-height:1.55;">
++                @if((float) $work->application_cost > 0)
++                    A non-refundable application fee of
++                    <strong style="color:var(--fg-2);">{{ coinSymbol() }}{{ number_format($work->application_cost, 2) }}</strong>
++                    is deducted when you apply. It is only returned if an admin rejects your application.
++                @else
++                    Applying is free on this task.
++                @endif
++                Your application is reviewed before any work begins.
++            </div>
+             @endif
+         </div>
+     </aside>
+diff --git a/backend/resources/views/web/membership/apply.blade.php b/backend/resources/views/web/membership/apply.blade.php
+index 3e533be..322244f 100644
+--- a/backend/resources/views/web/membership/apply.blade.php
++++ b/backend/resources/views/web/membership/apply.blade.php
+@@ -3,7 +3,26 @@
+ @section('title', __('Apply for membership') . ' — ' . (gs()->site_name ?? config('app.name')))
+ 
+ @section('content')
+-<div style="max-width:760px; margin:0 auto; padding:48px 24px;">
++{{--
++    Invite-only intake form. Two applicant types share one submission: the
++    business block is additive, not a replacement, because a business applicant
++    still has a named human contact behind it and MembershipApplicationRequest
++    requires the individual fields either way.
++
++    Deliberately NOT wrapped in a gs()->registration check. That flag is the one
++    that gets switched off to close self-registration, and gating this form behind
++    it is what previously hid the apply button on an invite-only site.
++--}}
++@php
++    $docTypes = strtoupper(implode(', ', config('jobstation.membership.allowed_doc_types', ['pdf', 'doc', 'docx'])));
++@endphp
++
++<div style="max-width:720px; margin:0 auto; padding:48px 24px;"
++     x-data="{
++        type: '{{ old('applicant_type', 1) }}',
++        submitting: false,
++        get isBusiness() { return this.type === '2'; }
++     }">
+ 
+     <h1 style="font-size:34px; font-weight:600; letter-spacing:-0.6px; margin:0 0 8px; color:var(--text);">
+         {{ __('Apply for membership') }}
+@@ -18,10 +37,16 @@
+         </div>
+     @endif
+ 
++    @if (session('error'))
++        <div style="padding:14px 16px; border-radius:8px; background:#fef2f2; border:1px solid #fecaca; color:#991b1b; margin-bottom:24px;">
++            {{ session('error') }}
++        </div>
++    @endif
++
+     @if ($errors->any())
+         <div style="padding:14px 16px; border-radius:8px; background:#fef2f2; border:1px solid #fecaca; color:#991b1b; margin-bottom:24px;">
+             <strong>{{ __('Please fix the following:') }}</strong>
+-            <ul style="margin:8px 0 0; padding-left:20px;">
++            <ul style="margin:8px 0 0; padding-left:20px; line-height:1.6;">
+                 @foreach ($errors->all() as $error)
+                     <li>{{ $error }}</li>
+                 @endforeach
+@@ -30,120 +55,227 @@
+     @endif
+ 
+     <form method="POST" action="{{ route('membership.apply.submit') }}" enctype="multipart/form-data"
+-          x-data="{ type: '{{ old('applicant_type', 1) }}' }">
++          @submit="submitting = true">
+         @csrf
+ 
+-        {{-- Applicant type --}}
+-        <div style="margin-bottom:28px;">
+-            <label style="display:block; font-size:13px; font-weight:600; margin-bottom:10px; color:var(--text);">
+-                {{ __('I am applying as') }}
+-            </label>
+-            <div style="display:flex; gap:12px;">
+-                <label style="flex:1; cursor:pointer;">
+-                    <input type="radio" name="applicant_type" value="1" x-model="type" style="margin-right:8px;">
+-                    {{ __('An individual') }}
+-                </label>
+-                <label style="flex:1; cursor:pointer;">
+-                    <input type="radio" name="applicant_type" value="2" x-model="type" style="margin-right:8px;">
+-                    {{ __('A business') }}
+-                </label>
++        {{-- ===== Step 1: applicant type ===== --}}
++        <section style="margin-bottom:26px;">
++            @include('web.membership.partials.step-heading', [
++                'number' => 1,
++                'title'  => __('What kind of account do you need?'),
++                'blurb'  => __('This decides which documents we ask for.'),
++            ])
++
++            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;" class="apply-type-grid">
++                @foreach ([
++                    ['value' => '1', 'title' => __('An individual'), 'blurb' => __('You will do the tasks yourself.')],
++                    ['value' => '2', 'title' => __('A business'),    'blurb' => __('You are applying on behalf of a registered company.')],
++                ] as $option)
++                    <label x-bind:style="type === '{{ $option['value'] }}'
++                                ? 'border-color:var(--accent); background:rgba(99,102,241,0.06);'
++                                : ''"
++                           style="cursor:pointer; display:block; border:1.5px solid var(--border); border-radius:10px; padding:14px 16px; transition:border-color .15s, background .15s;">
++                        <span style="display:flex; align-items:center; gap:9px;">
++                            <input type="radio" name="applicant_type" value="{{ $option['value'] }}" x-model="type"
++                                   style="margin:0; flex-shrink:0;">
++                            <span style="font-size:14px; font-weight:600; color:var(--text);">{{ $option['title'] }}</span>
++                        </span>
++                        <span style="display:block; font-size:12.5px; color:var(--muted); margin-top:6px; line-height:1.5;">
++                            {{ $option['blurb'] }}
++                        </span>
++                    </label>
++                @endforeach
+             </div>
+-        </div>
+ 
+-        {{-- Individual details --}}
+-        <fieldset style="border:1px solid var(--border); border-radius:10px; padding:20px; margin-bottom:20px;">
+-            <legend style="font-size:13px; font-weight:600; padding:0 8px; color:var(--muted);">
+-                {{ __('Your details') }}
+-            </legend>
++            @error('applicant_type')
++                <p style="font-size:12.5px; color:#dc2626; margin:8px 0 0;">{{ $message }}</p>
++            @enderror
++        </section>
+ 
+-            <div style="margin-bottom:16px;">
+-                <label for="full_name" style="display:block; font-size:13px; margin-bottom:6px;">{{ __('Full name') }} *</label>
+-                <input id="full_name" type="text" name="full_name" value="{{ old('full_name') }}" required
+-                       style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px;">
+-            </div>
++        {{-- ===== Step 2: the person applying ===== --}}
++        <section style="margin-bottom:26px;">
++            @include('web.membership.partials.step-heading', [
++                'number' => 2,
++                'title'  => __('About you'),
++                'blurb'  => __('We need a real person as the contact, even for a business account.'),
++            ])
+ 
+-            <div style="margin-bottom:16px;">
+-                <label for="email" style="display:block; font-size:13px; margin-bottom:6px;">{{ __('Email address') }} *</label>
+-                <input id="email" type="email" name="email" value="{{ old('email') }}" required
+-                       style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px;">
+-            </div>
++            <div style="border:1px solid var(--border); border-radius:12px; padding:20px;">
++                <div style="margin-bottom:18px;">
++                    <label for="full_name" style="display:block; font-size:13px; font-weight:500; margin-bottom:6px; color:var(--text);">
++                        {{ __('Full name') }} <span style="color:#dc2626;">*</span>
++                    </label>
++                    <input id="full_name" type="text" name="full_name" value="{{ old('full_name') }}" required
++                           autocomplete="name"
++                           style="width:100%; padding:10px 12px; border:1px solid {{ $errors->has('full_name') ? '#fca5a5' : 'var(--border)' }}; border-radius:8px; font-size:14px;">
++                    @error('full_name')
++                        <p style="font-size:12.5px; color:#dc2626; margin:6px 0 0;">{{ $message }}</p>
++                    @enderror
++                </div>
+ 
+-            <div style="display:flex; gap:16px; margin-bottom:16px;">
+-                <div style="flex:1;">
+-                    <label for="phone" style="display:block; font-size:13px; margin-bottom:6px;">{{ __('Phone') }}</label>
+-                    <input id="phone" type="text" name="phone" value="{{ old('phone') }}"
+-                           style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px;">
++                <div style="margin-bottom:18px;">
++                    <label for="email" style="display:block; font-size:13px; font-weight:500; margin-bottom:6px; color:var(--text);">
++                        {{ __('Email address') }} <span style="color:#dc2626;">*</span>
++                    </label>
++                    <input id="email" type="email" name="email" value="{{ old('email') }}" required
++                           autocomplete="email"
++                           style="width:100%; padding:10px 12px; border:1px solid {{ $errors->has('email') ? '#fca5a5' : 'var(--border)' }}; border-radius:8px; font-size:14px;">
++                    <p style="font-size:12px; color:var(--muted); margin:6px 0 0;">
++                        {{ __('If you are approved, your login details go to this address.') }}
++                    </p>
++                    @error('email')
++                        <p style="font-size:12.5px; color:#dc2626; margin:6px 0 0;">{{ $message }}</p>
++                    @enderror
+                 </div>
+-                <div style="flex:1;">
+-                    <label for="country" style="display:block; font-size:13px; margin-bottom:6px;">{{ __('Country') }} *</label>
+-                    <input id="country" type="text" name="country" value="{{ old('country') }}" required
+-                           style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px;">
++
++                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;" class="apply-pair">
++                    <div>
++                        <label for="phone" style="display:block; font-size:13px; font-weight:500; margin-bottom:6px; color:var(--text);">
++                            {{ __('Phone') }}
++                        </label>
++                        <input id="phone" type="text" name="phone" value="{{ old('phone') }}" autocomplete="tel"
++                               style="width:100%; padding:10px 12px; border:1px solid {{ $errors->has('phone') ? '#fca5a5' : 'var(--border)' }}; border-radius:8px; font-size:14px;">
++                        @error('phone')
++                            <p style="font-size:12.5px; color:#dc2626; margin:6px 0 0;">{{ $message }}</p>
++                        @enderror
++                    </div>
++                    <div>
++                        <label for="country" style="display:block; font-size:13px; font-weight:500; margin-bottom:6px; color:var(--text);">
++                            {{ __('Country') }} <span style="color:#dc2626;">*</span>
++                        </label>
++                        <input id="country" type="text" name="country" value="{{ old('country') }}" required
++                               autocomplete="country-name"
++                               style="width:100%; padding:10px 12px; border:1px solid {{ $errors->has('country') ? '#fca5a5' : 'var(--border)' }}; border-radius:8px; font-size:14px;">
++                        @error('country')
++                            <p style="font-size:12.5px; color:#dc2626; margin:6px 0 0;">{{ $message }}</p>
++                        @enderror
++                    </div>
+                 </div>
+             </div>
++        </section>
+ 
+-            <div style="margin-bottom:16px;">
+-                <label for="resume" style="display:block; font-size:13px; margin-bottom:6px;">{{ __('CV / Resume') }} *</label>
+-                <input id="resume" type="file" name="resume" required accept=".pdf,.doc,.docx">
+-                <small style="display:block; color:var(--muted); margin-top:4px;">{{ __('PDF or Word, max 5 MB.') }}</small>
+-            </div>
++        {{-- ===== Step 3: personal documents ===== --}}
++        <section style="margin-bottom:26px;">
++            @include('web.membership.partials.step-heading', [
++                'number' => 3,
++                'title'  => __('Your documents'),
++                'blurb'  => __('Accepted formats:') . ' ' . $docTypes . '.',
++            ])
+ 
+-            <div>
+-                <label for="cover_letter" style="display:block; font-size:13px; margin-bottom:6px;">{{ __('Cover letter') }}</label>
+-                <input id="cover_letter" type="file" name="cover_letter" accept=".pdf,.doc,.docx">
+-            </div>
+-        </fieldset>
+-
+-        {{-- Business details, only when applying as a business --}}
+-        <fieldset x-show="type === '2'" x-cloak
+-                  style="border:1px solid var(--border); border-radius:10px; padding:20px; margin-bottom:20px;">
+-            <legend style="font-size:13px; font-weight:600; padding:0 8px; color:var(--muted);">
+-                {{ __('Business details') }}
+-            </legend>
+-
+-            <div style="margin-bottom:16px;">
+-                <label for="business_name" style="display:block; font-size:13px; margin-bottom:6px;">{{ __('Business name') }} *</label>
+-                <input id="business_name" type="text" name="business_name" value="{{ old('business_name') }}"
+-                       style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px;">
++            <div style="border:1px solid var(--border); border-radius:12px; padding:20px;">
++                @include('web.membership.partials.file-drop', [
++                    'name'     => 'resume',
++                    'label'    => __('CV / Resume'),
++                    'required' => true,
++                    'hint'     => __('Your work history and relevant skills.'),
++                ])
++
++                @include('web.membership.partials.file-drop', [
++                    'name'     => 'cover_letter',
++                    'label'    => __('Cover letter'),
++                    'required' => false,
++                    'hint'     => __('Optional, but it helps your application.'),
++                ])
+             </div>
++        </section>
++
++        {{-- ===== Step 4: business block, only for business applicants ===== --}}
++        <section x-show="isBusiness" x-cloak style="margin-bottom:26px;">
++            @include('web.membership.partials.step-heading', [
++                'number' => 4,
++                'title'  => __('About the business'),
++                'blurb'  => __('Required because you selected a business account.'),
++            ])
+ 
+-            <div style="display:flex; gap:16px; margin-bottom:16px;">
+-                <div style="flex:1;">
+-                    <label for="business_email" style="display:block; font-size:13px; margin-bottom:6px;">{{ __('Business email') }} *</label>
+-                    <input id="business_email" type="email" name="business_email" value="{{ old('business_email') }}"
+-                           style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px;">
++            <div style="border:1px solid var(--border); border-radius:12px; padding:20px;">
++                <div style="margin-bottom:18px;">
++                    <label for="business_name" style="display:block; font-size:13px; font-weight:500; margin-bottom:6px; color:var(--text);">
++                        {{ __('Business name') }} <span style="color:#dc2626;">*</span>
++                    </label>
++                    <input id="business_name" type="text" name="business_name" value="{{ old('business_name') }}"
++                           style="width:100%; padding:10px 12px; border:1px solid {{ $errors->has('business_name') ? '#fca5a5' : 'var(--border)' }}; border-radius:8px; font-size:14px;">
++                    @error('business_name')
++                        <p style="font-size:12.5px; color:#dc2626; margin:6px 0 0;">{{ $message }}</p>
++                    @enderror
+                 </div>
+-                <div style="flex:1;">
+-                    <label for="business_country" style="display:block; font-size:13px; margin-bottom:6px;">{{ __('Business country') }} *</label>
+-                    <input id="business_country" type="text" name="business_country" value="{{ old('business_country') }}"
+-                           style="width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:8px;">
++
++                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:18px;" class="apply-pair">
++                    <div>
++                        <label for="business_email" style="display:block; font-size:13px; font-weight:500; margin-bottom:6px; color:var(--text);">
++                            {{ __('Business email') }} <span style="color:#dc2626;">*</span>
++                        </label>
++                        <input id="business_email" type="email" name="business_email" value="{{ old('business_email') }}"
++                               style="width:100%; padding:10px 12px; border:1px solid {{ $errors->has('business_email') ? '#fca5a5' : 'var(--border)' }}; border-radius:8px; font-size:14px;">
++                        @error('business_email')
++                            <p style="font-size:12.5px; color:#dc2626; margin:6px 0 0;">{{ $message }}</p>
++                        @enderror
++                    </div>
++                    <div>
++                        <label for="business_country" style="display:block; font-size:13px; font-weight:500; margin-bottom:6px; color:var(--text);">
++                            {{ __('Business country') }} <span style="color:#dc2626;">*</span>
++                        </label>
++                        <input id="business_country" type="text" name="business_country" value="{{ old('business_country') }}"
++                               style="width:100%; padding:10px 12px; border:1px solid {{ $errors->has('business_country') ? '#fca5a5' : 'var(--border)' }}; border-radius:8px; font-size:14px;">
++                        @error('business_country')
++                            <p style="font-size:12.5px; color:#dc2626; margin:6px 0 0;">{{ $message }}</p>
++                        @enderror
++                    </div>
+                 </div>
+-            </div>
+ 
+-            <div>
+-                <label for="business_registration_doc" style="display:block; font-size:13px; margin-bottom:6px;">
+-                    {{ __('Registration document') }} *
+-                </label>
+-                <input id="business_registration_doc" type="file" name="business_registration_doc" accept=".pdf,.doc,.docx">
++                @include('web.membership.partials.file-drop', [
++                    'name'     => 'business_registration_doc',
++                    'label'    => __('Registration document'),
++                    'required' => true,
++                    'hint'     => __('Certificate of incorporation or equivalent.'),
++                ])
+             </div>
+-        </fieldset>
++        </section>
+ 
+         @if (recaptchaEnabled())
+             <div style="margin-bottom:20px;">
+                 <div class="g-recaptcha" data-sitekey="{{ recaptchaPlugin()->shortcode['site_key'] ?? '' }}"></div>
++                @error('captcha')
++                    <p style="font-size:12.5px; color:#dc2626; margin:6px 0 0;">{{ $message }}</p>
++                @enderror
+             </div>
+         @endif
+ 
+-        <button type="submit"
+-                style="width:100%; padding:13px; border:0; border-radius:8px; background:var(--accent); color:#fff; font-size:15px; font-weight:600; cursor:pointer;">
+-            {{ __('Submit application') }}
++        {{-- Submit, with visible progress. A double submission on a slow connection
++             would trip the unique-email rule and show a confusing error, so the
++             button disables itself for the duration of the upload. --}}
++        <button type="submit" x-bind:disabled="submitting"
++                x-bind:style="submitting ? 'opacity:.65; cursor:progress;' : ''"
++                style="width:100%; padding:13px; border:0; border-radius:8px; background:var(--accent); color:#fff; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:9px;">
++            <span x-show="submitting" x-cloak class="apply-spinner" aria-hidden="true"></span>
++            <span x-show="!submitting">{{ __('Submit application') }}</span>
++            <span x-show="submitting" x-cloak>{{ __('Uploading your application') }}</span>
+         </button>
+ 
++        <p x-show="submitting" x-cloak style="text-align:center; font-size:12.5px; color:var(--muted); margin:12px 0 0;">
++            {{ __('Your documents are uploading. Please do not close this page.') }}
++        </p>
++
+         <p style="text-align:center; font-size:13px; color:var(--muted); margin:18px 0 0;">
+             {{ __('Already applied?') }}
+             <a href="{{ route('membership.status') }}" style="color:var(--accent);">{{ __('Check your status') }}</a>
+         </p>
+     </form>
+ </div>
++
++<style>
++.apply-spinner {
++    width: 15px; height: 15px; flex-shrink: 0;
++    border: 2px solid rgba(255,255,255,0.35);
++    border-top-color: #fff;
++    border-radius: 50%;
++    animation: apply-spin .6s linear infinite;
++}
++@keyframes apply-spin { to { transform: rotate(360deg); } }
++@media (max-width: 620px) {
++    .apply-type-grid { grid-template-columns: 1fr !important; }
++    .apply-pair { grid-template-columns: 1fr !important; }
++}
++</style>
+ @endsection
+ 
+ @push('scripts')
+diff --git a/backend/resources/views/web/membership/partials/file-drop.blade.php b/backend/resources/views/web/membership/partials/file-drop.blade.php
+new file mode 100644
+index 0000000..1229b4a
+--- /dev/null
++++ b/backend/resources/views/web/membership/partials/file-drop.blade.php
+@@ -0,0 +1,148 @@
++{{--
++    Styled drag-and-drop file field for the membership application form.
++
++    Usage:
++        @include('web.membership.partials.file-drop', [
++            'name'     => 'resume',
++            'label'    => __('CV / Resume'),
++            'required' => true,
++            'hint'     => __('Your work history and skills.'),
++        ])
++
++    The real <input type="file"> is kept in the DOM and is what the form actually
++    posts, so this degrades to a normal file picker if JavaScript is off. Dropped
++    files are assigned onto that input's .files so a plain multipart POST carries
++    them without any AJAX.
++
++    Client-side type and size checks are a courtesy to the applicant, not a
++    control. MembershipApplicationRequest re-validates both server-side.
++--}}
++@php
++    $required   = $required ?? false;
++    $hint       = $hint ?? null;
++    $accept     = config('jobstation.membership.allowed_doc_types', ['pdf', 'doc', 'docx']);
++    $maxKb      = (int) config('jobstation.membership.max_doc_size_kb', 5120);
++    $acceptAttr = '.' . implode(',.', $accept);
++
++    // Rendered into a double-quoted x-data attribute, so this must not contain
++    // double quotes. json_encode() would, hence building the JS literal by hand.
++    $allowedJs  = "['" . implode("','", $accept) . "']";
++    $maxLabel   = $maxKb >= 1024 ? round($maxKb / 1024, 1) . ' MB' : $maxKb . ' KB';
++@endphp
++
++<div style="margin-bottom:18px;"
++     x-data="{
++        fileName: '',
++        fileSize: 0,
++        error: '',
++        dragging: false,
++        maxKb: {{ $maxKb }},
++        allowed: {!! $allowedJs !!},
++        human(bytes) {
++            if (bytes < 1024) { return bytes + ' B'; }
++            if (bytes < 1048576) { return Math.round(bytes / 1024) + ' KB'; }
++            return (bytes / 1048576).toFixed(1) + ' MB';
++        },
++        reset() {
++            this.fileName = '';
++            this.fileSize = 0;
++        },
++        pick(files) {
++            this.error = '';
++            this.reset();
++            if (! files || ! files.length) { return; }
++            const f = files[0];
++            const ext = (f.name.split('.').pop() || '').toLowerCase();
++            if (! this.allowed.includes(ext)) {
++                this.error = 'That is a .' + ext + ' file. Please use ' + this.allowed.join(', ').toUpperCase() + '.';
++                this.$refs.input.value = '';
++                return;
++            }
++            if ((f.size / 1024) > this.maxKb) {
++                this.error = 'That file is ' + this.human(f.size) + '. The limit is {{ $maxLabel }}.';
++                this.$refs.input.value = '';
++                return;
++            }
++            this.fileName = f.name;
++            this.fileSize = f.size;
++        },
++        onDrop(e) {
++            this.dragging = false;
++            const dt = e.dataTransfer;
++            if (! dt || ! dt.files || ! dt.files.length) { return; }
++            this.$refs.input.files = dt.files;
++            this.pick(dt.files);
++        },
++        clear() {
++            this.$refs.input.value = '';
++            this.error = '';
++            this.reset();
++        }
++     }">
++
++    <label for="{{ $name }}" style="display:block; font-size:13px; font-weight:500; margin-bottom:6px; color:var(--text);">
++        {{ $label }}
++        @if($required)<span style="color:#dc2626;">*</span>@endif
++    </label>
++
++    {{-- Drop zone. Clicking anywhere in it opens the native picker. --}}
++    <div role="button" tabindex="0"
++         @click="$refs.input.click()"
++         @keydown.enter.prevent="$refs.input.click()"
++         @keydown.space.prevent="$refs.input.click()"
++         @dragover.prevent="dragging = true"
++         @dragleave.prevent="dragging = false"
++         @drop.prevent="onDrop($event)"
++         x-bind:style="dragging
++            ? 'border-color:var(--accent); background:rgba(99,102,241,0.06);'
++            : (error ? 'border-color:#fca5a5; background:#fef2f2;' : '')"
++         style="border:1.5px dashed {{ $errors->has($name) ? '#fca5a5' : 'var(--border)' }}; border-radius:10px; padding:18px; text-align:center; cursor:pointer; background:{{ $errors->has($name) ? '#fef2f2' : 'transparent' }}; transition:border-color .15s, background .15s;">
++
++        {{-- Empty state --}}
++        <template x-if="! fileName">
++            <div>
++                <div style="font-size:22px; line-height:1; margin-bottom:8px; opacity:.5;">&#8679;</div>
++                <div style="font-size:13.5px; color:var(--text); font-weight:500;">
++                    {{ __('Drop your file here, or click to browse') }}
++                </div>
++                <div style="font-size:12px; color:var(--muted); margin-top:5px;">
++                    {{ strtoupper(implode(', ', $accept)) }} &middot; {{ __('max') }} {{ $maxLabel }}
++                </div>
++            </div>
++        </template>
++
++        {{-- Selected state --}}
++        <template x-if="fileName">
++            <div style="display:flex; align-items:center; gap:10px; text-align:left;">
++                <div style="flex-shrink:0; width:34px; height:34px; border-radius:7px; background:rgba(34,197,94,0.12); color:#16a34a; display:flex; align-items:center; justify-content:center; font-size:15px;">&#10003;</div>
++                <div style="flex:1; min-width:0;">
++                    <div x-text="fileName" style="font-size:13.5px; font-weight:500; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"></div>
++                    <div x-text="human(fileSize)" style="font-size:12px; color:var(--muted); margin-top:2px;"></div>
++                </div>
++                <button type="button" @click.stop="clear()"
++                        style="flex-shrink:0; border:1px solid var(--border); background:transparent; color:var(--muted); border-radius:6px; padding:5px 10px; font-size:12px; cursor:pointer;">
++                    {{ __('Remove') }}
++                </button>
++            </div>
++        </template>
++    </div>
++
++    {{-- The input the form actually submits. Visually hidden, not disabled. --}}
++    <input id="{{ $name }}" name="{{ $name }}" type="file" x-ref="input"
++           accept="{{ $acceptAttr }}"
++           @change="pick($event.target.files)"
++           style="position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap;">
++
++    {{-- Client-side feedback, shown before submit. --}}
++    <p x-show="error" x-cloak x-text="error"
++       style="font-size:12.5px; color:#dc2626; margin:6px 0 0;"></p>
++
++    {{-- Server-side error for this field. --}}
++    @error($name)
++        <p style="font-size:12.5px; color:#dc2626; margin:6px 0 0;">{{ $message }}</p>
++    @enderror
++
++    @if($hint)
++        <p x-show="! error" style="font-size:12px; color:var(--muted); margin:6px 0 0;">{{ $hint }}</p>
++    @endif
++</div>
+diff --git a/backend/resources/views/web/membership/partials/step-heading.blade.php b/backend/resources/views/web/membership/partials/step-heading.blade.php
+new file mode 100644
+index 0000000..861592e
+--- /dev/null
++++ b/backend/resources/views/web/membership/partials/step-heading.blade.php
+@@ -0,0 +1,28 @@
++{{--
++    Numbered section heading for the membership application form.
++
++    Usage:
++        @include('web.membership.partials.step-heading', [
++            'number' => 2,
++            'title'  => __('About you'),
++            'blurb'  => __('Optional supporting line.'),
++        ])
++--}}
++@php
++    $blurb = $blurb ?? null;
++@endphp
++
++<div style="display:flex; align-items:flex-start; gap:11px; margin-bottom:13px;">
++    <span aria-hidden="true"
++          style="flex-shrink:0; width:24px; height:24px; border-radius:50%; background:var(--accent); color:#fff; font-size:12.5px; font-weight:600; display:flex; align-items:center; justify-content:center; margin-top:1px;">
++        {{ $number }}
++    </span>
++    <div>
++        <h2 style="font-size:16px; font-weight:600; margin:0; color:var(--text); letter-spacing:-0.2px;">
++            {{ $title }}
++        </h2>
++        @if($blurb)
++            <p style="font-size:13px; color:var(--muted); margin:4px 0 0; line-height:1.5;">{{ $blurb }}</p>
++        @endif
++    </div>
++</div>
+diff --git a/backend/resources/views/web/works/index.blade.php b/backend/resources/views/web/works/index.blade.php
+index b0a190a..252c2ea 100644
+--- a/backend/resources/views/web/works/index.blade.php
++++ b/backend/resources/views/web/works/index.blade.php
+@@ -39,6 +39,11 @@
+     </div>
+ </div>
+ 
++{{-- ── BROWSE BY CATEGORY ──────────────────────────────────────── --}}
++<div style="max-width:1280px; margin:0 auto; padding:28px 40px 0;">
++    @include('partials.category-tiles', ['categories' => $categories, 'routeName' => 'works.index'])
++</div>
++
+ {{-- ── MAIN CONTENT ────────────────────────────────────────────── --}}
+ <div style="max-width:1280px; margin:0 auto; padding:32px 40px 80px; display:grid; grid-template-columns:240px 1fr; gap:32px; align-items:start;" class="listings-grid">
+ 
+diff --git a/backend/routes/admin.php b/backend/routes/admin.php
+index 468a90f..dc77536 100644
+--- a/backend/routes/admin.php
++++ b/backend/routes/admin.php
+@@ -102,14 +102,15 @@
+     // Audit log
+     Route::get('audit-log', [\App\Http\Controllers\Admin\AuditLogController::class, 'index'])->name('audit-log');
+ 
+-    // Submissions (legacy screens, kept for historical records)
+-    Route::prefix('submissions')->name('submissions.')->group(function () {
+-        Route::get('/',              [\App\Http\Controllers\Admin\WorkSubmissionController::class, 'index'])->name('index');
+-        Route::get('{id}',           [\App\Http\Controllers\Admin\WorkSubmissionController::class, 'show'])->name('show');
+-        Route::post('{id}/approve',  [\App\Http\Controllers\Admin\WorkSubmissionController::class, 'approve'])->name('approve');
+-        Route::post('{id}/reject',   [\App\Http\Controllers\Admin\WorkSubmissionController::class, 'reject'])->name('reject');
+-        Route::post('bulk-approve',  [\App\Http\Controllers\Admin\WorkSubmissionController::class, 'bulkApprove'])->name('bulk-approve');
+-    });
++    // The legacy /admin/submissions screens are gone. Their approve path used a raw
++    // increment on coin_balance plus a hand-rolled ledger row, bypassing category
++    // commission and CoinService entirely, so any approval made through them
++    // produced figures that could not reconcile. Task Review replaces them.
++    //
++    // Redirects rather than a bare 404, because these URLs have been in the admin
++    // sidebar for the whole life of the install and will be bookmarked.
++    Route::redirect('submissions', 'admin/task-review');
++    Route::redirect('submissions/{id}', 'admin/task-review/{id}');
+ 
+     // Categories
+     Route::prefix('categories')->name('categories.')->group(function () {

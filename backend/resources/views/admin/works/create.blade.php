@@ -93,6 +93,9 @@
                        min="1" placeholder="e.g. 10">
             </div>
         </div>
+
+        {{-- Display-only applicant seed. Never enters slot arithmetic. --}}
+        @include('admin.partials.work-display-boost-field', ['work' => null])
     </div>
 
     {{-- Status --}}

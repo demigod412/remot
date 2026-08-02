@@ -102,14 +102,15 @@ Route::middleware('admin')->group(function () {
     // Audit log
     Route::get('audit-log', [\App\Http\Controllers\Admin\AuditLogController::class, 'index'])->name('audit-log');
 
-    // Submissions (legacy screens, kept for historical records)
-    Route::prefix('submissions')->name('submissions.')->group(function () {
-        Route::get('/',              [\App\Http\Controllers\Admin\WorkSubmissionController::class, 'index'])->name('index');
-        Route::get('{id}',           [\App\Http\Controllers\Admin\WorkSubmissionController::class, 'show'])->name('show');
-        Route::post('{id}/approve',  [\App\Http\Controllers\Admin\WorkSubmissionController::class, 'approve'])->name('approve');
-        Route::post('{id}/reject',   [\App\Http\Controllers\Admin\WorkSubmissionController::class, 'reject'])->name('reject');
-        Route::post('bulk-approve',  [\App\Http\Controllers\Admin\WorkSubmissionController::class, 'bulkApprove'])->name('bulk-approve');
-    });
+    // The legacy /admin/submissions screens are gone. Their approve path used a raw
+    // increment on coin_balance plus a hand-rolled ledger row, bypassing category
+    // commission and CoinService entirely, so any approval made through them
+    // produced figures that could not reconcile. Task Review replaces them.
+    //
+    // Redirects rather than a bare 404, because these URLs have been in the admin
+    // sidebar for the whole life of the install and will be bookmarked.
+    Route::redirect('submissions', 'admin/task-review');
+    Route::redirect('submissions/{id}', 'admin/task-review/{id}');
 
     // Categories
     Route::prefix('categories')->name('categories.')->group(function () {

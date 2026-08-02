@@ -96,6 +96,9 @@
                 <input type="number" name="avg_minutes" value="{{ old('avg_minutes', $work->avg_minutes) }}" min="1">
             </div>
         </div>
+
+        {{-- Display-only applicant seed. Never enters slot arithmetic. --}}
+        @include('admin.partials.work-display-boost-field', ['work' => $work])
     </div>
 
     {{-- Status --}}

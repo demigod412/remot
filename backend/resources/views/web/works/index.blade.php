@@ -39,6 +39,11 @@
     </div>
 </div>
 
+{{-- ── BROWSE BY CATEGORY ──────────────────────────────────────── --}}
+<div style="max-width:1280px; margin:0 auto; padding:28px 40px 0;">
+    @include('partials.category-tiles', ['categories' => $categories, 'routeName' => 'works.index'])
+</div>
+
 {{-- ── MAIN CONTENT ────────────────────────────────────────────── --}}
 <div style="max-width:1280px; margin:0 auto; padding:32px 40px 80px; display:grid; grid-template-columns:240px 1fr; gap:32px; align-items:start;" class="listings-grid">
 

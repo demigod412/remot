@@ -45,7 +45,13 @@ class WorkController extends Controller
         };
 
         $works      = $query->paginate(12)->withQueryString();
-        $categories = WorkCategory::where('status', 1)->get();
+        // withCount so the category tiles can show a live task count. Constrained
+        // to Work::active() for the same reason the listing is: a category whose
+        // only tasks are held or unapproved should read as empty, not populated.
+        $categories = WorkCategory::where('status', 1)
+            ->withCount(['works' => fn ($q) => $q->active()])
+            ->orderBy('name')
+            ->get();
         $skills     = Skill::active()->orderBy('name')->get();
         $jobs       = JobListing::where('status', 1)->with(['employer', 'category'])->latest()->paginate(12);
         $totalWorks = Work::active()->count();

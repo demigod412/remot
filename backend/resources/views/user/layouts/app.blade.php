@@ -66,16 +66,30 @@
                 'Work' => [
                     ['route' => 'user.dashboard',           'icon' => 'layout-dashboard', 'label' => 'Dashboard'],
                     ['route' => 'user.browse.works',         'icon' => 'search',           'label' => 'Find Work'],
+                    // The microtask lifecycle screen: application status, task package
+                    // download, JSON result upload. This is where a worker actually works.
+                    ['route' => 'user.tasks.index',          'icon' => 'clipboard-list',   'label' => 'My Tasks'],
                     ['route' => 'user.works.saved',          'icon' => 'bookmark',         'label' => 'Saved Works'],
-                    ['route' => 'user.works.index',          'icon' => 'briefcase',        'label' => 'My Works'],
+                    // My Works lists gigs the user posted themselves. The whole
+                    // user.works.* group sits behind feature:enable_user_gigs, so with
+                    // gigs abolished this link 403s. Shown only when the flag is on.
+                    ...(config('jobstation.features.enable_user_gigs') ? [
+                        ['route' => 'user.works.index',      'icon' => 'briefcase',        'label' => 'My Works'],
+                    ] : []),
                     ['route' => 'user.submissions.index',    'icon' => 'file-check',       'label' => 'My Submissions'],
                 ],
-                'Jobs' => [
+
+                // The job board is abolished on this install. FeatureEnabled middleware
+                // 403s these routes server-side, so linking to them unconditionally gave
+                // the worker four dead links. Flip JOBSTATION_ENABLE_JOB_BOARD=true to
+                // restore both the routes and this section together.
+                ...(config('jobstation.features.enable_job_board') ? ['Jobs' => [
                     ['route' => 'user.jobs.browse',          'icon' => 'building-2',        'label' => 'Find Jobs'],
                     ['route' => 'user.jobs.listings.index',  'icon' => 'clipboard-list',    'label' => 'My Listings'],
                     ['route' => 'user.jobs.my-applications', 'icon' => 'send',              'label' => 'My Applications'],
                     ['route' => 'user.jobs.saved',           'icon' => 'bookmark',          'label' => 'Saved Jobs'],
-                ],
+                ]] : []),
+
                 'Contracts' => [
                     ['route' => 'user.contracts.sent',       'icon' => 'file-output',       'label' => 'Contracts Sent'],
                     ['route' => 'user.contracts.received',   'icon' => 'file-input',        'label' => 'Contracts Received'],

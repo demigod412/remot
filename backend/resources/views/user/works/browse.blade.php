@@ -99,6 +99,9 @@
         </form>
     </div>
 
+    {{-- ── BROWSE BY CATEGORY ──────────────────────────────────────── --}}
+    @include('partials.category-tiles', ['categories' => $categories, 'routeName' => 'user.browse.works'])
+
     {{-- ── WORK CARDS ──────────────────────────────────────────────── --}}
     @forelse($works as $work)
     @php

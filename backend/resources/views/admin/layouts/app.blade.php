@@ -71,9 +71,9 @@
             </a>
 
             {{-- Works --}}
-            <div x-data="{ open: {{ request()->routeIs('admin.works*', 'admin.submissions*', 'admin.categories*') ? 'true' : 'false' }} }">
+            <div x-data="{ open: {{ request()->routeIs('admin.works*', 'admin.task-review*', 'admin.categories*') ? 'true' : 'false' }} }">
                 <button @click="open = !open"
-                    class="sidebar-link {{ request()->routeIs('admin.works*', 'admin.submissions*', 'admin.categories*') ? 'active' : '' }}"
+                    class="sidebar-link {{ request()->routeIs('admin.works*', 'admin.task-review*', 'admin.categories*') ? 'active' : '' }}"
                     title="Works">
                     <i data-lucide="briefcase" style="width:16px;height:16px;flex-shrink:0;"></i>
                     <span x-show="sidebarOpen" x-transition.opacity class="truncate" style="flex:1;text-align:left;">Works</span>
@@ -88,12 +88,20 @@
                     <a href="{{ route('admin.works.pending') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.works.pending') ? 'active' : '' }}">
                         <i data-lucide="clock" style="width:14px;height:14px;"></i><span>Pending Approval</span>
                     </a>
-                    <a href="{{ route('admin.submissions.index') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.submissions*') ? 'active' : '' }}">
-                        <i data-lucide="file-check" style="width:14px;height:14px;"></i>
-                        <span>Submissions</span>
-                        @php $pendingSubs = \App\Models\WorkSubmission::where('status', 1)->count(); @endphp
-                        @if($pendingSubs > 0)
-                        <span class="mono" x-show="sidebarOpen" style="margin-left:auto;font-size:10px;padding:2px 6px;background:var(--urgent-soft);color:var(--urgent);border-radius:4px;">{{ $pendingSubs }}</span>
+                    {{-- Task Review: the CURRENT two-axis lifecycle screen. Handles task
+                         package delivery and pays through TaskReviewService, which applies
+                         category commission via CoinService. Use this one. --}}
+                    <a href="{{ route('admin.task-review.index') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.task-review*') ? 'active' : '' }}">
+                        <i data-lucide="clipboard-check" style="width:14px;height:14px;"></i>
+                        <span>Task Review</span>
+                        @php
+                            $pendingReview = \App\Models\WorkSubmission::where(function ($q) {
+                                $q->where('application_status', \App\Models\WorkSubmission::APP_APPLIED)
+                                  ->orWhere('delivery_status', \App\Models\WorkSubmission::DEL_SUBMITTED);
+                            })->count();
+                        @endphp
+                        @if($pendingReview > 0)
+                        <span class="mono" x-show="sidebarOpen" style="margin-left:auto;font-size:10px;padding:2px 6px;background:var(--urgent-soft);color:var(--urgent);border-radius:4px;">{{ $pendingReview }}</span>
                         @endif
                     </a>
                     <a href="{{ route('admin.categories.index') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.categories*') ? 'active' : '' }}">
@@ -127,6 +135,21 @@
                 @php $pendingBoosts = \App\Models\BoostRequest::where('status', 0)->count(); @endphp
                 @if($pendingBoosts > 0)
                 <span class="mono" x-show="sidebarOpen" style="margin-left:auto;font-size:10px;padding:2px 6px;background:rgba(245,158,11,0.15);color:#F59E0B;border-radius:4px;flex-shrink:0;">{{ $pendingBoosts }}</span>
+                @endif
+            </a>
+
+            {{-- Membership Applications: the invite-only intake queue. Approving here
+                 creates the user account and emails a temporary password. --}}
+            <a href="{{ route('admin.membership.index') }}"
+               class="sidebar-link {{ request()->routeIs('admin.membership*') ? 'active' : '' }}"
+               title="Membership Applications">
+                <i data-lucide="user-plus" style="width:16px;height:16px;flex-shrink:0;"></i>
+                <span x-show="sidebarOpen" x-transition.opacity class="truncate">Membership</span>
+                @php
+                    $pendingMembers = \App\Models\MembershipApplication::where('status', \App\Models\MembershipApplication::STATUS_PENDING)->count();
+                @endphp
+                @if($pendingMembers > 0)
+                <span class="mono" x-show="sidebarOpen" style="margin-left:auto;font-size:10px;padding:2px 6px;background:var(--urgent-soft);color:var(--urgent);border-radius:4px;">{{ $pendingMembers }}</span>
                 @endif
             </a>
 
@@ -218,9 +241,9 @@
             </a>
 
             {{-- Reports --}}
-            <div x-data="{ open: {{ request()->routeIs('admin.reports*') ? 'true' : 'false' }} }">
+            <div x-data="{ open: {{ request()->routeIs('admin.reports*', 'admin.audit-log') ? 'true' : 'false' }} }">
                 <button @click="open = !open"
-                    class="sidebar-link {{ request()->routeIs('admin.reports*') ? 'active' : '' }}"
+                    class="sidebar-link {{ request()->routeIs('admin.reports*', 'admin.audit-log') ? 'active' : '' }}"
                     title="Reports">
                     <i data-lucide="bar-chart-2" style="width:16px;height:16px;flex-shrink:0;"></i>
                     <span x-show="sidebarOpen" x-transition.opacity class="truncate" style="flex:1;text-align:left;">Reports</span>
@@ -229,6 +252,10 @@
                        style="width:14px;height:14px;flex-shrink:0;transition:transform .2s;"></i>
                 </button>
                 <div x-show="open && sidebarOpen" x-transition style="padding-left:12px; margin-top:2px; display:flex; flex-direction:column; gap:2px;">
+                    {{-- One row per irreversible admin action, written by ActivityLogger. --}}
+                    <a href="{{ route('admin.audit-log') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.audit-log') ? 'active' : '' }}">
+                        <i data-lucide="scroll-text" style="width:14px;height:14px;"></i><span>Audit Log</span>
+                    </a>
                     <a href="{{ route('admin.reports.transactions') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.reports.transactions') ? 'active' : '' }}">
                         <i data-lucide="arrow-left-right" style="width:14px;height:14px;"></i><span>Transactions</span>
                     </a>

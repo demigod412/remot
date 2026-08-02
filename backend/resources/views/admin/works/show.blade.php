@@ -79,7 +79,7 @@
         <div class="jobstation-card" style="padding:0;overflow:hidden;">
             <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);">
                 <h3 style="font-size:14px;font-weight:600;margin:0;">Recent Submissions</h3>
-                <a href="{{ route('admin.submissions.index', ['work_id' => $work->id]) }}"
+                <a href="{{ route('admin.task-review.index', ['work_id' => $work->id]) }}"
                    style="font-size:12px;color:var(--accent);text-decoration:none;">View all →</a>
             </div>
 
@@ -101,7 +101,7 @@
                     <div style="font-size:11px;color:var(--fg-3);">{{ $sub->created_at->format('M d, Y H:i') }}</div>
                 </div>
                 <span class="status-pill status-{{ $statusMap[$sub->status] ?? 'draft' }}" style="font-size:10.5px;">{{ $statusLabel[$sub->status] ?? '—' }}</span>
-                <a href="{{ route('admin.submissions.show', $sub->id) }}"
+                <a href="{{ route('admin.task-review.show', $sub->id) }}"
                    style="padding:5px;border-radius:6px;color:var(--fg-3);text-decoration:none;"
                    onmouseover="this.style.background='var(--surface-2)';this.style.color='var(--fg)'" onmouseout="this.style.background='transparent';this.style.color='var(--fg-3)'">
                     <i data-lucide="arrow-right" style="width:14px;height:14px;display:block;"></i>

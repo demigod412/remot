@@ -176,6 +176,10 @@
             @endif
         </div>
 
+        {{-- Worker reliability: strike count, weighting and the forgive action.
+             $reliability is already supplied by Admin\UserController::show(). --}}
+        @include('admin.partials.user-reliability-card', ['user' => $user, 'reliability' => $reliability])
+
         {{-- KYC Panel --}}
         @if($user->kyc_status == 2 && $user->kyc_data)
         <div class="jobstation-card" style="padding:20px;">
@@ -278,7 +282,7 @@
         <div class="jobstation-card" style="padding:0;overflow:hidden;">
             <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);">
                 <h3 style="font-size:14px;font-weight:600;margin:0;">Recent submissions</h3>
-                <a href="{{ route('admin.submissions.index', ['search' => $user->username]) }}"
+                <a href="{{ route('admin.task-review.index', ['search' => $user->username]) }}"
                    style="font-size:12px;color:var(--accent);text-decoration:none;">View all →</a>
             </div>
             @forelse($recentSubmissions as $idx => $sub)

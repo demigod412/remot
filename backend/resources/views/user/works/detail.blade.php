@@ -110,18 +110,46 @@
             @endif
 
             @if($alreadyApplied && $userSubmission)
-            <div style="text-align:center; padding:11px; background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.25); border-radius:8px; font-size:13px; color:#22C55E; font-weight:500; margin-bottom:10px;">✓ Already started</div>
-            <a href="{{ route('user.submissions.proof', $userSubmission->id) }}" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px; font-size:13.5px;">Submit / view proof →</a>
+            {{-- Applying is not starting. Until admin approves the application and
+                 delivers the task package there is nothing for the worker to do, so
+                 this shows lifecycle state and never a work-start affordance. --}}
+            <div style="text-align:center; padding:11px; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; font-size:13px; color:var(--fg-2); font-weight:500; margin-bottom:10px;">
+                {{ $userSubmission->lifecycle_label }}
+            </div>
+            <a href="{{ route('user.tasks.show', $userSubmission->id) }}" class="btn btn-primary" style="width:100%; justify-content:center; padding:11px; font-size:13.5px;">
+                @if($userSubmission->isOpenForWorker())
+                    Open task →
+                @else
+                    View application →
+                @endif
+            </a>
+            @if(! $userSubmission->isApprovedToWork())
+            <div style="text-align:center; font-size:11.5px; color:var(--fg-3); margin-top:10px;">
+                An admin reviews your application first. You will get the task files and a deadline once it is approved.
+            </div>
+            @endif
             @elseif($slotsRemaining <= 0)
             <button disabled class="btn" style="width:100%; justify-content:center; padding:12px; font-size:14px; opacity:0.5; cursor:not-allowed;">No spots remaining</button>
             @else
-            <form method="POST" action="{{ route('user.browse.works.start', $work->slug) }}">
+            <form method="POST" action="{{ route('user.browse.works.start', $work->slug) }}"
+                  x-data="{ sending: false }" @submit="sending = true">
                 @csrf
-                <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:12px; font-size:14px;">
-                    ⚡ {{ $canReapply ? 'Do it again' : 'Start task now' }}
+                <button type="submit" class="btn btn-primary" x-bind:disabled="sending"
+                        style="width:100%; justify-content:center; padding:12px; font-size:14px;">
+                    <span x-show="!sending">Apply for this task</span>
+                    <span x-show="sending" x-cloak>Submitting…</span>
                 </button>
             </form>
-            <div style="text-align:center; font-size:11.5px; color:var(--fg-3); margin-top:10px;">Timer starts when you click. Submit before the deadline.</div>
+            <div style="text-align:center; font-size:11.5px; color:var(--fg-3); margin-top:10px; line-height:1.55;">
+                @if((float) $work->application_cost > 0)
+                    A non-refundable application fee of
+                    <strong style="color:var(--fg-2);">{{ coinSymbol() }}{{ number_format($work->application_cost, 2) }}</strong>
+                    is deducted when you apply. It is only returned if an admin rejects your application.
+                @else
+                    Applying is free on this task.
+                @endif
+                Your application is reviewed before any work begins.
+            </div>
             @endif
         </div>
     </aside>

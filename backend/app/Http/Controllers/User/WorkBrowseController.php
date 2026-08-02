@@ -8,11 +8,17 @@ use App\Models\Work;
 use App\Models\WorkBookmark;
 use App\Models\WorkCategory;
 use App\Models\WorkSubmission;
+use App\Services\ApplicationException;
+use App\Services\TaskApplicationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class WorkBrowseController extends Controller
 {
+    public function __construct(protected TaskApplicationService $applications)
+    {
+    }
+
     public function index(Request $request)
     {
         $user = Auth::guard('web')->user();
@@ -63,7 +69,10 @@ class WorkBrowseController extends Controller
             ->pluck('work_id')
             ->flip();
 
-        $categories = WorkCategory::where('status', 1)->orderBy('name')->get();
+        $categories = WorkCategory::where('status', 1)
+            ->withCount(['works' => fn ($q) => $q->active()])
+            ->orderBy('name')
+            ->get();
         $skills     = Skill::active()->orderBy('name')->get();
 
         return view('user.works.browse', compact('works', 'appliedIds', 'bookmarkedIds', 'categories', 'skills'));
@@ -82,15 +91,12 @@ class WorkBrowseController extends Controller
             ->latest()
             ->first();
 
-        $alreadyApplied = false;
+        // One application per worker per task, enforced by a unique index on
+        // work_submissions (work_id, worker_id). allow_multiple_submissions was
+        // retired in migration 0070, so there is no re-apply branch any more:
+        // any existing row means this worker is done applying to this task.
+        $alreadyApplied = (bool) $userSubmission;
         $canReapply     = false;
-        if ($userSubmission) {
-            if ($work->allow_multiple_submissions && $userSubmission->status === 2) {
-                $canReapply = true;
-            } else {
-                $alreadyApplied = true;
-            }
-        }
 
         $similar = Work::active()
             ->where('category_id', $work->category_id)
@@ -102,45 +108,41 @@ class WorkBrowseController extends Controller
     }
 
     /** Start a task from the dashboard → create the submission → go to the proof form. */
+    /**
+     * Apply to a task from the in-dashboard task detail page.
+     *
+     * This used to be a genuine "start work now" action: it called
+     * WorkSubmission::create() directly, which meant it
+     *
+     *   - charged no application fee at all (no CoinService call, no ledger row),
+     *   - left application_status / delivery_status at their column defaults
+     *     instead of going through the lifecycle,
+     *   - honoured works.allow_multiple_submissions, retired in migration 0070,
+     *   - skipped the eligibility, user-type and reliability checks,
+     *   - took the worker straight to the legacy proof form, so the task read as
+     *     started before admin had approved anything or delivered a package.
+     *
+     * It is now a thin wrapper over TaskApplicationService::apply(), the same
+     * tested path Web works.apply uses: row-locked slot check, fee charged once
+     * against a stored fee_reference, application left at Awaiting Review.
+     * The route name is kept so existing links and bookmarks do not break.
+     */
     public function start(string $slug)
     {
-        $work = Work::active()->where('slug', $slug)->firstOrFail();
         $user = Auth::guard('web')->user();
+        $work = Work::with('category')->where('slug', $slug)->firstOrFail();
 
-        if ($work->slots_remaining <= 0) {
-            return back()->with('error', 'No slots remaining for this task.');
+        try {
+            $submission = $this->applications->apply($user, $work);
+        } catch (ApplicationException $e) {
+            return back()->with('error', $e->getMessage());
         }
 
-        $existing = WorkSubmission::where('work_id', $work->id)
-            ->where('worker_id', $user->id)
-            ->where('worker_type', 2)
-            ->latest()
-            ->first();
+        $charged = (float) $submission->fee_paid > 0
+            ? ' ' . formatCoins($submission->fee_paid) . ' was deducted.'
+            : '';
 
-        if ($existing && (! $work->allow_multiple_submissions || $existing->status !== 2)) {
-            // Already started — take them straight to the proof form.
-            return redirect()->route('user.submissions.proof', $existing->id);
-        }
-
-        if ($work->requires_kyc && $user->kyc_status !== 1) {
-            return back()->with('error', 'This task requires KYC verification. Please complete identity verification first.');
-        }
-
-        if ($work->poster_type === 2 && $work->poster_id === $user->id) {
-            return back()->with('error', 'You cannot start your own task.');
-        }
-
-        $submission = WorkSubmission::create([
-            'work_id'          => $work->id,
-            'work_poster_id'   => $work->poster_id,
-            'work_poster_type' => $work->poster_type,
-            'worker_id'        => $user->id,
-            'worker_type'      => 2,
-            'status'           => 0,
-            'deadline_at'      => $work->auto_approve_hours ? now()->addHours($work->auto_approve_hours) : null,
-        ]);
-
-        return redirect()->route('user.submissions.proof', $submission->id)
-            ->with('success', 'Task started — submit your proof below.');
+        return redirect()->route('user.tasks.index')
+            ->with('success', 'Application submitted and awaiting review.' . $charged);
     }
 }

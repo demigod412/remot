@@ -6,7 +6,13 @@
 
 @php
 // Inline queries for sections not passed by controller
-$pendingSubs     = \App\Models\WorkSubmission::where('status', 1)->count();
+// Count off the two live axes, not the derived legacy `status` mirror. The
+// mirror is lossy by design, and reading it here undercounted the queue: an
+// application still Awaiting Review maps to legacy status 0, so the tile only
+// ever showed submitted deliveries and never the applications waiting on admin.
+$pendingApplications = \App\Models\WorkSubmission::awaitingApplicationReview()->count();
+$pendingDeliveries   = \App\Models\WorkSubmission::awaitingDeliveryReview()->count();
+$pendingSubs         = $pendingApplications + $pendingDeliveries;
 $pendingKyc      = \App\Models\User::where('kyc_status', 2)->count();
 $pendingCashouts = \App\Models\Cashout::where('status', 0)->count();
 
@@ -103,7 +109,7 @@ $cPts   = collect($cLast)->map(fn($v,$i) => round(($i/(count($cLast)-1))*80,1).'
 
         @php
         $attention = [
-            ['t' => $pendingSubs.' submissions awaiting review', 'sub' => 'Pending moderation', 'icon' => 'file-check', 'c' => '#F59E0B', 'href' => route('admin.submissions.index', ['status' => 1])],
+            ['t' => $pendingSubs.' submissions awaiting review', 'sub' => $pendingApplications.' applications, '.$pendingDeliveries.' deliveries', 'icon' => 'file-check', 'c' => '#F59E0B', 'href' => route('admin.task-review.index')],
             ['t' => $pendingKyc.' KYC applications pending', 'sub' => 'Identity verification queue', 'icon' => 'shield-check', 'c' => '#60A5FA', 'href' => route('admin.users.kyc')],
             ['t' => $stats['pending_topups'].' top-ups awaiting review', 'sub' => 'Deposit requests', 'icon' => 'arrow-down-circle', 'c' => 'var(--accent)', 'href' => route('admin.topups.index', ['status' => 'pending'])],
             ['t' => $pendingCashouts.' withdrawals queued', 'sub' => 'Payout requests', 'icon' => 'arrow-up-circle', 'c' => '#EF4444', 'href' => route('admin.cashouts.index', ['status' => 'pending'])],
