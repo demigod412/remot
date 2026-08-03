@@ -17,7 +17,14 @@
          redirect-back landed on this URL as a GET. Because cashout/preview is a
          POST-only route, that surfaced as a 405 Method Not Allowed and no withdrawal
          could ever complete. --}}
-    <form method="POST" action="{{ route('user.wallet.cashout.submit') }}" id="cashout-form">
+    {{-- The double-submit guard lives on the FORM's submit event, not the button's
+         click. Disabling a submit button from its own click handler cancels the
+         submission outright, because a disabled button does not submit — and it also
+         locks the button forever when HTML5 validation fails, since click fires
+         before validation runs. @submit only fires once validation has passed and
+         the browser is already submitting, so disabling from there is safe. --}}
+    <form method="POST" action="{{ route('user.wallet.cashout.submit') }}" id="cashout-form"
+          x-data="{ sending: false }" @submit="sending = true">
         @csrf
     <div>
         <div style="margin-bottom:16px;">
@@ -78,9 +85,22 @@
         </div>
         @endif
 
-        {{-- Manual account entry --}}
-        <div class="card" style="padding:20px; margin-bottom:14px;"
-             x-show="!useSaved || !selectedAccountId">
+        {{-- Manual account entry.
+
+             template x-if, NOT x-show. x-show only sets display:none, which left two
+             bugs when a saved account was chosen:
+
+               1. The required inputs stayed in the DOM. The browser tried to validate a
+                  hidden required field, could not focus it to report the problem, and
+                  silently refused to submit — the Confirm button appeared to do nothing.
+               2. They were still submitted. Being later in the DOM than the saved
+                  account's hidden inputs, their empty values overwrote the saved
+                  payout_details, so a withdrawal to a saved wallet would have posted a
+                  blank address.
+
+             x-if removes them from the document entirely, which fixes both. --}}
+        <template x-if="!useSaved || !selectedAccountId">
+        <div class="card" style="padding:20px; margin-bottom:14px;">
             <div style="font-size:13px; font-weight:600; color:var(--fg); margin-bottom:14px;">Enter payout details</div>
 
             @if($method->description)
@@ -128,16 +148,16 @@
                        placeholder="Account nickname (optional)">
             </div>
         </div>
+        </template>
 
         {{-- Submit. No confirm() dialog: the amount, fee and payout total are all on
              screen directly above this button, so a browser prompt repeating the figure
              adds a click without adding information. The button disables itself instead,
              which is what actually needs preventing (a double submit). --}}
-        <div x-data="{ sending: false }">
+        <div>
             <button type="submit" class="btn btn-primary"
                     x-bind:disabled="sending"
                     x-bind:style="sending ? 'opacity:.65; cursor:progress;' : ''"
-                    @click="sending = true"
                     style="padding:11px 28px; font-size:13.5px; display:inline-flex; align-items:center; gap:7px;">
                 <i data-lucide="send" style="width:14px; height:14px;"></i>
                 <span x-show="!sending">Confirm withdrawal</span>
@@ -154,11 +174,17 @@
         <div class="card" style="padding:22px; margin-bottom:14px;">
             <div style="font-size:13px; font-weight:600; color:var(--fg); margin-bottom:16px;">Withdrawal summary</div>
 
-            @php $rows = [
+            @php
+                // Comments inside a raw PHP block MUST be PHP comments, not Blade ones.
+                // Blade extracts these blocks before it strips its own comment syntax, so
+                // a Blade comment placed here survives into the compiled file and is a
+                // hard parse error rather than being removed.
+                //
+                // Every figure below is USD: withdrawals leave the earnings balance.
+                $rows = [
                 ['label' => 'Method',              'value' => $method->name,                                 'mono' => false, 'color' => 'var(--fg)'],
-                {{-- Withdrawals are denominated in USD earnings, not coins. --}}
                 ['label' => 'Amount requested',     'value' => formatUsd($preview['coin_amount']), 'mono' => true,  'color' => 'var(--fg)'],
-                ['label' => 'Fee (' . $method->percent_fee . '% + ' . number_format($method->fixed_fee, 0) . ' fixed)',
+                ['label' => 'Fee (' . $method->percent_fee . '% + ' . formatUsd($method->fixed_fee) . ' fixed)',
                                                    'value' => '−' . formatUsd($preview['fee']),     'mono' => true,  'color' => '#EF4444'],
                 ['label' => 'Total deducted',      'value' => formatUsd($preview['net_coins_deducted']), 'mono' => true, 'color' => 'var(--fg)'],
                 ['label' => 'Exchange rate',       'value' => '$1 = ' . $method->coin_to_currency_rate . ' ' . $method->currency, 'mono' => true, 'color' => 'var(--fg-3)'],

@@ -1,0 +1,200 @@
+diff --git a/backend/app/Http/Controllers/Admin/CashoutController.php b/backend/app/Http/Controllers/Admin/CashoutController.php
+index bc41937..b2b096b 100644
+--- a/backend/app/Http/Controllers/Admin/CashoutController.php
++++ b/backend/app/Http/Controllers/Admin/CashoutController.php
+@@ -5,7 +5,6 @@
+ use App\Http\Controllers\Controller;
+ use App\Models\AdminNotification;
+ use App\Models\Cashout;
+-use App\Models\LedgerEntry;
+ use App\Models\User;
+ use App\Services\ActivityLogger;
+ use App\Services\NotifyService;
+@@ -102,26 +101,20 @@ public function approve(Request $request, int $id)
+                 'admin_note' => $data['admin_note'],
+             ]);
+ 
+-            // Denominated in USD: withdrawals come out of the earnings balance, so
+-            // this row must be tagged accordingly or it pollutes every coin report.
++            // NO ledger row here, deliberately.
+             //
+-            // PRE-EXISTING ISSUE, deliberately left alone: the balance was already
+-            // debited when the worker submitted the request, and this writes a
+-            // SECOND '-' row against the same reference. Summing cashout rows
+-            // therefore double-counts. That behaviour predates the USD split; fixing
+-            // it changes historical report totals, so it needs its own commit and a
+-            // decision about existing data.
+-            LedgerEntry::create([
+-                'user_id'       => $cashout->user_id,
+-                'coins'         => $cashout->net_coins_deducted,
+-                'fee'           => $cashout->fee,
+-                'balance_after' => $cashout->user?->usd_balance ?? 0,
+-                'entry_type'    => '-',
+-                'reference'     => $cashout->reference,
+-                'description'   => 'Cashout approved via ' . ($cashout->payoutMethod?->name ?? 'payout method'),
+-                'category'      => 'cashout',
+-                'currency'      => 'usd',
+-            ]);
++            // The money already left when the worker submitted the request:
++            // EarningsService::withdraw() locked the user row, decremented usd_balance
++            // and wrote the one '-' row for this reference. Approval is a status change,
++            // not a second movement.
++            //
++            // This used to write another '-' row for the same amount and reference, so
++            // every withdrawal appeared twice in the ledger and any sum over cashout
++            // rows came out at double the real figure. The balance itself was only ever
++            // debited once, so no money was lost — but the history lied about it.
++            //
++            // The approval itself is recorded on the cashout record (status, admin_note)
++            // and in the admin activity log, which is where an audit trail belongs.
+         });
+ 
+         AdminNotification::notify(
+diff --git a/backend/app/Services/Payout/PayoutService.php b/backend/app/Services/Payout/PayoutService.php
+index 4384d0b..9e38d08 100644
+--- a/backend/app/Services/Payout/PayoutService.php
++++ b/backend/app/Services/Payout/PayoutService.php
+@@ -3,7 +3,6 @@
+ namespace App\Services\Payout;
+ 
+ use App\Models\Cashout;
+-use App\Models\LedgerEntry;
+ use App\Models\User;
+ use App\Services\NotifyService;
+ use App\Services\Payout\Drivers\PayInDriver;
+@@ -59,17 +58,9 @@ public static function completeDisbursement(Cashout $cashout, string $gatewayRef
+             // therefore double-counts. That behaviour predates the USD split; fixing
+             // it changes historical report totals, so it needs its own commit and a
+             // decision about existing data.
+-            LedgerEntry::create([
+-                'user_id'       => $cashout->user_id,
+-                'coins'         => $cashout->net_coins_deducted,
+-                'fee'           => $cashout->fee,
+-                'balance_after' => $cashout->user?->usd_balance ?? 0,
+-                'entry_type'    => '-',
+-                'reference'     => $cashout->reference,
+-                'description'   => 'Cashout paid via ' . ($cashout->payoutMethod?->name ?? 'payout method'),
+-                'category'      => 'cashout',
+-                'currency'      => 'usd',
+-            ]);
++            // No ledger row: see Admin\CashoutController::approve(). The debit was
++            // written once by EarningsService::withdraw() at request time. Disbursement
++            // is a status change, not a second movement.
+         });
+ 
+         if ($cashout->user) {
+diff --git a/backend/resources/views/admin/cashouts/index.blade.php b/backend/resources/views/admin/cashouts/index.blade.php
+index d20ab90..099f452 100644
+--- a/backend/resources/views/admin/cashouts/index.blade.php
++++ b/backend/resources/views/admin/cashouts/index.blade.php
+@@ -70,7 +70,7 @@
+         <span>Reference</span>
+         <span>User</span>
+         <span>Method</span>
+-        <span>Coins</span>
++        <span>Amount</span>
+         <span>Payout</span>
+         <span>Requested</span>
+         <span>Status</span>
+@@ -103,7 +103,7 @@ class="mono" style="font-size:11px;color:var(--accent);text-decoration:none;over
+ 
+         <span style="font-size:11.5px;color:var(--fg-2);">{{ $cashout->payoutMethod?->name ?? '—' }}</span>
+ 
+-        <span class="mono" style="color:var(--coin);">{{ formatCoins($cashout->coin_amount) }}</span>
++        <span class="mono" style="color:#22C55E;">{{ formatUsd($cashout->coin_amount) }}</span>
+ 
+         <span class="mono">{{ $cashout->payout_currency ?? '' }} {{ number_format($cashout->payout_amount ?? 0, 2) }}</span>
+ 
+diff --git a/backend/resources/views/admin/cashouts/show.blade.php b/backend/resources/views/admin/cashouts/show.blade.php
+index 7f11171..c1e60b8 100644
+--- a/backend/resources/views/admin/cashouts/show.blade.php
++++ b/backend/resources/views/admin/cashouts/show.blade.php
+@@ -43,8 +43,11 @@
+                     <div style="font-size:13px;color:var(--fg-2);">{{ $cashout->payoutMethod?->name ?? '—' }}</div>
+                 </div>
+                 <div>
+-                    <div class="label" style="margin-bottom:4px;">Coins Requested</div>
+-                    <div class="mono" style="font-size:20px;font-weight:700;color:var(--coin);letter-spacing:-0.5px;">{{ formatCoins($cashout->coin_amount) }}</div>
++                    {{-- Withdrawals come out of the worker's USD earnings balance, never
++                         out of JC coins. The cashouts columns are still named *coin* from
++                         when coins were the only currency; they hold USD. --}}
++                    <div class="label" style="margin-bottom:4px;">Amount Requested</div>
++                    <div class="mono" style="font-size:20px;font-weight:700;color:#22C55E;letter-spacing:-0.5px;">{{ formatUsd($cashout->coin_amount) }}</div>
+                 </div>
+                 <div>
+                     <div class="label" style="margin-bottom:4px;">Payout Amount</div>
+@@ -52,15 +55,15 @@
+                 </div>
+                 <div>
+                     <div class="label" style="margin-bottom:4px;">Fee Deducted</div>
+-                    <div style="font-size:13px;color:var(--fg-2);">{{ formatCoins($cashout->fee) }}</div>
++                    <div style="font-size:13px;color:var(--fg-2);">{{ formatUsd($cashout->fee) }}</div>
+                 </div>
+                 <div>
+-                    <div class="label" style="margin-bottom:4px;">Net Coins Deducted</div>
+-                    <div style="font-size:13px;color:var(--fg-2);">{{ formatCoins($cashout->net_coins_deducted) }}</div>
++                    <div class="label" style="margin-bottom:4px;">Total Deducted (USD)</div>
++                    <div style="font-size:13px;color:var(--fg-2);">{{ formatUsd($cashout->net_coins_deducted) }}</div>
+                 </div>
+                 <div>
+                     <div class="label" style="margin-bottom:4px;">Rate</div>
+-                    <div style="font-size:13px;color:var(--fg-2);">1 coin = {{ $cashout->coin_to_currency_rate }} {{ $cashout->payout_currency }}</div>
++                    <div style="font-size:13px;color:var(--fg-2);">$1 = {{ rtrim(rtrim(number_format($cashout->coin_to_currency_rate, 8, '.', ''), '0'), '.') }} {{ $cashout->payout_currency }}</div>
+                 </div>
+                 <div>
+                     <div class="label" style="margin-bottom:4px;">Submitted</div>
+@@ -118,8 +121,15 @@
+                     <div style="font-size:11px;color:var(--fg-3);">{{ $cashout->user?->email }}</div>
+                 </div>
+             </div>
++            {{-- Both balances, because only one of them is relevant to a withdrawal and
++                 showing the coin figure alone was actively misleading here: it is not the
++                 balance this request was deducted from. --}}
+             <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--fg-3);">
+-                <span>Current Balance</span>
++                <span>Earnings balance <span style="color:var(--fg-4);">(withdrawn from)</span></span>
++                <span class="mono" style="color:#22C55E;font-weight:600;">{{ formatUsd($cashout->user?->usd_balance ?? 0) }}</span>
++            </div>
++            <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;font-size:12px;color:var(--fg-3);">
++                <span>Spending balance</span>
+                 <span class="coin-badge">{{ formatCoins($cashout->user?->coin_balance ?? 0) }}</span>
+             </div>
+         </div>
+diff --git a/backend/resources/views/user/wallet/cashout-preview.blade.php b/backend/resources/views/user/wallet/cashout-preview.blade.php
+index a198ec3..1796f0a 100644
+--- a/backend/resources/views/user/wallet/cashout-preview.blade.php
++++ b/backend/resources/views/user/wallet/cashout-preview.blade.php
+@@ -85,9 +85,22 @@
+         </div>
+         @endif
+ 
+-        {{-- Manual account entry --}}
+-        <div class="card" style="padding:20px; margin-bottom:14px;"
+-             x-show="!useSaved || !selectedAccountId">
++        {{-- Manual account entry.
++
++             template x-if, NOT x-show. x-show only sets display:none, which left two
++             bugs when a saved account was chosen:
++
++               1. The required inputs stayed in the DOM. The browser tried to validate a
++                  hidden required field, could not focus it to report the problem, and
++                  silently refused to submit — the Confirm button appeared to do nothing.
++               2. They were still submitted. Being later in the DOM than the saved
++                  account's hidden inputs, their empty values overwrote the saved
++                  payout_details, so a withdrawal to a saved wallet would have posted a
++                  blank address.
++
++             x-if removes them from the document entirely, which fixes both. --}}
++        <template x-if="!useSaved || !selectedAccountId">
++        <div class="card" style="padding:20px; margin-bottom:14px;">
+             <div style="font-size:13px; font-weight:600; color:var(--fg); margin-bottom:14px;">Enter payout details</div>
+ 
+             @if($method->description)
+@@ -135,6 +148,7 @@
+                        placeholder="Account nickname (optional)">
+             </div>
+         </div>
++        </template>
+ 
+         {{-- Submit. No confirm() dialog: the amount, fee and payout total are all on
+              screen directly above this button, so a browser prompt repeating the figure

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AdminNotification;
 use App\Models\Cashout;
-use App\Models\LedgerEntry;
 use App\Models\User;
 use App\Services\ActivityLogger;
 use App\Services\NotifyService;
@@ -102,26 +101,20 @@ class CashoutController extends Controller
                 'admin_note' => $data['admin_note'],
             ]);
 
-            // Denominated in USD: withdrawals come out of the earnings balance, so
-            // this row must be tagged accordingly or it pollutes every coin report.
+            // NO ledger row here, deliberately.
             //
-            // PRE-EXISTING ISSUE, deliberately left alone: the balance was already
-            // debited when the worker submitted the request, and this writes a
-            // SECOND '-' row against the same reference. Summing cashout rows
-            // therefore double-counts. That behaviour predates the USD split; fixing
-            // it changes historical report totals, so it needs its own commit and a
-            // decision about existing data.
-            LedgerEntry::create([
-                'user_id'       => $cashout->user_id,
-                'coins'         => $cashout->net_coins_deducted,
-                'fee'           => $cashout->fee,
-                'balance_after' => $cashout->user?->usd_balance ?? 0,
-                'entry_type'    => '-',
-                'reference'     => $cashout->reference,
-                'description'   => 'Cashout approved via ' . ($cashout->payoutMethod?->name ?? 'payout method'),
-                'category'      => 'cashout',
-                'currency'      => 'usd',
-            ]);
+            // The money already left when the worker submitted the request:
+            // EarningsService::withdraw() locked the user row, decremented usd_balance
+            // and wrote the one '-' row for this reference. Approval is a status change,
+            // not a second movement.
+            //
+            // This used to write another '-' row for the same amount and reference, so
+            // every withdrawal appeared twice in the ledger and any sum over cashout
+            // rows came out at double the real figure. The balance itself was only ever
+            // debited once, so no money was lost — but the history lied about it.
+            //
+            // The approval itself is recorded on the cashout record (status, admin_note)
+            // and in the admin activity log, which is where an audit trail belongs.
         });
 
         AdminNotification::notify(

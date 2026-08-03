@@ -43,8 +43,11 @@
                     <div style="font-size:13px;color:var(--fg-2);">{{ $cashout->payoutMethod?->name ?? '—' }}</div>
                 </div>
                 <div>
-                    <div class="label" style="margin-bottom:4px;">Coins Requested</div>
-                    <div class="mono" style="font-size:20px;font-weight:700;color:var(--coin);letter-spacing:-0.5px;">{{ formatCoins($cashout->coin_amount) }}</div>
+                    {{-- Withdrawals come out of the worker's USD earnings balance, never
+                         out of JC coins. The cashouts columns are still named *coin* from
+                         when coins were the only currency; they hold USD. --}}
+                    <div class="label" style="margin-bottom:4px;">Amount Requested</div>
+                    <div class="mono" style="font-size:20px;font-weight:700;color:#22C55E;letter-spacing:-0.5px;">{{ formatUsd($cashout->coin_amount) }}</div>
                 </div>
                 <div>
                     <div class="label" style="margin-bottom:4px;">Payout Amount</div>
@@ -52,15 +55,15 @@
                 </div>
                 <div>
                     <div class="label" style="margin-bottom:4px;">Fee Deducted</div>
-                    <div style="font-size:13px;color:var(--fg-2);">{{ formatCoins($cashout->fee) }}</div>
+                    <div style="font-size:13px;color:var(--fg-2);">{{ formatUsd($cashout->fee) }}</div>
                 </div>
                 <div>
-                    <div class="label" style="margin-bottom:4px;">Net Coins Deducted</div>
-                    <div style="font-size:13px;color:var(--fg-2);">{{ formatCoins($cashout->net_coins_deducted) }}</div>
+                    <div class="label" style="margin-bottom:4px;">Total Deducted (USD)</div>
+                    <div style="font-size:13px;color:var(--fg-2);">{{ formatUsd($cashout->net_coins_deducted) }}</div>
                 </div>
                 <div>
                     <div class="label" style="margin-bottom:4px;">Rate</div>
-                    <div style="font-size:13px;color:var(--fg-2);">1 coin = {{ $cashout->coin_to_currency_rate }} {{ $cashout->payout_currency }}</div>
+                    <div style="font-size:13px;color:var(--fg-2);">$1 = {{ rtrim(rtrim(number_format($cashout->coin_to_currency_rate, 8, '.', ''), '0'), '.') }} {{ $cashout->payout_currency }}</div>
                 </div>
                 <div>
                     <div class="label" style="margin-bottom:4px;">Submitted</div>
@@ -118,8 +121,15 @@
                     <div style="font-size:11px;color:var(--fg-3);">{{ $cashout->user?->email }}</div>
                 </div>
             </div>
+            {{-- Both balances, because only one of them is relevant to a withdrawal and
+                 showing the coin figure alone was actively misleading here: it is not the
+                 balance this request was deducted from. --}}
             <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border);font-size:12px;color:var(--fg-3);">
-                <span>Current Balance</span>
+                <span>Earnings balance <span style="color:var(--fg-4);">(withdrawn from)</span></span>
+                <span class="mono" style="color:#22C55E;font-weight:600;">{{ formatUsd($cashout->user?->usd_balance ?? 0) }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;padding-top:8px;font-size:12px;color:var(--fg-3);">
+                <span>Spending balance</span>
                 <span class="coin-badge">{{ formatCoins($cashout->user?->coin_balance ?? 0) }}</span>
             </div>
         </div>

@@ -140,13 +140,13 @@
         <div style="text-align:right; flex-shrink:0; display:flex; flex-direction:column; align-items:flex-end; gap:8px;">
             @if($work && $sub->status == 2)
             <div style="display:flex; align-items:baseline; gap:3px;">
-                <span style="font-size:13px; color:var(--coin); font-family:ui-monospace,monospace;">{{ coinSymbol() }}</span>
-                <span class="mono" style="font-size:20px; font-weight:600; color:var(--coin);">{{ formatUsd($work->payout_usd) }}</span>
+                
+                <span class="mono" style="font-size:20px; font-weight:600; color:green;">{{ formatUsd($work->payout_usd) }}</span>
             </div>
             @elseif($work)
             <div style="display:flex; align-items:baseline; gap:3px; opacity:0.5;">
-                <span style="font-size:13px; color:var(--coin); font-family:ui-monospace,monospace;">{{ coinSymbol() }}</span>
-                <span class="mono" style="font-size:20px; font-weight:600; color:var(--coin);">{{ formatUsd($work->payout_usd) }}</span>
+               </span>
+                <span class="mono" style="font-size:20px; font-weight:600; color:orange;">{{ formatUsd($work->payout_usd) }}</span>
             </div>
             @endif
 

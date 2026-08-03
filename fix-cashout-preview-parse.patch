@@ -1,0 +1,25 @@
+diff --git a/backend/resources/views/user/wallet/cashout-preview.blade.php b/backend/resources/views/user/wallet/cashout-preview.blade.php
+index 031255f..e8cf070 100644
+--- a/backend/resources/views/user/wallet/cashout-preview.blade.php
++++ b/backend/resources/views/user/wallet/cashout-preview.blade.php
+@@ -154,11 +154,17 @@
+         <div class="card" style="padding:22px; margin-bottom:14px;">
+             <div style="font-size:13px; font-weight:600; color:var(--fg); margin-bottom:16px;">Withdrawal summary</div>
+ 
+-            @php $rows = [
++            @php
++                // Comments inside a raw PHP block MUST be PHP comments, not Blade ones.
++                // Blade extracts these blocks before it strips its own comment syntax, so
++                // a Blade comment placed here survives into the compiled file and is a
++                // hard parse error rather than being removed.
++                //
++                // Every figure below is USD: withdrawals leave the earnings balance.
++                $rows = [
+                 ['label' => 'Method',              'value' => $method->name,                                 'mono' => false, 'color' => 'var(--fg)'],
+-                {{-- Withdrawals are denominated in USD earnings, not coins. --}}
+                 ['label' => 'Amount requested',     'value' => formatUsd($preview['coin_amount']), 'mono' => true,  'color' => 'var(--fg)'],
+-                ['label' => 'Fee (' . $method->percent_fee . '% + ' . number_format($method->fixed_fee, 0) . ' fixed)',
++                ['label' => 'Fee (' . $method->percent_fee . '% + ' . formatUsd($method->fixed_fee) . ' fixed)',
+                                                    'value' => '−' . formatUsd($preview['fee']),     'mono' => true,  'color' => '#EF4444'],
+                 ['label' => 'Total deducted',      'value' => formatUsd($preview['net_coins_deducted']), 'mono' => true, 'color' => 'var(--fg)'],
+                 ['label' => 'Exchange rate',       'value' => '$1 = ' . $method->coin_to_currency_rate . ' ' . $method->currency, 'mono' => true, 'color' => 'var(--fg-3)'],

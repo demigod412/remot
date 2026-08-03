@@ -3,7 +3,6 @@
 namespace App\Services\Payout;
 
 use App\Models\Cashout;
-use App\Models\LedgerEntry;
 use App\Models\User;
 use App\Services\NotifyService;
 use App\Services\Payout\Drivers\PayInDriver;
@@ -59,17 +58,9 @@ class PayoutService
             // therefore double-counts. That behaviour predates the USD split; fixing
             // it changes historical report totals, so it needs its own commit and a
             // decision about existing data.
-            LedgerEntry::create([
-                'user_id'       => $cashout->user_id,
-                'coins'         => $cashout->net_coins_deducted,
-                'fee'           => $cashout->fee,
-                'balance_after' => $cashout->user?->usd_balance ?? 0,
-                'entry_type'    => '-',
-                'reference'     => $cashout->reference,
-                'description'   => 'Cashout paid via ' . ($cashout->payoutMethod?->name ?? 'payout method'),
-                'category'      => 'cashout',
-                'currency'      => 'usd',
-            ]);
+            // No ledger row: see Admin\CashoutController::approve(). The debit was
+            // written once by EarningsService::withdraw() at request time. Disbursement
+            // is a status change, not a second movement.
         });
 
         if ($cashout->user) {

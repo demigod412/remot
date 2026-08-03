@@ -76,14 +76,14 @@
                     class="sidebar-link {{ request()->routeIs('admin.works*', 'admin.task-review*', 'admin.categories*') ? 'active' : '' }}"
                     title="Works">
                     <i data-lucide="briefcase" style="width:16px;height:16px;flex-shrink:0;"></i>
-                    <span x-show="sidebarOpen" x-transition.opacity class="truncate" style="flex:1;text-align:left;">Works</span>
+                    <span x-show="sidebarOpen" x-transition.opacity class="truncate" style="flex:1;text-align:left;">Tasks</span>
                     <i data-lucide="chevron-down" x-show="sidebarOpen"
                        :class="open ? 'rotate-180' : ''"
                        style="width:14px;height:14px;flex-shrink:0;transition:transform .2s;"></i>
                 </button>
                 <div x-show="open && sidebarOpen" x-transition style="padding-left:12px; margin-top:2px; display:flex; flex-direction:column; gap:2px;">
                     <a href="{{ route('admin.works.index') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.works.index') ? 'active' : '' }}">
-                        <i data-lucide="list" style="width:14px;height:14px;"></i><span>All Works</span>
+                        <i data-lucide="list" style="width:14px;height:14px;"></i><span>All Task</span>
                     </a>
                     <a href="{{ route('admin.works.pending') }}" class="sidebar-link btn-sm {{ request()->routeIs('admin.works.pending') ? 'active' : '' }}">
                         <i data-lucide="clock" style="width:14px;height:14px;"></i><span>Pending Approval</span>
@@ -118,26 +118,7 @@
                 <span x-show="sidebarOpen" x-transition.opacity class="truncate">Skills</span>
             </a>
 
-            {{-- Job Listings --}}
-            <a href="{{ route('admin.jobs.listings.index') }}"
-               class="sidebar-link {{ request()->routeIs('admin.jobs*') ? 'active' : '' }}"
-               title="Job Listings">
-                <i data-lucide="building-2" style="width:16px;height:16px;flex-shrink:0;"></i>
-                <span x-show="sidebarOpen" x-transition.opacity class="truncate">Job Listings</span>
-            </a>
-
-            {{-- Boost Requests --}}
-            <a href="{{ route('admin.boost-requests.index') }}"
-               class="sidebar-link {{ request()->routeIs('admin.boost-requests*') ? 'active' : '' }}"
-               title="Boost Requests">
-                <i data-lucide="zap" style="width:16px;height:16px;flex-shrink:0;"></i>
-                <span x-show="sidebarOpen" x-transition.opacity class="truncate">Boost Requests</span>
-                @php $pendingBoosts = \App\Models\BoostRequest::where('status', 0)->count(); @endphp
-                @if($pendingBoosts > 0)
-                <span class="mono" x-show="sidebarOpen" style="margin-left:auto;font-size:10px;padding:2px 6px;background:rgba(245,158,11,0.15);color:#F59E0B;border-radius:4px;flex-shrink:0;">{{ $pendingBoosts }}</span>
-                @endif
-            </a>
-
+           
             {{-- Membership Applications: the invite-only intake queue. Approving here
                  creates the user account and emails a temporary password. --}}
             <a href="{{ route('admin.membership.index') }}"
@@ -153,18 +134,7 @@
                 @endif
             </a>
 
-            {{-- Contracts --}}
-            <a href="{{ route('admin.contracts.index') }}"
-               class="sidebar-link {{ request()->routeIs('admin.contracts*') ? 'active' : '' }}"
-               title="Contracts">
-                <i data-lucide="file-text" style="width:16px;height:16px;flex-shrink:0;"></i>
-                <span x-show="sidebarOpen" x-transition.opacity class="truncate">Contracts</span>
-                @php $disputed = \App\Models\Contract::where('status', 6)->count(); @endphp
-                @if($disputed > 0)
-                <span class="mono" x-show="sidebarOpen" style="margin-left:auto;font-size:10px;padding:2px 6px;background:rgba(239,68,68,0.15);color:#EF4444;border-radius:4px;flex-shrink:0;">{{ $disputed }}</span>
-                @endif
-            </a>
-
+            
             {{-- Users --}}
             <div x-data="{ open: {{ request()->routeIs('admin.users*') ? 'true' : 'false' }} }">
                 <button @click="open = !open"

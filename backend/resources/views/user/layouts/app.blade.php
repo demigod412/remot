@@ -64,7 +64,7 @@
             $navSections = [
                 'Work' => [
                     ['route' => 'user.dashboard',           'icon' => 'layout-dashboard', 'label' => 'Dashboard'],
-                    ['route' => 'user.browse.works',         'icon' => 'search',           'label' => 'Find Work'],
+                    ['route' => 'user.browse.works',         'icon' => 'search',           'label' => 'Active Task'],
                     // The microtask lifecycle screen: application status, task package
                     // download, JSON result upload. This is where a worker actually works.
                     ['route' => 'user.tasks.index',          'icon' => 'clipboard-list',   'label' => 'My Tasks'],
@@ -89,10 +89,11 @@
                     ['route' => 'user.jobs.saved',           'icon' => 'bookmark',          'label' => 'Saved Jobs'],
                 ]] : []),
 
-                'Contracts' => [
-                    ['route' => 'user.contracts.sent',       'icon' => 'file-output',       'label' => 'Contracts Sent'],
-                    ['route' => 'user.contracts.received',   'icon' => 'file-input',        'label' => 'Contracts Received'],
-                ],
+                 //'Contracts' => [
+                   //  ['route' => 'user.contracts.sent',       'icon' => 'file-output',       'label' => 'Contracts Sent'],
+                   //  ['route' => 'user.contracts.received',   'icon' => 'file-input',        'label' => 'Contracts Received'],
+                // ],
+                
                 'Account' => [
                     ['route' => 'user.wallet.overview',          'icon' => 'wallet',            'label' => 'Wallet'],
                     ['route' => 'user.wallet.payout-accounts',   'icon' => 'credit-card',       'label' => 'Withdrawal Accounts'],
