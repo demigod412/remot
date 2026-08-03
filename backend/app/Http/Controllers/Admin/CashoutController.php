@@ -198,10 +198,14 @@ class CashoutController extends Controller
             'admin_note' => ['required', 'string', 'max:255'],
         ]);
 
+        try {
         DB::transaction(function () use ($cashout, $data) {
             // Return the USD to the worker's earnings balance, not to coins.
-            // reverseWithdrawal() refuses to run twice against one reference, so a
-            // double-clicked reject cannot pay the money back twice.
+            //
+            // reverseWithdrawal() reads the amount from the original debit row and
+            // refuses to run at all if there is no matching USD withdrawal for this
+            // reference. That turns a silent over-refund into a visible error, which is
+            // the right trade for money leaving the platform.
             $user = $cashout->user;
             if ($user) {
                 \App\Services\EarningsService::reverseWithdrawal(
@@ -223,6 +227,16 @@ class CashoutController extends Controller
                 'refunded'   => true,
             ]);
         });
+        } catch (\RuntimeException $e) {
+            // Nothing was committed: the whole transaction rolled back, so the cashout
+            // is still pending and no money moved. Surface the reason instead of a 500.
+            Log::warning('Cashout rejection refused', [
+                'cashout' => $cashout->id,
+                'reason'  => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Could not refund this cashout: ' . $e->getMessage());
+        }
 
         if ($cashout->user) {
             NotifyService::send($cashout->user, 'CASHOUT_REJECTED', [

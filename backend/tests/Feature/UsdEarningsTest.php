@@ -150,6 +150,44 @@ class UsdEarningsTest extends FeatureTestCase
         $this->assertSame(100.0, (float) $user->fresh()->usd_balance);
     }
 
+    /**
+     * A reversal must never invent money. If nothing was withdrawn under that
+     * reference in USD, there is nothing to give back — this is what stopped
+     * rejecting a legacy cashout from crediting a balance it never left.
+     */
+    public function test_reversal_is_refused_when_no_usd_withdrawal_exists(): void
+    {
+        $user = $this->makeWorker(usd: 50);
+
+        try {
+            EarningsService::reverseWithdrawal($user, 40, 'REF-NEVER-WITHDREW', 'Rejected');
+            $this->fail('Expected a RuntimeException when reversing a withdrawal that never happened.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('nothing to reverse', $e->getMessage());
+        }
+
+        $this->assertSame(50.0, (float) $user->fresh()->usd_balance, 'Balance must be untouched.');
+        $this->assertDatabaseMissing('ledger_entries', ['reference' => 'REF-NEVER-WITHDREW']);
+    }
+
+    /**
+     * The amount returned comes from the recorded debit, not the caller's figure.
+     */
+    public function test_reversal_refuses_an_amount_that_disagrees_with_the_debit(): void
+    {
+        $user = $this->makeWorker(usd: 100);
+        EarningsService::withdraw($user, 30, 'REF-MISMATCH', 'cashout');
+
+        try {
+            EarningsService::reverseWithdrawal($user, 90, 'REF-MISMATCH', 'Rejected');
+            $this->fail('Expected a RuntimeException on an amount mismatch.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('mismatch', $e->getMessage());
+        }
+
+        $this->assertSame(70.0, (float) $user->fresh()->usd_balance, 'Only the withdrawal should have applied.');
+    }
+
     public function test_commission_books_against_the_platform_not_a_user(): void
     {
         $user = $this->makeWorker();

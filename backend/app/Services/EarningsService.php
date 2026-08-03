@@ -108,12 +108,23 @@ class EarningsService
     /**
      * Reverse a withdrawal, e.g. admin rejects a cashout request.
      *
-     * Refuses to run twice against one reference, mirroring
-     * CoinService::refund(). Without the guard, rejecting the same cashout
-     * twice pays the money back twice.
+     * The amount returned is read from the ORIGINAL DEBIT ROW, not from the caller's
+     * $usd argument. That argument is now only a cross-check.
+     *
+     * This matters because a reversal must never be able to invent money. Before this
+     * guard existed, rejecting a cashout credited usd_balance unconditionally, so:
+     *
+     *   - a cashout created before earnings moved to USD had debited coin_balance,
+     *     and rejecting it credited USD that had never left USD;
+     *   - a caller passing a stale or wrong figure would have been believed;
+     *   - a cashout whose debit had somehow failed would still pay out on rejection.
+     *
+     * Same principle as fee_paid / fee_reference in the task application flow: reverse
+     * the exact amount that was actually taken, sourced from the record of taking it.
      *
      * @param  string $reference  Reference of the ORIGINAL withdrawal
-     * @throws \RuntimeException if this reference has already been reversed
+     * @throws \RuntimeException if there is no matching USD debit, if the amount
+     *                           disagrees with it, or if it was already reversed
      */
     public static function reverseWithdrawal(
         User   $user,
@@ -141,11 +152,40 @@ class EarningsService
                 );
             }
 
-            $locked->increment('usd_balance', $usd);
+            // The debit this reversal is undoing. Its existence is the proof that money
+            // actually left the USD balance under this reference.
+            $debit = LedgerEntry::where('user_id', $locked->id)
+                ->where('reference', $reference)
+                ->where('entry_type', '-')
+                ->where('currency', self::CURRENCY)
+                ->where('category', 'cashout')
+                ->first();
+
+            if (! $debit) {
+                throw new \RuntimeException(
+                    "No USD withdrawal was recorded for reference {$reference}, so there "
+                    . "is nothing to reverse. Refusing to credit money that never left "
+                    . "the earnings balance. If this cashout predates USD earnings, it "
+                    . "debited the coin balance and must be corrected there instead."
+                );
+            }
+
+            $debited = (float) $debit->coins;
+
+            // Tolerance covers decimal(18,4) round-tripping, nothing more.
+            if (abs($debited - $usd) > 0.0001) {
+                throw new \RuntimeException(
+                    "Refund amount mismatch for {$reference}: caller asked to return "
+                    . number_format($usd, 4) . " but the recorded debit was "
+                    . number_format($debited, 4) . '.'
+                );
+            }
+
+            $locked->increment('usd_balance', $debited);
             $locked->refresh();
 
             self::writeRow(
-                $locked->id, $usd, '+', $locked->usd_balance,
+                $locked->id, $debited, '+', $locked->usd_balance,
                 $reference, 'cashout_reversed', $description
             );
 

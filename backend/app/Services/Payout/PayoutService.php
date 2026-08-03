@@ -81,23 +81,38 @@ class PayoutService
             return;
         }
 
-        DB::transaction(function () use ($cashout, $reason) {
-            $user = User::findOrFail($cashout->user_id);
+        try {
+            DB::transaction(function () use ($cashout, $reason) {
+                $user = User::findOrFail($cashout->user_id);
 
-            \App\Services\EarningsService::reverseWithdrawal(
-                $user,
-                (float) $cashout->net_coins_deducted,
-                $cashout->reference,
-                'Cashout refunded (disbursement failed)'
-            );
+                // Reads the amount from the original debit row and refuses if there is
+                // no matching USD withdrawal for this reference, so a failed payout can
+                // never credit money that did not leave the earnings balance.
+                \App\Services\EarningsService::reverseWithdrawal(
+                    $user,
+                    (float) $cashout->net_coins_deducted,
+                    $cashout->reference,
+                    'Cashout refunded (disbursement failed)'
+                );
 
-            // The ledger row is written by EarningsService::reverseWithdrawal()
-            // above, tagged currency = usd. Do not add a second one here.
-            $cashout->update([
-                'status'     => 4,
-                'admin_note' => $reason ?: 'Automatic disbursement failed.',
+                // The ledger row is written by EarningsService::reverseWithdrawal()
+                // above, tagged currency = usd. Do not add a second one here.
+                $cashout->update([
+                    'status'     => 4,
+                    'admin_note' => $reason ?: 'Automatic disbursement failed.',
+                ]);
+            });
+        } catch (\RuntimeException $e) {
+            // Rolled back: the cashout stays in its disbursing state and no money moved.
+            // Left for an admin to resolve by hand rather than guessed at, because the
+            // only reasons this throws are a missing or mismatched debit.
+            Log::error('Cashout refund refused after failed disbursement', [
+                'cashout' => $cashout->id,
+                'reason'  => $e->getMessage(),
             ]);
-        });
+
+            return;
+        }
 
         if ($cashout->user) {
             NotifyService::send($cashout->user, 'CASHOUT_REJECTED', [
