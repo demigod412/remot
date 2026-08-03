@@ -9,7 +9,7 @@
 <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px;" class="wallet-balance-pair">
     <div class="jobstation-card" style="padding:18px;">
         <div class="label" style="margin-bottom:6px;">Spending balance</div>
-        <div class="mono" style="font-size:26px; font-weight:600; letter-spacing:-0.8px;">{{ coinSymbol() }}{{ number_format(auth('web')->user()->coin_balance, 2) }}</div>
+        <div class="mono" style="font-size:26px; font-weight:600; letter-spacing:-0.8px;">{{ formatCoins(auth('web')->user()->coin_balance, 2) }}</div>
         <div style="font-size:11.5px; color:var(--fg-3); margin-top:5px;">JC coins. Used for task application fees. Not withdrawable.</div>
     </div>
     <div class="jobstation-card" style="padding:18px;">
@@ -43,8 +43,7 @@
             <div style="position:relative;">
                 <div style="font-size:11.5px; color:var(--fg-3); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.08em;">Available balance</div>
                 <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:8px;">
-                    <span style="font-size:44px; color:var(--coin); font-family:ui-monospace,monospace; font-weight:600; line-height:1;">{{ coinSymbol() }}</span>
-                    <span class="mono" style="font-size:clamp(36px,5vw,64px); font-weight:600; letter-spacing:-2.5px; line-height:1;">{{ number_format($user->coin_balance) }}</span>
+                    <span class="mono" style="font-size:clamp(36px,5vw,64px); font-weight:600; letter-spacing:-2.5px; line-height:1;">{{ formatCoins($user->coin_balance) }}</span>
                 </div>
                 {{-- Fiat equivalent --}}
                 <template x-if="cur && currencies.length > 0">
@@ -57,7 +56,7 @@
                         </select>
                     </div>
                 </template>
-                <div style="font-size:13px; color:var(--fg-2); margin-bottom:24px;">Lifetime earned: <span class="mono" style="color:var(--fg);">{{ coinSymbol() }}{{ number_format($stats['total_earned']) }}</span></div>
+                <div style="font-size:13px; color:var(--fg-2); margin-bottom:24px;">Lifetime earned: <span class="mono" style="color:var(--fg);">{{ formatUsd($stats['total_earned']) }}</span></div>
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                     <a href="{{ route('user.wallet.cashout') }}" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:6px;">
                         <i data-lucide="download" style="width:14px; height:14px;"></i> Withdraw
@@ -77,22 +76,19 @@
             <div class="card" style="padding:16px;">
                 <div class="label" style="margin-bottom:8px;">Total topped up</div>
                 <div style="display:flex; align-items:baseline; gap:3px;">
-                    <span style="font-size:12px; color:var(--coin); font-family:ui-monospace,monospace;">{{ coinSymbol() }}</span>
-                    <span class="mono" style="font-size:20px; font-weight:600; color:var(--fg);">{{ number_format($stats['total_topup']) }}</span>
+                    <span class="mono" style="font-size:20px; font-weight:600; color:var(--fg);">{{ formatCoins($stats['total_topup']) }}</span>
                 </div>
             </div>
             <div class="card" style="padding:16px;">
                 <div class="label" style="margin-bottom:8px;">Total withdrawn</div>
                 <div style="display:flex; align-items:baseline; gap:3px;">
-                    <span style="font-size:12px; color:var(--coin); font-family:ui-monospace,monospace;">{{ coinSymbol() }}</span>
-                    <span class="mono" style="font-size:20px; font-weight:600; color:var(--fg);">{{ number_format($stats['total_cashout']) }}</span>
+                    <span class="mono" style="font-size:20px; font-weight:600; color:var(--fg);">{{ formatUsd($stats['total_cashout']) }}</span>
                 </div>
             </div>
             <div class="card" style="padding:16px;">
                 <div class="label" style="margin-bottom:8px;">Total earned</div>
                 <div style="display:flex; align-items:baseline; gap:3px;">
-                    <span style="font-size:12px; color:#22C55E; font-family:ui-monospace,monospace;">{{ coinSymbol() }}</span>
-                    <span class="mono" style="font-size:20px; font-weight:600; color:#22C55E;">{{ number_format($stats['total_earned']) }}</span>
+                    <span class="mono" style="font-size:20px; font-weight:600; color:#22C55E;">{{ formatUsd($stats['total_earned']) }}</span>
                 </div>
             </div>
         </div>
@@ -114,7 +110,7 @@
                     <div style="font-size:13px; font-weight:500; color:var(--fg);">Coin top-up</div>
                     <div style="font-size:11px; color:var(--fg-3);">{{ $tx->created_at->format('M d, Y') }}</div>
                 </div>
-                <span class="mono" style="font-size:14px; font-weight:500; color:#22C55E; flex-shrink:0;">+{{ coinSymbol() }}{{ number_format($tx->coins_credited) }}</span>
+                <span class="mono" style="font-size:14px; font-weight:500; color:#22C55E; flex-shrink:0;">+{{ formatCoins($tx->coins_credited) }}</span>
             </div>
             @endforeach
 
@@ -135,7 +131,7 @@
                         @endif
                     </div>
                 </div>
-                <span class="mono" style="font-size:14px; font-weight:500; color:var(--fg); flex-shrink:0;">−{{ coinSymbol() }}{{ number_format($tx->net_coins_deducted) }}</span>
+                <span class="mono" style="font-size:14px; font-weight:500; color:var(--fg); flex-shrink:0;">−{{ formatUsd($tx->net_coins_deducted) }}</span>
             </div>
             @endforeach
 

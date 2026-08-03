@@ -68,7 +68,7 @@
                 <td class="hide-md" style="padding:13px 18px; color:var(--fg-3); white-space:nowrap;">{{ $entry->created_at->format('M d, Y H:i') }}</td>
                 <td style="padding:13px 18px; text-align:right; font-weight:600; white-space:nowrap;
                            color:{{ $entry->entry_type === '+' ? '#22C55E' : '#EF4444' }};">
-                    {{ $entry->entry_type }}{{ number_format($entry->coins, 0) }} {{ coinSymbol() }}
+                    {{ $entry->entry_type }}{{ $entry->formatted_amount }}
                 </td>
             </tr>
             @empty

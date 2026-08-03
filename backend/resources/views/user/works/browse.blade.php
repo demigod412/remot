@@ -136,7 +136,13 @@
                 <span>~{{ $work->time_limit }} min</span>
                 <span style="color:var(--border-strong);">·</span>
                 @endif
-                <span style="color:{{ $remaining < 5 ? 'var(--urgent)' : 'var(--fg-3)' }};">{{ $remaining }} spots left</span>
+                {{-- Boosted applicant count for social proof; $remaining is the real
+                     number of free slots and is never reduced by the boost. --}}
+                @if($work->display_application_count > 0)
+                <span>{{ number_format($work->display_application_count) }} applied</span>
+                <span style="color:var(--border-strong);">·</span>
+                @endif
+                <span style="color:{{ $remaining < 5 ? 'var(--urgent)' : 'var(--fg-3)' }};">{{ $remaining }} of {{ $work->display_slot_total }} spots left</span>
                 @if($applied)
                 <span style="color:var(--border-strong);">·</span>
                 <span style="color:#22C55E; font-weight:500;">✓ Applied</span>
@@ -144,8 +150,22 @@
             </div>
         </div>
 
-        {{-- Reward --}}
-        <span class="mono" style="font-size:15px; font-weight:600; color:#E6C400; flex-shrink:0;">{{ coinSymbol() }}{{ number_format($work->coins_per_worker) }}</span>
+        {{-- Reward and cost, side by side.
+             This used to show coins_per_worker, which is neither: it was not the
+             application fee (that is set per category) and not the reward (that is
+             payout_usd). Workers were reading a number that meant nothing. --}}
+        <div style="flex-shrink:0; text-align:right; line-height:1.35;">
+            <div class="mono" style="font-size:15px; font-weight:600; color:#22C55E;">
+                ${{ number_format($work->payout_usd, 2) }}
+            </div>
+            <div style="font-size:11px; color:var(--fg-3);">
+                @if((float) $work->application_cost > 0)
+                    costs {{ formatCoins($work->application_cost) }}
+                @else
+                    free to apply
+                @endif
+            </div>
+        </div>
 
         {{-- Bookmark --}}
         <div x-data="{ bm: {{ $bookmarked ? 'true' : 'false' }} }" @click.stop>

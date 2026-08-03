@@ -29,9 +29,51 @@ if (! function_exists('coinSymbol')) {
 }
 
 if (! function_exists('formatCoins')) {
-    function formatCoins(float|int|string $amount): string
+    /**
+     * The single, canonical way to render a coin amount: "50 connect".
+     *
+     * Never build this by hand as coinSymbol() . $amount — that produces
+     * "connect50", which is how the two styles ended up mixed across the UI.
+     *
+     * Decimals are shown only when they carry information, so a 50 coin reward
+     * reads "50 connect" while a 2.50 fee reads "2.50 connect" instead of being
+     * rounded to "3 connect".
+     */
+    function formatCoins(float|int|string $amount, ?int $decimals = null): string
     {
-        return number_format((float) $amount, 0) . ' ' . coinSymbol();
+        $amount = (float) $amount;
+
+        if ($decimals === null) {
+            $decimals = fmod($amount, 1.0) === 0.0 ? 0 : 2;
+        }
+
+        return number_format($amount, $decimals) . ' ' . coinSymbol();
+    }
+}
+
+if (! function_exists('formatMoney')) {
+    /**
+     * Render an amount in whichever currency it is actually denominated in.
+     *
+     * ledger_entries stores every amount in a column called `coins` and records the
+     * currency separately, so rendering a row without consulting that column shows
+     * a USD payout as coins. Use this anywhere a ledger row, cashout or earnings
+     * figure is displayed.
+     */
+    function formatMoney(float|int|string $amount, string $currency = 'coin', ?int $decimals = null): string
+    {
+        if (strtolower($currency) === 'usd') {
+            return '$' . number_format((float) $amount, $decimals ?? 2);
+        }
+
+        return formatCoins($amount, $decimals);
+    }
+}
+
+if (! function_exists('formatUsd')) {
+    function formatUsd(float|int|string $amount): string
+    {
+        return '$' . number_format((float) $amount, 2);
     }
 }
 

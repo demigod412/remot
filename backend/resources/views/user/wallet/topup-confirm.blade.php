@@ -157,8 +157,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; padding:14px 0 0;">
                 <span style="font-size:13px; font-weight:600; color:var(--fg);">You'll receive</span>
                 <div style="display:flex; align-items:baseline; gap:3px;">
-                    <span style="font-size:16px; color:var(--coin); font-family:ui-monospace,monospace; font-weight:600;">{{ coinSymbol() }}</span>
-                    <span class="mono" style="font-size:24px; font-weight:700; color:var(--accent); letter-spacing:-1px; line-height:1;">{{ number_format($expectedCoins) }}</span>
+                    <span class="mono" style="font-size:24px; font-weight:700; color:var(--accent); letter-spacing:-1px; line-height:1;">{{ formatCoins($expectedCoins) }}</span>
                 </div>
             </div>
         </div>

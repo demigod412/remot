@@ -86,11 +86,7 @@
                 <label style="display:block;font-size:12px;color:var(--fg-2);margin-bottom:6px;font-weight:500;">Worker Slots</label>
                 <input type="number" name="worker_slots" value="{{ old('worker_slots', $work->worker_slots) }}" min="1" required>
             </div>
-            <div>
-                <label style="display:block;font-size:12px;color:var(--fg-2);margin-bottom:6px;font-weight:500;">Coins / Worker</label>
-                <input type="number" name="coins_per_worker" value="{{ old('coins_per_worker', $work->coins_per_worker) }}"
-                       min="0.01" step="0.01" style="font-family:ui-monospace,monospace;" required>
-            </div>
+            {{-- See create.blade.php: unused on admin-posted tasks. --}}
             <div>
                 <label style="display:block;font-size:12px;color:var(--fg-2);margin-bottom:6px;font-weight:500;">Est. Minutes</label>
                 <input type="number" name="avg_minutes" value="{{ old('avg_minutes', $work->avg_minutes) }}" min="1">

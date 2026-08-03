@@ -13,15 +13,13 @@
     <div class="card" style="padding:18px;">
         <div class="label" style="margin-bottom:8px;">Total earned</div>
         <div style="display:flex; align-items:baseline; gap:3px;">
-            <span style="font-size:14px; color:var(--coin); font-family:ui-monospace,monospace; font-weight:600;">{{ coinSymbol() }}</span>
-            <span class="mono" style="font-size:26px; font-weight:600; color:var(--coin); letter-spacing:-0.5px;">{{ number_format($stats['total_earned']) }}</span>
+            <span class="mono" style="font-size:26px; font-weight:600; color:var(--coin); letter-spacing:-0.5px;">{{ formatCoins($stats['total_earned']) }}</span>
         </div>
     </div>
     <div class="card" style="padding:18px;">
         <div class="label" style="margin-bottom:8px;">Pending</div>
         <div style="display:flex; align-items:baseline; gap:3px;">
-            <span style="font-size:14px; color:#F59E0B; font-family:ui-monospace,monospace; font-weight:600;">{{ coinSymbol() }}</span>
-            <span class="mono" style="font-size:26px; font-weight:600; color:#F59E0B; letter-spacing:-0.5px;">{{ number_format($stats['pending']) }}</span>
+            <span class="mono" style="font-size:26px; font-weight:600; color:#F59E0B; letter-spacing:-0.5px;">{{ formatCoins($stats['pending']) }}</span>
         </div>
     </div>
 </div>
@@ -31,7 +29,7 @@
     <div style="font-size:14px; font-weight:600; color:var(--fg); margin-bottom:6px;">Your referral link</div>
     <p style="font-size:13px; color:var(--fg-3); margin:0 0 16px; line-height:1.55;">
         Invite friends to join {{ gs()->site_name ?? 'Job Station' }}. When they register and complete tasks, you earn
-        <span class="mono" style="color:var(--coin); font-weight:600;">{{ coinSymbol() }}{{ formatCoins(gs()->ref_commission ?? 0) }}</span> per referral.
+        <span class="mono" style="color:var(--coin); font-weight:600;">{{ formatCoins(formatCoins(gs()->ref_commission ?? 0)) }}</span> per referral.
     </p>
     <div style="display:flex; gap:8px;">
         <input type="text" value="{{ $referralLink }}" readonly

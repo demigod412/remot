@@ -107,7 +107,14 @@ class MarketplaceSeeder extends Seeder
                     'USD' => ['rate' => 1, 'min' => 5, 'max' => 100000, 'fixed_charge' => 0, 'percent_charge' => 0.5],
                 ],
                 'instructions' => 'Pay with crypto. Coins are credited once the network confirms the payment.',
-                'webhook_info' => 'Set the IPN callback URL in your NOWPayments dashboard to: ' . url('/ipn/NowPayments'),
+                // MUST be an array: PaymentChannel casts webhook_info to 'array', and
+                // the edit screen iterates it as label => value. A plain string here
+                // round-trips through json_encode/json_decode as a string and makes
+                // admin/payment-channels/{id}/edit fatal with "foreach() argument must
+                // be of type array|object, string given".
+                'webhook_info' => [
+                    'IPN callback URL' => url('/ipn/NowPayments'),
+                ],
                 'form_id'      => 0,
             ]
         );

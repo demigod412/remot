@@ -93,7 +93,10 @@ class WorkController extends Controller
             'display_application_boost'  => ['nullable', 'integer', 'min:0', 'max:100000'],
             // USD paid to each worker on approval. Independent of coins_per_worker.
             'payout_usd'                 => ['required', 'numeric', 'min:0', 'max:1000000'],
-            'coins_per_worker'           => ['required', 'numeric', 'min:0.01'],
+            // Vestigial for admin-posted tasks. The worker's reward is payout_usd and the
+            // application fee comes from the category, so there is nothing for a coin
+            // figure to do here. The column stays for the legacy user-gig flow.
+            'coins_per_worker'           => ['nullable', 'numeric', 'min:0'],
             'avg_minutes'                => ['nullable', 'integer', 'min:1'],
             'description'                => ['required', 'string'],
             'work_status'                => ['required', 'in:0,1'],
@@ -107,7 +110,8 @@ class WorkController extends Controller
         $data['poster_id']       = Auth::guard('admin')->id();
         $data['poster_type']     = 1;
         $data['approval_status'] = 1; // admin posts auto-approved
-        $data['total_coins']     = $data['coins_per_worker'] * $data['worker_slots'];
+        $data['coins_per_worker'] = $data['coins_per_worker'] ?? 0;
+        $data['total_coins']      = $data['coins_per_worker'] * $data['worker_slots'];
         $data['slug']            = Str::slug($data['title']) . '-' . Str::random(6);
 
         if ($request->hasFile('cover_image')) {
@@ -181,7 +185,10 @@ class WorkController extends Controller
             'display_application_boost'  => ['nullable', 'integer', 'min:0', 'max:100000'],
             // USD paid to each worker on approval. Independent of coins_per_worker.
             'payout_usd'                 => ['required', 'numeric', 'min:0', 'max:1000000'],
-            'coins_per_worker'           => ['required', 'numeric', 'min:0.01'],
+            // Vestigial for admin-posted tasks. The worker's reward is payout_usd and the
+            // application fee comes from the category, so there is nothing for a coin
+            // figure to do here. The column stays for the legacy user-gig flow.
+            'coins_per_worker'           => ['nullable', 'numeric', 'min:0'],
             'avg_minutes'                => ['nullable', 'integer', 'min:1'],
             'description'                => ['required', 'string'],
             'work_status'                => ['required', 'in:0,1,2'],
@@ -192,7 +199,8 @@ class WorkController extends Controller
 
         $data['allow_multiple_submissions'] = $request->boolean('allow_multiple_submissions');
         $data['requires_kyc']               = $request->boolean('requires_kyc');
-        $data['total_coins'] = $data['coins_per_worker'] * $data['worker_slots'];
+        $data['coins_per_worker'] = $data['coins_per_worker'] ?? 0;
+        $data['total_coins']      = $data['coins_per_worker'] * $data['worker_slots'];
 
         if ($request->hasFile('cover_image')) {
             if ($work->cover_image) {

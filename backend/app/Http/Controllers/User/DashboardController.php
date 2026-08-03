@@ -63,9 +63,12 @@ class DashboardController extends Controller
             ->get();
 
         // Total earned
+        // work_earn rows are denominated in USD. Scoped, because the amount column
+        // is shared between currencies and an unscoped sum adds coins to dollars.
         $totalEarned = $user->ledgerEntries()
             ->where('entry_type', '+')
             ->where('category', 'work_earn')
+            ->inUsd()
             ->sum('coins');
 
         // Worker rank

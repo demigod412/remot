@@ -100,7 +100,7 @@
 
         <span class="mono">{{ $topup->pay_currency ?? '' }} {{ number_format($topup->amount, 2) }}</span>
 
-        <span class="mono" style="color:var(--coin);">{{ coinSymbol() }}{{ number_format($topup->coins_credited ?? 0) }}</span>
+        <span class="mono" style="color:var(--coin);">{{ formatCoins($topup->coins_credited ?? 0) }}</span>
 
         <span style="font-size:11px;color:var(--fg-3);">{{ $topup->created_at->format('M j, Y') }}</span>
 

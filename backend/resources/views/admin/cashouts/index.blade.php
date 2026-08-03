@@ -103,7 +103,7 @@
 
         <span style="font-size:11.5px;color:var(--fg-2);">{{ $cashout->payoutMethod?->name ?? '—' }}</span>
 
-        <span class="mono" style="color:var(--coin);">{{ coinSymbol() }}{{ number_format($cashout->coin_amount) }}</span>
+        <span class="mono" style="color:var(--coin);">{{ formatCoins($cashout->coin_amount) }}</span>
 
         <span class="mono">{{ $cashout->payout_currency ?? '' }} {{ number_format($cashout->payout_amount ?? 0, 2) }}</span>
 

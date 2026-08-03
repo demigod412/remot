@@ -148,9 +148,9 @@
         <div class="jobstation-card" style="padding:20px;">
             <h3 style="font-size:13px;font-weight:600;margin:0 0 14px;">Reward details</h3>
             @foreach([
-                ['Per worker',   coinSymbol().number_format($work->coins_per_worker), 'var(--coin)'],
-                ['Total budget', coinSymbol().number_format($work->total_coins), 'var(--coin)'],
-                ['Distributed',  coinSymbol().number_format($submissionStats['approved'] * $work->coins_per_worker), '#22C55E'],
+                ['Per worker',   formatCoins($work->coins_per_worker), 'var(--coin)'],
+                ['Total budget', formatCoins($work->total_coins), 'var(--coin)'],
+                ['Distributed',  formatCoins($submissionStats['approved'] * $work->coins_per_worker), '#22C55E'],
             ] as [$lbl, $val, $clr])
             <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
                 <span style="font-size:12.5px;color:var(--fg-2);">{{ $lbl }}</span>

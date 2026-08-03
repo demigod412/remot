@@ -27,7 +27,9 @@ class WalletController extends Controller
         $stats = [
             'total_topup'   => $user->coinTopups()->where('status', 1)->sum('coins_credited'),
             'total_cashout' => $user->cashouts()->where('status', 1)->sum('net_coins_deducted'),
-            'total_earned'  => $user->ledgerEntries()->where('entry_type', '+')->where('category', 'work_earn')->sum('coins'),
+            // Scoped to USD: the amount column is shared between currencies, so an
+            // unscoped sum here would add coins to dollars.
+            'total_earned'  => $user->ledgerEntries()->where('entry_type', '+')->where('category', 'work_earn')->inUsd()->sum('coins'),
         ];
 
         $recentTopups   = $user->coinTopups()->latest()->limit(5)->get();

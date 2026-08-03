@@ -138,7 +138,7 @@
                                 @endif
                             </div>
                         </div>
-                        <span class="mono" style="font-size:14px; font-weight:600; color:#F5D547; flex-shrink:0;">{{ coinSymbol() }}{{ $work->coins_per_worker }}</span>
+                        <span class="mono" style="font-size:14px; font-weight:600; color:#F5D547; flex-shrink:0;">{{ formatCoins($work->coins_per_worker) }}</span>
                         <span class="btn btn-sm fw-start-btn" style="padding:5px 12px; font-size:12px; flex-shrink:0; background:var(--accent); border-color:var(--accent); color:white;">{{ __('Start') }}</span>
                     </div>
                 </a>
@@ -241,7 +241,7 @@
                         <div style="text-align:right; flex-shrink:0;">
                             @if($job->salary_min || $job->salary_max)
                             <div class="mono" style="font-size:18px; font-weight:600; color:var(--text); letter-spacing:-0.5px;">
-                                {{ coinSymbol() }}{{ number_format($job->salary_min) }}{{ $job->salary_max ? '–'.number_format($job->salary_max) : '+' }}
+                                {{ formatCoins($job->salary_min) }}{{ $job->salary_max ? '–'.number_format($job->salary_max) : '+' }}
                             </div>
                             @endif
                             <span class="btn btn-primary btn-sm" style="margin-top:8px; display:inline-flex;">View →</span>

@@ -81,14 +81,14 @@
                 <h3 style="font-size:13px;font-weight:600;margin:0;">Coin balance</h3>
                 <i data-lucide="coins" style="width:15px;height:15px;color:var(--coin);"></i>
             </div>
-            <div class="mono" style="font-size:28px;font-weight:600;color:var(--coin);letter-spacing:-0.8px;">{{ coinSymbol() }}{{ number_format($user->coin_balance) }}</div>
+            <div class="mono" style="font-size:28px;font-weight:600;color:var(--coin);letter-spacing:-0.8px;">{{ formatCoins($user->coin_balance) }}</div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px;">
                 <div style="padding:10px;border-radius:8px;background:rgba(34,197,94,0.08);text-align:center;">
-                    <div class="mono" style="font-size:13px;font-weight:600;color:#22C55E;">{{ coinSymbol() }}{{ number_format($stats['total_earned']) }}</div>
+                    <div class="mono" style="font-size:13px;font-weight:600;color:#22C55E;">{{ formatCoins($stats['total_earned']) }}</div>
                     <div style="font-size:10.5px;color:var(--fg-3);margin-top:2px;">Earned</div>
                 </div>
                 <div style="padding:10px;border-radius:8px;background:rgba(239,68,68,0.08);text-align:center;">
-                    <div class="mono" style="font-size:13px;font-weight:600;color:#EF4444;">{{ coinSymbol() }}{{ number_format($stats['total_spent']) }}</div>
+                    <div class="mono" style="font-size:13px;font-weight:600;color:#EF4444;">{{ formatCoins($stats['total_spent']) }}</div>
                     <div style="font-size:10.5px;color:var(--fg-3);margin-top:2px;">Spent</div>
                 </div>
             </div>
@@ -268,9 +268,9 @@
                 </div>
                 <div style="text-align:right;flex-shrink:0;">
                     <div class="mono" style="font-size:12.5px;font-weight:600;color:{{ $entry->entry_type === '+' ? '#22C55E' : '#EF4444' }};">
-                        {{ $entry->entry_type }}{{ coinSymbol() }}{{ number_format($entry->coins) }}
+                        {{ $entry->entry_type }}{{ $entry->formatted_amount }}
                     </div>
-                    <div class="mono" style="font-size:10px;color:var(--fg-3);">bal {{ coinSymbol() }}{{ number_format($entry->balance_after) }}</div>
+                    <div class="mono" style="font-size:10px;color:var(--fg-3);">bal {{ formatCoins($entry->balance_after) }}</div>
                 </div>
             </div>
             @empty
@@ -301,7 +301,7 @@
                 <div style="text-align:right;flex-shrink:0;">
                     <span class="status-pill {{ $sMap[$sub->status] ?? 'status-draft' }}" style="font-size:10.5px;">{{ $sLbl[$sub->status] ?? '—' }}</span>
                     @if($sub->status == 2)
-                    <div class="mono" style="font-size:10.5px;color:#22C55E;margin-top:2px;">+{{ coinSymbol() }}{{ number_format($sub->work?->coins_per_worker ?? 0) }}</div>
+                    <div class="mono" style="font-size:10.5px;color:#22C55E;margin-top:2px;">+{{ formatCoins($sub->work?->coins_per_worker ?? 0) }}</div>
                     @endif
                 </div>
             </div>

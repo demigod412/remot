@@ -55,7 +55,7 @@
     </div>
 
     {{-- Reward --}}
-    <span class="mono" style="font-size:15px; font-weight:600; color:#E6C400; flex-shrink:0;">{{ coinSymbol() }}{{ number_format($work->coins_per_worker) }}</span>
+    <span class="mono" style="font-size:15px; font-weight:600; color:#E6C400; flex-shrink:0;">{{ formatCoins($work->coins_per_worker) }}</span>
 
     {{-- Remove bookmark --}}
     <div x-data="{ removing: false }" @click.stop>

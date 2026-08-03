@@ -92,7 +92,7 @@
                     {{-- Footer --}}
                     <div style="display:flex; justify-content:space-between; align-items:center; padding-top:14px; border-top:1px solid var(--border);">
                         <div>
-                            <div class="mono" style="font-size:17px; font-weight:700; color:#F5D547; line-height:1;">{{ coinSymbol() }}{{ number_format($work->coins_per_worker, 0) }}</div>
+                            <div class="mono" style="font-size:17px; font-weight:700; color:#F5D547; line-height:1;">{{ formatCoins($work->coins_per_worker, 0) }}</div>
                             <div style="font-size:10.5px; color:var(--muted); margin-top:2px;">{{ __('per completion') }}</div>
                         </div>
                         <span style="font-size:12.5px; font-weight:600; color:var(--accent); display:flex; align-items:center; gap:5px;">

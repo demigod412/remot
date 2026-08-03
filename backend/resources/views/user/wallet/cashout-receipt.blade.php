@@ -85,8 +85,7 @@
         <div class="amount-block">
             <div style="font-size:11px; color:var(--fg-3); margin-bottom:6px; text-transform:uppercase; letter-spacing:.08em;">Coin Amount</div>
             <div style="display:flex; align-items:baseline; gap:4px; justify-content:center; margin-bottom:4px;">
-                <span class="mono" style="font-size:13px; color:var(--coin);">{{ coinSymbol() }}</span>
-                <span class="mono" style="font-size:38px; font-weight:700; letter-spacing:-2px; color:var(--coin);">{{ number_format($cashout->coin_amount) }}</span>
+                <span class="mono" style="font-size:38px; font-weight:700; letter-spacing:-2px; color:var(--coin);">{{ formatUsd($cashout->coin_amount) }}</span>
             </div>
             <div style="font-size:12.5px; color:var(--fg-3);">
                 → <span class="mono" style="color:var(--fg); font-weight:500;">{{ $cashout->payout_currency }} {{ number_format($cashout->payout_amount, 2) }}</span>
@@ -119,7 +118,7 @@
             </div>
             <div class="row">
                 <span class="row-label">Platform fee</span>
-                <span class="row-value mono" style="color:var(--fg-3);">{{ coinSymbol() }}{{ number_format($cashout->fee, 2) }}</span>
+                <span class="row-value mono" style="color:var(--fg-3);">{{ formatCoins($cashout->fee, 2) }}</span>
             </div>
             <div class="row" style="padding-top:14px; margin-top:4px;">
                 <span class="row-label" style="font-weight:600; color:var(--fg);">You receive</span>

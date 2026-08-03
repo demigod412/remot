@@ -44,7 +44,6 @@
     <div style="margin:12px 10px; padding:14px; border-radius:12px; background:var(--accent-soft); border:1px solid rgba(47,84,235,0.2); flex-shrink:0;">
         <div class="label" style="margin-bottom:6px;">Your Balance</div>
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-            <span style="font-size:24px; color:var(--coin); font-family:ui-monospace,monospace; font-weight:600;">{{ coinSymbol() }}</span>
             <span class="mono" style="font-size:22px; font-weight:600; letter-spacing:-0.5px;">{{ formatCoins(auth()->user()->coin_balance) }}</span>
         </div>
         <div style="display:flex; gap:6px;">

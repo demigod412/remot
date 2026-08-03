@@ -119,8 +119,7 @@
                 </span>
             </div>
             <div style="display:flex; align-items:baseline; gap:3px; margin-bottom:4px;">
-                <span style="font-size:13px; color:var(--coin); font-family:ui-monospace,monospace; font-weight:600;">{{ coinSymbol() }}</span>
-                <span class="mono" style="font-size:26px; font-weight:600; letter-spacing:-1px; color:var(--fg);">{{ number_format($totalEarned) }}</span>
+                <span class="mono" style="font-size:26px; font-weight:600; letter-spacing:-1px; color:var(--fg);">{{ formatUsd($totalEarned) }}</span>
             </div>
             <div style="font-size:11.5px; color:var(--fg-3);">{{ $submissionStats['approved'] }} {{ __('tasks paid') }}</div>
             {{-- Line sparkline --}}
@@ -263,7 +262,7 @@
                 </div>
                 <span style="font-size:11px; font-weight:500; padding:3px 8px; border-radius:20px; background:{{ $sm['bg'] }}; color:{{ $sm['color'] }}; flex-shrink:0;">{{ $sm['label'] }}</span>
                 @if($work && $sub->status == 2)
-                <span class="mono" style="font-size:13px; font-weight:600; color:#E6C400; flex-shrink:0;">+{{ coinSymbol() }}{{ number_format($work->coins_per_worker) }}</span>
+                <span class="mono" style="font-size:13px; font-weight:600; color:#E6C400; flex-shrink:0;">+{{ formatCoins($work->coins_per_worker) }}</span>
                 @elseif($work && $sub->status == 0)
                 <a href="{{ route('user.submissions.proof', $sub->id) }}" class="btn btn-sm" style="flex-shrink:0; font-size:11px; padding:4px 10px;">{{ __('Submit proof') }}</a>
                 @endif
@@ -301,7 +300,7 @@
                     <div style="font-size:12px; color:var(--fg); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500;">{{ $entry->description }}</div>
                     <div style="font-size:10.5px; color:var(--fg-3); margin-top:1px;">{{ $entry->created_at->diffForHumans() }}</div>
                 </div>
-                <span class="mono" style="font-size:12px; font-weight:600; color:{{ $color }}; flex-shrink:0;">{{ $isIn ? '+' : '−' }}{{ coinSymbol() }}{{ number_format($entry->coins) }}</span>
+                <span class="mono" style="font-size:12px; font-weight:600; color:{{ $color }}; flex-shrink:0;">{{ $isIn ? '+' : '−' }}{{ formatCoins($entry->coins) }}</span>
             </div>
             @empty
             <div style="padding:24px 0; text-align:center; color:var(--fg-3); font-size:12.5px;">
@@ -322,8 +321,7 @@
                 <span style="font-size:10.5px; color:var(--fg-3);">{{ __('Last 30 days') }}</span>
             </div>
             <div style="display:flex; align-items:baseline; gap:4px; margin-bottom:20px;">
-                <span style="font-size:11px; color:var(--coin); font-family:ui-monospace,monospace; font-weight:600;">{{ coinSymbol() }}</span>
-                <span class="mono" style="font-size:28px; font-weight:600; letter-spacing:-1px; color:var(--fg);">{{ number_format(array_sum($chartValues)) }}</span>
+                <span class="mono" style="font-size:28px; font-weight:600; letter-spacing:-1px; color:var(--fg);">{{ formatCoins(array_sum($chartValues)) }}</span>
                 <span style="font-size:12px; color:var(--fg-3);">{{ __('total') }}</span>
             </div>
             <div style="position:relative; height:90px;">
@@ -371,7 +369,7 @@
                             <div style="font-size:12.5px; font-weight:500; color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ Str::limit($w->title, 40) }}</div>
                             <div style="font-size:11px; color:var(--fg-3); margin-top:2px;">{{ $w->category?->name }} · {{ $w->slots_remaining }} {{ __('spots') }}</div>
                         </div>
-                        <span class="mono" style="font-size:13px; font-weight:600; color:#E6C400; flex-shrink:0;">{{ coinSymbol() }}{{ $w->coins_per_worker }}</span>
+                        <span class="mono" style="font-size:13px; font-weight:600; color:#E6C400; flex-shrink:0;">{{ formatCoins($w->coins_per_worker) }}</span>
                     </div>
                 </a>
                 @endforeach

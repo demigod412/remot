@@ -75,7 +75,7 @@ window._heroTyper = @json($heroTyper);
                     </div>
                     <div style="font-size:14px; font-weight:500; line-height:1.35; margin-bottom:14px; color:var(--text);">{{ Str::limit($work->title, 52) }}</div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span class="mono" style="font-size:14px; font-weight:600; color:#F5D547;">{{ coinSymbol() }}{{ $work->coins_per_worker }}</span>
+                        <span class="mono" style="font-size:14px; font-weight:600; color:#F5D547;">{{ formatCoins($work->coins_per_worker) }}</span>
                         <span style="font-size:11px; color:var(--muted);">{{ $work->category?->name }}</span>
                     </div>
                 </div>
@@ -94,7 +94,7 @@ window._heroTyper = @json($heroTyper);
                     </div>
                     <div style="font-size:14px; font-weight:500; line-height:1.35; margin-bottom:14px; color:var(--text);">{{ $t }}</div>
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span class="mono" style="font-size:14px; font-weight:600; color:#F5D547;">{{ coinSymbol() }}{{ $r }}</span>
+                        <span class="mono" style="font-size:14px; font-weight:600; color:#F5D547;">{{ formatCoins($r) }}</span>
                         <span style="font-size:11px; color:var(--muted);">{{ $c }}</span>
                     </div>
                 </div>
@@ -164,7 +164,7 @@ window._heroTyper = @json($heroTyper);
                     </div>
                     <div style="font-size:13.5px; font-weight:500; line-height:1.35; margin-bottom:12px; min-height:38px; color:var(--text);">{{ Str::limit($work->title, 55) }}</div>
                     <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px solid var(--border);">
-                        <span class="mono" style="font-size:14px; font-weight:600; color:#F5D547;">{{ coinSymbol() }}{{ $work->coins_per_worker }}</span>
+                        <span class="mono" style="font-size:14px; font-weight:600; color:#F5D547;">{{ formatCoins($work->coins_per_worker) }}</span>
                         <span style="font-size:11px; font-weight:500; color:var(--accent);">{{ __('Start →') }}</span>
                     </div>
                 </div>
@@ -178,7 +178,7 @@ window._heroTyper = @json($heroTyper);
                 </div>
                 <div style="font-size:13.5px; font-weight:500; line-height:1.35; margin-bottom:12px; min-height:38px; color:var(--text);">{{ $t }}</div>
                 <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px solid var(--border);">
-                    <span class="mono" style="font-size:14px; font-weight:600; color:#F5D547;">{{ coinSymbol() }}{{ $r }}</span>
+                    <span class="mono" style="font-size:14px; font-weight:600; color:#F5D547;">{{ formatCoins($r) }}</span>
                     <a href="{{ route('works.index') }}" style="font-size:11px; font-weight:500; color:var(--accent);">{{ __('Start →') }}</a>
                 </div>
             </div>
@@ -218,7 +218,7 @@ window._heroTyper = @json($heroTyper);
         </div>
         <div style="display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--border); border-left:1px solid var(--border);" class="four-col stats-grid">
             @foreach([
-                [coinSymbol().' '.number_format($stats['completed'] * 8.5), __('Paid out to workers'),  __('Since launch'),         null],
+                [formatCoins($stats['completed'] * 8.5), __('Paid out to workers'),  __('Since launch'),         null],
                 [number_format($stats['completed']),             __('Tasks completed'),        __('All time'),            $stats['completed']],
                 ['97.4%',                                        __('Approval rate'),          __('Across instant jobs'), null],
                 ['4m 12s',                                       __('Median payout time'),     __('Instant jobs'),        null],

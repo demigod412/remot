@@ -79,14 +79,10 @@
                        min="1" @error('worker_slots') style="border-color:#EF4444;" @enderror required>
                 @error('worker_slots') <div style="font-size:12px;color:#EF4444;margin-top:4px;">{{ $message }}</div> @enderror
             </div>
-            <div>
-                <label style="display:block;font-size:12px;color:var(--fg-2);margin-bottom:6px;font-weight:500;">Coins / Worker <span style="color:#EF4444;">*</span></label>
-                <input type="number" name="coins_per_worker" value="{{ old('coins_per_worker') }}"
-                       min="0.01" step="0.01" placeholder="0.00"
-                       style="font-family:ui-monospace,monospace;"
-                       @error('coins_per_worker') style="border-color:#EF4444;" @enderror required>
-                @error('coins_per_worker') <div style="font-size:12px;color:#EF4444;margin-top:4px;">{{ $message }}</div> @enderror
-            </div>
+            {{-- "Coins / Worker" removed. Nothing used it on an admin-posted task:
+                 the worker's reward is payout_usd below, and the application fee comes
+                 from the category. Leaving it in meant entering a number that looked
+                 like a price but changed nothing. The column defaults to 0. --}}
             <div>
                 <label style="display:block;font-size:12px;color:var(--fg-2);margin-bottom:6px;font-weight:500;">Est. Minutes</label>
                 <input type="number" name="avg_minutes" value="{{ old('avg_minutes') }}"

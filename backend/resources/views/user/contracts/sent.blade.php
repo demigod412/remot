@@ -38,9 +38,9 @@
                 <span>To: <span style="color:var(--fg-2);">{{ $contract->worker->fullname ?: $contract->worker->username }}</span></span>
                 @include('user.partials.rating-stars', ['user' => $contract->worker])
                 <span style="color:var(--border-strong);">·</span>
-                <span class="mono" style="color:#E6C400; font-weight:600;">{{ coinSymbol() }}{{ number_format($contract->amount) }}</span>
+                <span class="mono" style="color:#E6C400; font-weight:600;">{{ formatCoins($contract->amount) }}</span>
                 @if($contract->status === 3 && $contract->commission_amount > 0)
-                <span style="color:var(--fg-4);">(fee: {{ coinSymbol() }}{{ number_format($contract->commission_amount) }})</span>
+                <span style="color:var(--fg-4);">(fee: {{ formatCoins($contract->commission_amount) }})</span>
                 @endif
                 @if($contract->deadline_at)
                 <span style="color:var(--border-strong);">·</span>

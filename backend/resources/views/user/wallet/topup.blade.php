@@ -83,8 +83,7 @@
         <div class="card" style="padding:22px; margin-bottom:14px; background:linear-gradient(135deg,rgba(47,84,235,0.08),transparent); border-color:rgba(47,84,235,0.2);">
             <div style="font-size:11px; color:var(--fg-3); margin-bottom:8px; text-transform:uppercase; letter-spacing:.08em;">Current balance</div>
             <div style="display:flex; align-items:baseline; gap:6px;">
-                <span style="font-size:18px; color:var(--coin); font-family:ui-monospace,monospace; font-weight:600;">{{ coinSymbol() }}</span>
-                <span class="mono" style="font-size:32px; font-weight:600; letter-spacing:-1.5px; line-height:1;">{{ number_format(auth()->user()->coin_balance) }}</span>
+                <span class="mono" style="font-size:32px; font-weight:600; letter-spacing:-1.5px; line-height:1;">{{ formatCoins(auth()->user()->coin_balance) }}</span>
             </div>
         </div>
 

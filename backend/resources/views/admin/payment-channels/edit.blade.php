@@ -91,10 +91,21 @@
         </div>
         @endif
 
-        @if($channel->webhook_info)
+        @php
+            // Tolerate a non-array webhook_info rather than fataling. Some channels
+            // were seeded with a plain string, which the 'array' cast hands back as a
+            // string and @foreach cannot iterate.
+            $webhookInfo = $channel->webhook_info;
+            if (is_string($webhookInfo) && $webhookInfo !== '') {
+                $webhookInfo = ['Instructions' => $webhookInfo];
+            } elseif (! is_array($webhookInfo)) {
+                $webhookInfo = [];
+            }
+        @endphp
+        @if(! empty($webhookInfo))
         <div style="margin-top:16px;padding:12px 14px;border-radius:8px;background:rgba(96,165,250,0.07);border:1px solid rgba(96,165,250,0.2);">
             <div style="font-size:11.5px;color:#60A5FA;font-weight:600;margin-bottom:8px;">Webhook Configuration</div>
-            @foreach($channel->webhook_info as $label => $val)
+            @foreach($webhookInfo as $label => $val)
             <div style="font-size:12px;color:var(--fg-2);margin-bottom:4px;">
                 <span style="color:var(--fg-3);">{{ $label }}:</span>
                 <span style="font-family:ui-monospace,monospace;margin-left:6px;">{{ $val }}</span>

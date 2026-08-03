@@ -44,6 +44,18 @@ class LedgerEntry extends Model
      * The amount lives in `coins` regardless of currency, so any sum() over the
      * ledger must be scoped to one currency or it adds dollars to coins.
      */
+    /**
+     * Display string for this row, in its own currency: "$47.40" or "47.40 connect".
+     *
+     * Views must not format `coins` directly. The column holds the amount for both
+     * currencies, so ignoring `currency` renders every USD payout as coins, which is
+     * exactly what the earnings history was doing.
+     */
+    public function getFormattedAmountAttribute(): string
+    {
+        return formatMoney($this->coins, $this->currency ?? 'coin');
+    }
+
     public function scopeInCoins($query)
     {
         return $query->where('currency', 'coin');

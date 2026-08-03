@@ -123,7 +123,7 @@
             {{-- Payout details are injected by the sections above; the form just wraps the submit --}}
         </form>
 
-        @php $confirmMsg = 'Confirm withdrawal of ' . coinSymbol() . number_format($preview['net_coins_deducted']) . '?'; @endphp
+        @php $confirmMsg = 'Confirm withdrawal of ' . formatCoins($preview['net_coins_deducted']) . '?'; @endphp
         <button type="submit" form="cashout-form" class="btn btn-primary"
                 style="padding:11px 28px; font-size:13.5px; display:inline-flex; align-items:center; gap:7px;"
                 onclick="return confirm('{{ $confirmMsg }}')">
@@ -140,11 +140,11 @@
 
             @php $rows = [
                 ['label' => 'Method',              'value' => $method->name,                                 'mono' => false, 'color' => 'var(--fg)'],
-                ['label' => 'Coins requested',     'value' => coinSymbol() . number_format($preview['coin_amount']), 'mono' => true,  'color' => 'var(--fg)'],
+                ['label' => 'Coins requested',     'value' => formatCoins($preview['coin_amount']), 'mono' => true,  'color' => 'var(--fg)'],
                 ['label' => 'Fee (' . $method->percent_fee . '% + ' . number_format($method->fixed_fee, 0) . ' fixed)',
-                                                   'value' => '−' . coinSymbol() . number_format($preview['fee'], 2),     'mono' => true,  'color' => '#EF4444'],
-                ['label' => 'Total deducted',      'value' => coinSymbol() . number_format($preview['net_coins_deducted']), 'mono' => true, 'color' => 'var(--fg)'],
-                ['label' => 'Exchange rate',       'value' => coinSymbol() . '1 = ' . $method->coin_to_currency_rate . ' ' . $method->currency, 'mono' => true, 'color' => 'var(--fg-3)'],
+                                                   'value' => '−' . formatCoins($preview['fee'], 2),     'mono' => true,  'color' => '#EF4444'],
+                ['label' => 'Total deducted',      'value' => formatCoins($preview['net_coins_deducted']), 'mono' => true, 'color' => 'var(--fg)'],
+                ['label' => 'Exchange rate',       'value' => '1 ' . coinSymbol() . ' = ' . $method->coin_to_currency_rate . ' ' . $method->currency, 'mono' => true, 'color' => 'var(--fg-3)'],
             ]; @endphp
 
             @foreach($rows as $row)

@@ -170,7 +170,7 @@
                             <div style="width:28px; height:28px; border-radius:7px; background:rgba(96,165,250,0.12); color:#60A5FA; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px;">💼</div>
                             <div style="flex:1; font-size:13.5px; font-weight:500; color:var(--text);">{{ Str::limit($s->title, 60) }}</div>
                             @if($s->salary_min || $s->salary_max)
-                            <span class="mono" style="font-size:13px; font-weight:600; color:var(--text); flex-shrink:0;">{{ coinSymbol() }}{{ number_format($s->salary_min) }}{{ $s->salary_max ? '–'.number_format($s->salary_max) : '+' }}</span>
+                            <span class="mono" style="font-size:13px; font-weight:600; color:var(--text); flex-shrink:0;">{{ formatCoins($s->salary_min) }}{{ $s->salary_max ? '–'.number_format($s->salary_max) : '+' }}</span>
                             @endif
                         </div>
                     </a>
@@ -188,7 +188,7 @@
                     <div style="font-size:11.5px; color:var(--muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.08em;">Salary</div>
                     @if($job->salary_visible && ($job->salary_min || $job->salary_max))
                     <div class="mono" style="font-size:32px; font-weight:600; letter-spacing:-1px; line-height:1; color:var(--text);">
-                        {{ coinSymbol() }}{{ number_format($job->salary_min) }}{{ $job->salary_max ? '–'.number_format($job->salary_max) : '+' }}
+                        {{ formatCoins($job->salary_min) }}{{ $job->salary_max ? '–'.number_format($job->salary_max) : '+' }}
                     </div>
                     <div style="font-size:12px; color:var(--muted); margin-top:6px;">{{ $job->salary_currency ?? 'TZS' }} / month</div>
                     @else

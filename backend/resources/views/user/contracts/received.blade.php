@@ -36,10 +36,10 @@
                 @include('user.partials.rating-stars', ['user' => $contract->employer])
                 <span style="color:var(--border-strong);">·</span>
                 @if($contract->status === 3 && $contract->worker_payout > 0)
-                    <span class="mono" style="color:#22C55E; font-weight:600;">{{ coinSymbol() }}{{ number_format($contract->worker_payout) }} earned</span>
-                    <span style="color:var(--fg-4);">(of {{ coinSymbol() }}{{ number_format($contract->amount) }})</span>
+                    <span class="mono" style="color:#22C55E; font-weight:600;">{{ formatCoins($contract->worker_payout) }} earned</span>
+                    <span style="color:var(--fg-4);">(of {{ formatCoins($contract->amount) }})</span>
                 @else
-                    <span class="mono" style="color:#E6C400; font-weight:600;">{{ coinSymbol() }}{{ number_format($contract->amount) }}</span>
+                    <span class="mono" style="color:#E6C400; font-weight:600;">{{ formatCoins($contract->amount) }}</span>
                 @endif
                 @if($contract->deadline_at)
                 <span style="color:var(--border-strong);">·</span>

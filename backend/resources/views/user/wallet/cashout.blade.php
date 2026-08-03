@@ -1,9 +1,15 @@
 @extends('user.layouts.app')
-@section('title', 'Withdraw Coins')
-@section('page-title', 'Withdraw Coins')
+@section('title', 'Withdraw Earnings')
+@section('page-title', 'Withdraw Earnings')
 
 @section('content')
-@php $minCashout = gs()->min_cashout ?? 50; $userBalance = auth()->user()->coin_balance; @endphp
+@php
+    // Withdrawals draw on the USD earnings balance. This read coin_balance, which
+    // gated the form on the wrong number entirely: a worker with plenty of coins
+    // and no earnings was shown the form and would fail server-side validation.
+    $minCashout  = gs()->min_cashout ?? 50;
+    $userBalance = auth()->user()->usd_balance;
+@endphp
 
 {{-- Minimum cashout notice --}}
 @if($userBalance < $minCashout)
@@ -11,13 +17,13 @@
     <i data-lucide="lock" style="width:18px; height:18px; color:#EF4444; flex-shrink:0;"></i>
     <div>
         <div style="font-size:13px; font-weight:600; color:#EF4444; margin-bottom:2px;">Insufficient balance</div>
-        <div style="font-size:12px; color:var(--fg-3);">Minimum cashout is <strong class="mono" style="color:var(--fg);">{{ number_format($minCashout) }} {{ coinSymbol() }}</strong>. You have <strong class="mono" style="color:var(--fg);">{{ number_format($userBalance) }} {{ coinSymbol() }}</strong>. Keep earning to unlock.</div>
+        <div style="font-size:12px; color:var(--fg-3);">Minimum cashout is <strong class="mono" style="color:var(--fg);">{{ formatUsd($minCashout) }}</strong>. You have <strong class="mono" style="color:var(--fg);">{{ formatUsd($userBalance) }}</strong>. Keep earning to unlock.</div>
     </div>
 </div>
 @else
 <div style="display:flex; align-items:center; gap:10px; padding:11px 16px; background:rgba(34,197,94,0.07); border:1px solid rgba(34,197,94,0.18); border-radius:10px; margin-bottom:20px; font-size:12.5px; color:var(--fg-3);">
     <i data-lucide="check-circle-2" style="width:14px; height:14px; color:#22C55E; flex-shrink:0;"></i>
-    Minimum cashout: <strong class="mono" style="color:var(--fg); margin-left:4px;">{{ number_format($minCashout) }} {{ coinSymbol() }}</strong>
+    Minimum cashout: <strong class="mono" style="color:var(--fg); margin-left:4px;">{{ formatUsd($minCashout) }}</strong>
 </div>
 @endif
 
@@ -47,9 +53,9 @@
                             <div style="font-size:13px; font-weight:500; color:var(--fg);">{{ $method->name }}</div>
                             <div style="font-size:11.5px; color:var(--fg-3); margin-top:2px;">
                                 {{ $method->currency }}
-                                · Min: <span class="mono">{{ number_format($method->min_coins) }}</span> {{ coinSymbol() }}
+                                · Min: <span class="mono">{{ formatUsd($method->min_coins) }}</span>
                                 @if($method->max_coins)
-                                · Max: <span class="mono">{{ number_format($method->max_coins) }}</span> {{ coinSymbol() }}
+                                · Max: <span class="mono">{{ formatUsd($method->max_coins) }}</span>
                                 @endif
                             </div>
                         </div>
@@ -85,9 +91,9 @@
         {{-- Balance --}}
         <div class="card" style="padding:22px; margin-bottom:14px; background:linear-gradient(135deg,rgba(47,84,235,0.08),transparent); border-color:rgba(47,84,235,0.2);">
             <div style="font-size:11px; color:var(--fg-3); margin-bottom:8px; text-transform:uppercase; letter-spacing:.08em;">Available balance</div>
+            {{-- Withdrawals draw on USD earnings, not the coin spending balance. --}}
             <div style="display:flex; align-items:baseline; gap:6px; margin-bottom:14px;">
-                <span style="font-size:18px; color:var(--coin); font-family:ui-monospace,monospace; font-weight:600;">{{ coinSymbol() }}</span>
-                <span class="mono" style="font-size:34px; font-weight:600; letter-spacing:-1.5px; line-height:1;">{{ number_format(auth()->user()->coin_balance) }}</span>
+                <span class="mono" style="font-size:34px; font-weight:600; letter-spacing:-1.5px; line-height:1;">{{ formatUsd(auth()->user()->usd_balance) }}</span>
             </div>
             <a href="{{ route('user.wallet.cashout.history') }}" style="font-size:12px; color:var(--accent); text-decoration:none;">View history →</a>
         </div>

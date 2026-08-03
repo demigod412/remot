@@ -80,7 +80,7 @@
                     <div class="card" style="padding:13px 16px; display:flex; align-items:center; gap:14px;">
                         <div style="width:28px; height:28px; border-radius:7px; background:rgba(255,122,89,0.12); color:var(--urgent); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px;">⚡</div>
                         <div style="flex:1; font-size:13.5px; font-weight:500; color:var(--fg);">{{ Str::limit($s->title, 60) }}</div>
-                        <span class="mono" style="font-size:13px; font-weight:600; color:#E6C400; flex-shrink:0;">{{ coinSymbol() }}{{ number_format($s->coins_per_worker) }}</span>
+                        <span class="mono" style="font-size:13px; font-weight:600; color:#E6C400; flex-shrink:0;">{{ formatCoins($s->coins_per_worker) }}</span>
                     </div>
                 </a>
                 @endforeach
@@ -100,9 +100,21 @@
                 <div style="font-size:12px; color:var(--fg-3); margin-top:6px;">USD, paid to your earnings balance on approval</div>
             </div>
 
+            @if($work->display_application_count > 0)
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; margin-bottom:8px;">
+                <span style="color:var(--fg-3);">Workers applied</span>
+                <span style="font-weight:600; color:var(--fg);">{{ number_format($work->display_application_count) }}</span>
+            </div>
+            @endif
+
+            {{-- $slotsRemaining is the REAL number of free slots and is never reduced
+                 by display_application_boost. The total beside it carries the same
+                 boost as the applied count above, so the three figures agree with each
+                 other while the availability claim stays true.
+                 See Work::$display_slot_total. --}}
             <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; margin-bottom:18px;">
                 <span style="color:var(--fg-3);">Spots available</span>
-                <span style="font-weight:600; color:{{ $slotsRemaining < 5 ? 'var(--urgent)' : 'var(--fg)' }};">{{ $slotsRemaining }} <span style="color:var(--fg-3); font-weight:400;">of {{ $work->worker_slots }}</span></span>
+                <span style="font-weight:600; color:{{ $slotsRemaining < 5 ? 'var(--urgent)' : 'var(--fg)' }};">{{ $slotsRemaining }} <span style="color:var(--fg-3); font-weight:400;">of {{ $work->display_slot_total }}</span></span>
             </div>
 
             @if($work->requires_kyc && auth('web')->user()->kyc_status !== 1)
@@ -145,7 +157,7 @@
             <div style="text-align:center; font-size:11.5px; color:var(--fg-3); margin-top:10px; line-height:1.55;">
                 @if((float) $work->application_cost > 0)
                     A non-refundable application fee of
-                    <strong style="color:var(--fg-2);">{{ coinSymbol() }}{{ number_format($work->application_cost, 2) }}</strong>
+                    <strong style="color:var(--fg-2);">{{ formatCoins($work->application_cost, 2) }}</strong>
                     is deducted when you apply. It is only returned if an admin rejects your application.
                 @else
                     Applying is free on this task.

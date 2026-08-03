@@ -267,11 +267,11 @@
                 @if($listing->salary_visible && ($listing->salary_min || $listing->salary_max))
                 <div class="mono" style="font-size:28px; font-weight:700; letter-spacing:-1px; line-height:1; color:var(--fg);">
                     @if($listing->salary_min && $listing->salary_max)
-                        {{ coinSymbol() }}{{ number_format($listing->salary_min) }}–{{ number_format($listing->salary_max) }}
+                        {{ formatCoins($listing->salary_min) }}–{{ number_format($listing->salary_max) }}
                     @elseif($listing->salary_min)
-                        {{ coinSymbol() }}{{ number_format($listing->salary_min) }}+
+                        {{ formatCoins($listing->salary_min) }}+
                     @else
-                        {{ __('up to') }} {{ coinSymbol() }}{{ number_format($listing->salary_max) }}
+                        {{ __('up to') }} {{ formatCoins($listing->salary_max) }}
                     @endif
                 </div>
                 <div style="font-size:12px; color:var(--fg-3); margin-top:6px;">{{ $listing->salary_currency ?? 'TZS' }} / {{ __('month') }}</div>

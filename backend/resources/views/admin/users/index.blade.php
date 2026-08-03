@@ -113,7 +113,7 @@
 
         <span class="mono">{{ number_format($subCount) }}</span>
 
-        <span class="mono" style="color:var(--coin);">{{ coinSymbol() }}{{ number_format($user->coin_balance) }}</span>
+        <span class="mono" style="color:var(--coin);">{{ formatCoins($user->coin_balance) }}</span>
 
         <span style="font-size:11px;color:var(--fg-3);">{{ $user->created_at->format('M j, Y') }}</span>
 

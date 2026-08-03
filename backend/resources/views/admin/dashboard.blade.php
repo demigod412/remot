@@ -49,9 +49,9 @@ $cPts   = collect($cLast)->map(fn($v,$i) => round(($i/(count($cLast)-1))*80,1).'
 
     <div class="jobstation-card" style="padding:18px;">
         <div class="label" style="margin-bottom:8px;">Coins volume (30d)</div>
-        <div class="mono" style="font-size:26px;font-weight:600;letter-spacing:-0.8px;">{{ coinSymbol() }}{{ number_format($coinData->sum()) }}</div>
+        <div class="mono" style="font-size:26px;font-weight:600;letter-spacing:-0.8px;">{{ formatCoins($coinData->sum()) }}</div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;">
-            <span style="font-size:11.5px;color:var(--coin);">+{{ coinSymbol() }}{{ number_format($coinData->last()) }} today</span>
+            <span style="font-size:11.5px;color:var(--coin);">+{{ formatCoins($coinData->last()) }} today</span>
             <svg width="80" height="26" fill="none" viewBox="0 0 80 26"><polyline points="{{ $cPts }}" stroke="var(--coin)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
     </div>
@@ -169,7 +169,7 @@ $cPts   = collect($cLast)->map(fn($v,$i) => round(($i/(count($cLast)-1))*80,1).'
                 <div style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $u->fullname }}</div>
                 <div style="font-size:10.5px;color:var(--fg-3);">{{ '@' . $u->username }}</div>
             </div>
-            <span class="mono" style="font-size:11.5px;color:var(--coin);">{{ coinSymbol() }}{{ number_format($u->coin_balance) }}</span>
+            <span class="mono" style="font-size:11.5px;color:var(--coin);">{{ formatCoins($u->coin_balance) }}</span>
         </div>
         @empty
         <div style="font-size:12px;color:var(--fg-3);">No users yet.</div>

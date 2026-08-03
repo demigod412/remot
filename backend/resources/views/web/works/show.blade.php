@@ -118,7 +118,7 @@
                         <div class="card" style="padding:14px 18px; display:flex; align-items:center; gap:14px; transition:transform .14s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
                             <div style="width:28px; height:28px; border-radius:7px; background:rgba(255,122,89,0.12); color:#FF7A59; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px;">⚡</div>
                             <div style="flex:1; font-size:13.5px; font-weight:500; color:var(--text);">{{ Str::limit($s->title, 60) }}</div>
-                            <span class="mono" style="font-size:13px; font-weight:600; color:#F5D547; flex-shrink:0;">{{ coinSymbol() }}{{ $s->coins_per_worker }}</span>
+                            <span class="mono" style="font-size:13px; font-weight:600; color:#F5D547; flex-shrink:0;">{{ formatCoins($s->coins_per_worker) }}</span>
                         </div>
                     </a>
                     @endforeach
@@ -148,15 +148,19 @@
                     </div>
                     @endif
                     {{--
-                        Spots available is the REAL figure. display_application_boost is
-                        deliberately not applied here: overstating scarcity to someone
+                        The number of spots left is the REAL figure and is never reduced
+                        by display_application_boost. Overstating scarcity to someone
                         about to spend a non-refundable fee is a different thing from a
-                        soft popularity signal.
+                        soft popularity signal, and only the second one is done here.
+
+                        The total it is shown "of" carries the same boost as the applied
+                        count above, so all three figures agree arithmetically while the
+                        availability claim stays true. See Work::$display_slot_total.
                     --}}
                     <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px;">
                         <span style="color:var(--muted);">Spots available</span>
                         <span style="font-weight:600; color:{{ $slotsRemaining < 5 ? 'var(--urgent)' : 'var(--text)' }};">
-                            {{ $slotsRemaining }} <span style="color:var(--muted); font-weight:400;">of {{ $work->worker_slots }}</span>
+                            {{ $slotsRemaining }} <span style="color:var(--muted); font-weight:400;">of {{ $work->display_slot_total }}</span>
                         </span>
                     </div>
 

@@ -30,10 +30,9 @@
             <div style="font-size:15px;font-weight:700;color:var(--fg);margin-bottom:4px;">{{ $pkg->name }}</div>
             <div style="font-size:30px;font-weight:800;color:#F5D547;letter-spacing:-1px;font-family:ui-monospace,monospace;margin-bottom:2px;">
                 {{ number_format($pkg->total_coins) }}
-                <span style="font-size:14px;font-weight:600;color:var(--fg-3);">{{ coinSymbol() }}</span>
             </div>
             @if($pkg->bonus_coins > 0)
-            <div style="font-size:12px;color:#22C55E;margin-bottom:3px;">+{{ number_format($pkg->bonus_coins) }} bonus</div>
+            <div style="font-size:12px;color:#22C55E;margin-bottom:3px;">+{{ formatCoins($pkg->bonus_coins) }} bonus</div>
             @endif
             <div style="font-size:20px;font-weight:700;color:var(--fg);">{{ number_format($pkg->price, 2) }} {{ $pkg->currency }}</div>
         </div>

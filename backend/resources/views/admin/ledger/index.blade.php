@@ -93,7 +93,7 @@
                     <span class="badge-default" style="font-size:11px;">{{ $entry->category_label }}</span>
                 </td>
                 <td style="padding:11px 20px;text-align:right;font-weight:600;font-family:ui-monospace,monospace;color:{{ $entry->entry_type === '+' ? '#22C55E' : '#EF4444' }};">
-                    {{ $entry->entry_type }}{{ number_format($entry->coins, 0) }}
+                    {{ $entry->entry_type }}{{ $entry->formatted_amount }}
                 </td>
                 <td style="padding:11px 20px;text-align:right;font-size:12px;color:var(--fg-3);font-family:ui-monospace,monospace;">
                     {{ number_format($entry->balance_after, 0) }}

@@ -61,8 +61,7 @@
                 <div>
                     <div class="label" style="margin-bottom:4px;">Balance</div>
                     <div style="display:flex; align-items:baseline; gap:2px;">
-                        <span style="font-size:12px; color:var(--coin); font-family:ui-monospace,monospace; font-weight:600;">{{ coinSymbol() }}</span>
-                        <span class="mono" style="font-size:18px; font-weight:600;">{{ number_format($user->coin_balance) }}</span>
+                        <span class="mono" style="font-size:18px; font-weight:600;">{{ formatCoins($user->coin_balance) }}</span>
                     </div>
                     <div style="font-size:10.5px; color:var(--fg-3);">Available</div>
                 </div>

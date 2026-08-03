@@ -44,7 +44,8 @@
             @endif
         </div>
         <div class="mono" style="font-size:13px; font-weight:500; color:#EF4444; text-align:right; align-self:center;">
-            −{{ coinSymbol() }}{{ number_format($cashout->net_coins_deducted) }}
+            {{-- Withdrawals leave the USD earnings balance, never the coin balance. --}}
+            −{{ formatUsd($cashout->net_coins_deducted) }}
         </div>
         <div style="font-size:13px; color:var(--fg-2); text-align:right; align-self:center;">
             {{ $cashout->payout_currency }} {{ number_format($cashout->payout_amount, 2) }}

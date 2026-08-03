@@ -259,6 +259,28 @@ class Work extends Model
     }
 
     /**
+     * Slot total to SHOW alongside display_application_count.
+     *
+     * Both the shown applicant count and this total carry the same boost, so the
+     * difference between them is the REAL number of free slots:
+     *
+     *     shown applied   = real applied + boost
+     *     shown total     = real slots   + boost
+     *     shown remaining = shown total - shown applied = real slots - real applied
+     *
+     * That is the entire point. The page reads busier without ever claiming fewer
+     * places remain than actually do, which keeps a scarcity claim off a page that
+     * charges a non-refundable application fee.
+     *
+     * Display only. Real capacity is worker_slots and nothing here touches slot
+     * arithmetic, which is why the boost tests still pass unchanged.
+     */
+    public function getDisplaySlotTotalAttribute(): int
+    {
+        return (int) $this->worker_slots + (int) $this->display_application_boost;
+    }
+
+    /**
      * True when this task is admin-posted. With user gigs disabled everything new
      * should be admin-posted, but legacy user tasks still exist in the data.
      */

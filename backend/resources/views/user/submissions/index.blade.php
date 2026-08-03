@@ -39,8 +39,7 @@
     <div class="card" style="padding:16px;">
         <div class="label" style="margin-bottom:8px;">{{ __('Earnings cleared') }}</div>
         <div style="display:flex; align-items:baseline; gap:3px;">
-            <span style="font-size:14px; color:var(--coin); font-family:ui-monospace,monospace; font-weight:600;">{{ coinSymbol() }}</span>
-            <span class="mono" style="font-size:22px; font-weight:600; letter-spacing:-0.5px; color:var(--coin);">{{ number_format($totalEarned) }}</span>
+            <span class="mono" style="font-size:22px; font-weight:600; letter-spacing:-0.5px; color:var(--coin);">{{ formatUsd($totalEarned) }}</span>
         </div>
     </div>
 </div>
