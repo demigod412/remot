@@ -91,6 +91,8 @@ class WorkController extends Controller
             // DISPLAY ONLY. Cosmetic head start for the shown applicant count on a
             // new task. Never enters slot arithmetic. See migration 0072.
             'display_application_boost'  => ['nullable', 'integer', 'min:0', 'max:100000'],
+            // USD paid to each worker on approval. Independent of coins_per_worker.
+            'payout_usd'                 => ['required', 'numeric', 'min:0', 'max:1000000'],
             'coins_per_worker'           => ['required', 'numeric', 'min:0.01'],
             'avg_minutes'                => ['nullable', 'integer', 'min:1'],
             'description'                => ['required', 'string'],
@@ -177,6 +179,8 @@ class WorkController extends Controller
             // DISPLAY ONLY. Cosmetic head start for the shown applicant count on a
             // new task. Never enters slot arithmetic. See migration 0072.
             'display_application_boost'  => ['nullable', 'integer', 'min:0', 'max:100000'],
+            // USD paid to each worker on approval. Independent of coins_per_worker.
+            'payout_usd'                 => ['required', 'numeric', 'min:0', 'max:1000000'],
             'coins_per_worker'           => ['required', 'numeric', 'min:0.01'],
             'avg_minutes'                => ['nullable', 'integer', 'min:1'],
             'description'                => ['required', 'string'],

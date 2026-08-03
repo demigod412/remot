@@ -4,6 +4,23 @@
 
 @section('content')
 
+{{-- Two balances, deliberately shown side by side and never summed: coins are
+     bought and spent on application fees, USD is earned and withdrawn. --}}
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px;" class="wallet-balance-pair">
+    <div class="jobstation-card" style="padding:18px;">
+        <div class="label" style="margin-bottom:6px;">Spending balance</div>
+        <div class="mono" style="font-size:26px; font-weight:600; letter-spacing:-0.8px;">{{ coinSymbol() }}{{ number_format(auth('web')->user()->coin_balance, 2) }}</div>
+        <div style="font-size:11.5px; color:var(--fg-3); margin-top:5px;">JC coins. Used for task application fees. Not withdrawable.</div>
+    </div>
+    <div class="jobstation-card" style="padding:18px;">
+        <div class="label" style="margin-bottom:6px;">Earnings balance</div>
+        <div class="mono" style="font-size:26px; font-weight:600; letter-spacing:-0.8px;">${{ number_format(auth('web')->user()->usd_balance, 2) }}</div>
+        <div style="font-size:11.5px; color:var(--fg-3); margin-top:5px;">USD from approved work. This is what you withdraw.</div>
+    </div>
+</div>
+<style>@media (max-width:640px){ .wallet-balance-pair{ grid-template-columns:1fr !important; } }</style>
+
+
 <div style="display:grid; grid-template-columns:1fr 340px; gap:20px;" class="wallet-grid">
 
     {{-- ── LEFT COLUMN ─────────────────────────────────────────── --}}

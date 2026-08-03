@@ -264,18 +264,29 @@ class WalletController extends Controller
         $user   = Auth::guard('web')->user();
         $method = PayoutMethod::findOrFail($request->payout_method_id);
 
+        // Withdrawals come out of USD earnings, never out of JC coins. Coins are
+        // bought to spend on application fees and have no route out of the system.
+        //
+        // The request field and the cashouts columns are still named *coin*, from
+        // when coins were the only currency. They now hold a USD amount. Renaming
+        // them would touch every payout method, report and admin screen, so the
+        // names stay and the meaning is documented here and in EarningsService.
+        //
+        // PayoutMethod::coin_to_currency_rate survives and is still meaningful: it
+        // converts USD to the method's payout currency (NGN, etc). That is payout
+        // FX, a different thing from a JC-to-USD rate, which does not exist.
         $globalMin = gs()->min_cashout ?? 50;
         if ($request->coin_amount < $globalMin) {
-            return back()->with('error', "Minimum cashout is {$globalMin} coins.");
+            return back()->with('error', "Minimum cashout is \${$globalMin}.");
         }
         if ($request->coin_amount < $method->min_coins) {
-            return back()->with('error', "Minimum withdrawal via this method is {$method->min_coins} coins.");
+            return back()->with('error', "Minimum withdrawal via this method is \${$method->min_coins}.");
         }
         if ($method->max_coins && $request->coin_amount > $method->max_coins) {
-            return back()->with('error', "Maximum withdrawal is {$method->max_coins} coins.");
+            return back()->with('error', "Maximum withdrawal is \${$method->max_coins}.");
         }
-        if ($request->coin_amount > $user->coin_balance) {
-            return back()->with('error', 'Insufficient coin balance.');
+        if ($request->coin_amount > $user->usd_balance) {
+            return back()->with('error', 'Insufficient USD earnings balance.');
         }
 
         $preview = $method->calculatePayout((float) $request->coin_amount);
@@ -301,7 +312,7 @@ class WalletController extends Controller
         $user   = Auth::guard('web')->user();
         $method = PayoutMethod::findOrFail($preview['payout_method_id']);
 
-        if ($preview['net_coins_deducted'] > $user->coin_balance) {
+        if ($preview['net_coins_deducted'] > $user->usd_balance) {
             return redirect()->route('user.wallet.cashout')->with('error', 'Insufficient balance.');
         }
 
@@ -329,17 +340,18 @@ class WalletController extends Controller
 
         try {
             DB::transaction(function () use ($user, $method, $preview, $request) {
-                // Lock + re-check inside the transaction so concurrent cashouts can't overdraw.
-                $locked = \App\Models\User::whereKey($user->id)->lockForUpdate()->firstOrFail();
-                if ($locked->coin_balance < $preview['net_coins_deducted']) {
-                    throw new \RuntimeException('insufficient');
-                }
-
-                $locked->decrement('coin_balance', $preview['net_coins_deducted']);
-                $locked->refresh();
-                $user->coin_balance = $locked->coin_balance;
-
                 $ref = generateReference(12);
+
+                // Locks the user row, re-checks the balance and writes the ledger
+                // row itself. Throws RuntimeException on an overdraw, which rolls
+                // this whole transaction back.
+                \App\Services\EarningsService::withdraw(
+                    $user,
+                    (float) $preview['net_coins_deducted'],
+                    $ref,
+                    'cashout',
+                    'Cashout request via ' . $method->name
+                );
                 Cashout::create([
                     'user_id'              => $user->id,
                     'payout_method_id'     => $method->id,
@@ -354,16 +366,9 @@ class WalletController extends Controller
                     'status'               => 0, // pending
                 ]);
 
-                LedgerEntry::create([
-                    'user_id'       => $user->id,
-                    'coins'         => $preview['net_coins_deducted'],
-                    'fee'           => $preview['fee'],
-                    'balance_after' => $locked->coin_balance,
-                    'entry_type'    => '-',
-                    'category'      => 'cashout',
-                    'reference'     => $ref,
-                    'description'   => 'Cashout request via ' . $method->name,
-                ]);
+                // No LedgerEntry here: EarningsService::withdraw() already wrote
+                // the debit row, tagged with currency = usd. Writing a second one
+                // would double-count the withdrawal in every report.
             });
         } catch (\Throwable $e) {
             return redirect()->route('user.wallet.cashout')->with('error', 'Insufficient balance.');

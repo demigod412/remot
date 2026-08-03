@@ -94,6 +94,24 @@
             </div>
         </div>
 
+        <div style="margin-top:14px;">
+                <div>
+                    <label style="display:block;font-size:12px;color:var(--fg-2);margin-bottom:6px;font-weight:500;">
+                        Worker Payout (USD) <span style="color:#EF4444;">*</span>
+                    </label>
+                    <input type="number" name="payout_usd" value="{{ old('payout_usd', '') }}"
+                           min="0" step="0.01" placeholder="0.00"
+                           style="font-family:ui-monospace,monospace;"
+                           @error('payout_usd') style="border-color:#EF4444;" @enderror required>
+                    <small style="display:block;color:var(--fg-3);font-size:11px;line-height:1.6;margin-top:4px;">
+                        Paid to each worker in USD when you approve their work, minus the
+                        category commission. Separate from the JC coin figure: coins are only
+                        spent on application fees and never convert to USD.
+                    </small>
+                    @error('payout_usd') <div style="font-size:12px;color:#EF4444;margin-top:4px;">{{ $message }}</div> @enderror
+                </div>
+        </div>
+
         {{-- Display-only applicant seed. Never enters slot arithmetic. --}}
         @include('admin.partials.work-display-boost-field', ['work' => null])
     </div>

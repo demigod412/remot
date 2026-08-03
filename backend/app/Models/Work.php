@@ -10,6 +10,7 @@ class Work extends Model
         'poster_id', 'poster_type', 'category_id', 'subcategory_id',
         'topup_id', 'slug', 'title', 'cover_image', 'worker_slots',
         'display_application_boost',
+        'payout_usd',
         'description', 'total_coins', 'coins_per_worker', 'avg_minutes',
         'work_status', 'approval_status', 'rejection_reason',
         'expires_at', 'auto_approve_hours',
@@ -33,6 +34,7 @@ class Work extends Model
             'poster_id'        => 'integer',
             'worker_slots'     => 'integer',
             'display_application_boost' => 'integer',
+            'payout_usd'                => 'decimal:4',
         ];
     }
 

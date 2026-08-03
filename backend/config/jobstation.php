@@ -60,8 +60,8 @@ return [
     | 6 strikes = two abandonments, or six rejections, in 60 days.
     */
     'accountability' => [
-        'window_days'   => env('JOBSTATION_STRIKE_WINDOW_DAYS', 60),
-        'max_strikes'   => env('JOBSTATION_MAX_STRIKES', 6),
+        'window_days'   => env('JOBSTATION_STRIKE_WINDOW_DAYS', 30),
+        'max_strikes'   => env('JOBSTATION_MAX_STRIKES', 3),
         'abandon_weight' => env('JOBSTATION_ABANDON_WEIGHT', 3),
         'reject_weight'  => env('JOBSTATION_REJECT_WEIGHT', 1),
     ],
@@ -71,6 +71,17 @@ return [
     | Membership Applications
     |--------------------------------------------------------------------------
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Task Result Schema
+    |--------------------------------------------------------------------------
+    | work_categories.result_schema is intentionally left NULL. With no schema,
+    | TaskResultRequest still requires a genuinely parseable JSON file (a renamed
+    | .txt is rejected) but does not constrain its shape. ResultSchemaValidator is
+    | fully built and tested; add a schema to a category whenever a format is
+    | agreed and validation starts applying to that category only.
+    */
+
     'membership' => [
         'allowed_doc_types' => ['pdf', 'doc', 'docx'],
         'max_doc_size_kb'   => 5120,

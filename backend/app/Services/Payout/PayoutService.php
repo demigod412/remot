@@ -50,15 +50,25 @@ class PayoutService
                 'gateway_reference' => $gatewayRef ?: $cashout->gateway_reference,
             ]);
 
+            // Denominated in USD: withdrawals come out of the earnings balance, so
+            // this row must be tagged accordingly or it pollutes every coin report.
+            //
+            // PRE-EXISTING ISSUE, deliberately left alone: the balance was already
+            // debited when the worker submitted the request, and this writes a
+            // SECOND '-' row against the same reference. Summing cashout rows
+            // therefore double-counts. That behaviour predates the USD split; fixing
+            // it changes historical report totals, so it needs its own commit and a
+            // decision about existing data.
             LedgerEntry::create([
                 'user_id'       => $cashout->user_id,
                 'coins'         => $cashout->net_coins_deducted,
                 'fee'           => $cashout->fee,
-                'balance_after' => $cashout->user?->coin_balance ?? 0,
+                'balance_after' => $cashout->user?->usd_balance ?? 0,
                 'entry_type'    => '-',
                 'reference'     => $cashout->reference,
                 'description'   => 'Cashout paid via ' . ($cashout->payoutMethod?->name ?? 'payout method'),
                 'category'      => 'cashout',
+                'currency'      => 'usd',
             ]);
         });
 
@@ -81,21 +91,17 @@ class PayoutService
         }
 
         DB::transaction(function () use ($cashout, $reason) {
-            $user = User::lockForUpdate()->findOrFail($cashout->user_id);
-            $user->increment('coin_balance', $cashout->net_coins_deducted);
-            $user->refresh();
+            $user = User::findOrFail($cashout->user_id);
 
-            LedgerEntry::create([
-                'user_id'       => $user->id,
-                'coins'         => $cashout->net_coins_deducted,
-                'fee'           => 0,
-                'balance_after' => $user->coin_balance,
-                'entry_type'    => '+',
-                'reference'     => $cashout->reference,
-                'description'   => 'Cashout refunded (disbursement failed)',
-                'category'      => 'cashout',
-            ]);
+            \App\Services\EarningsService::reverseWithdrawal(
+                $user,
+                (float) $cashout->net_coins_deducted,
+                $cashout->reference,
+                'Cashout refunded (disbursement failed)'
+            );
 
+            // The ledger row is written by EarningsService::reverseWithdrawal()
+            // above, tagged currency = usd. Do not add a second one here.
             $cashout->update([
                 'status'     => 4,
                 'admin_note' => $reason ?: 'Automatic disbursement failed.',
@@ -106,7 +112,7 @@ class PayoutService
             NotifyService::send($cashout->user, 'CASHOUT_REJECTED', [
                 'coins'     => number_format($cashout->net_coins_deducted, 0),
                 'reference' => $cashout->reference,
-                'reason'    => $reason ?: 'Disbursement failed. Your coins have been refunded.',
+                'reason'    => $reason ?: 'Disbursement failed. Your earnings have been returned to your USD balance.',
             ]);
         }
     }

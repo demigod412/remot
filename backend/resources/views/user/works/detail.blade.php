@@ -94,8 +94,10 @@
         <div class="card" style="padding:22px;">
             <div style="text-align:center; padding-bottom:18px; border-bottom:1px solid var(--border); margin-bottom:18px;">
                 <div style="font-size:11px; color:var(--fg-3); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.08em;">Reward</div>
-                <div class="mono" style="font-size:34px; font-weight:600; letter-spacing:-1px; color:var(--fg);">{{ coinSymbol() }}{{ number_format($work->coins_per_worker, 2) }}</div>
-                <div style="font-size:12px; color:var(--fg-3); margin-top:6px;">paid instantly on approval</div>
+                {{-- Earnings are USD. The coin figure is not shown here because a
+                     worker can never receive coins for work, only spend them on fees. --}}
+                <div class="mono" style="font-size:34px; font-weight:600; letter-spacing:-1px; color:var(--fg);">${{ number_format($work->payout_usd, 2) }}</div>
+                <div style="font-size:12px; color:var(--fg-3); margin-top:6px;">USD, paid to your earnings balance on approval</div>
             </div>
 
             <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; margin-bottom:18px;">

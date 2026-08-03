@@ -102,15 +102,25 @@ class CashoutController extends Controller
                 'admin_note' => $data['admin_note'],
             ]);
 
+            // Denominated in USD: withdrawals come out of the earnings balance, so
+            // this row must be tagged accordingly or it pollutes every coin report.
+            //
+            // PRE-EXISTING ISSUE, deliberately left alone: the balance was already
+            // debited when the worker submitted the request, and this writes a
+            // SECOND '-' row against the same reference. Summing cashout rows
+            // therefore double-counts. That behaviour predates the USD split; fixing
+            // it changes historical report totals, so it needs its own commit and a
+            // decision about existing data.
             LedgerEntry::create([
                 'user_id'       => $cashout->user_id,
                 'coins'         => $cashout->net_coins_deducted,
                 'fee'           => $cashout->fee,
-                'balance_after' => $cashout->user?->coin_balance ?? 0,
+                'balance_after' => $cashout->user?->usd_balance ?? 0,
                 'entry_type'    => '-',
                 'reference'     => $cashout->reference,
                 'description'   => 'Cashout approved via ' . ($cashout->payoutMethod?->name ?? 'payout method'),
                 'category'      => 'cashout',
+                'currency'      => 'usd',
             ]);
         });
 
@@ -196,22 +206,17 @@ class CashoutController extends Controller
         ]);
 
         DB::transaction(function () use ($cashout, $data) {
-            // Refund coins to user
+            // Return the USD to the worker's earnings balance, not to coins.
+            // reverseWithdrawal() refuses to run twice against one reference, so a
+            // double-clicked reject cannot pay the money back twice.
             $user = $cashout->user;
             if ($user) {
-                $user->increment('coin_balance', $cashout->net_coins_deducted);
-                $user->refresh();
-
-                LedgerEntry::create([
-                    'user_id'       => $user->id,
-                    'coins'         => $cashout->net_coins_deducted,
-                    'fee'           => 0,
-                    'balance_after' => $user->coin_balance,
-                    'entry_type'    => '+',
-                    'reference'     => $cashout->reference,
-                    'description'   => 'Cashout refunded (rejected)',
-                    'category'      => 'cashout',
-                ]);
+                \App\Services\EarningsService::reverseWithdrawal(
+                    $user,
+                    (float) $cashout->net_coins_deducted,
+                    $cashout->reference,
+                    'Cashout refunded (rejected)'
+                );
             }
 
             $cashout->update([

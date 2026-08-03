@@ -194,10 +194,17 @@ class TaskReviewService
 
             $work     = $locked->work;
             $category = $work?->category;
-            $gross    = (float) ($work->coins_per_worker ?? 0);
+
+            // Workers are paid in USD, from an amount admin sets per task. Not
+            // derived from coins_per_worker and not converted from it: coins and
+            // USD never exchange. coins_per_worker still drives the legacy
+            // user-gig flow, so it is left alone.
+            $gross    = (float) ($work->payout_usd ?? 0);
 
             $commission = $category ? $category->calculateCommission($gross) : 0.0;
-            $net        = round($gross - $commission, 2);
+            // 4dp, matching users.usd_balance. Rounding each share to 2dp loses
+            // cents against the gross and breaks the reconciliation test.
+            $net        = round($gross - $commission, 4);
 
             $locked->update([
                 'delivery_status' => WorkSubmission::DEL_APPROVED,
@@ -213,7 +220,7 @@ class TaskReviewService
                 // Two ledger rows for one payout: the worker's net credit, and the
                 // platform's commission. Written in the same transaction so the
                 // split always reconciles back to $gross.
-                CoinService::credit(
+                EarningsService::credit(
                     $worker,
                     $net,
                     $reference,
@@ -223,7 +230,7 @@ class TaskReviewService
                 );
 
                 if ($commission > 0) {
-                    CoinService::recordCommission(
+                    EarningsService::recordCommission(
                         $commission,
                         $reference,
                         'Commission: ' . ($work->title ?? 'task'),
