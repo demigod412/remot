@@ -224,7 +224,7 @@ return [
     'ledger_categories' => [
         'topup'       => 'Coin Top-Up',
         'cashout'     => 'Cash Out',
-        'work_earn'   => 'Work Earnings',
+        'work_earn'   => 'Task Earnings',
         'work_spend'  => 'Work Budget',
         'work_refund' => 'Work Refund',
         'referral'    => 'Referral Bonus',

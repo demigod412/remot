@@ -1,25 +1,24 @@
-@extends('user.layouts.app')
-@section('title', 'Withdrawal Accounts')
-@section('page-title', 'Withdrawal Accounts')
+<?php $__env->startSection('title', 'Withdrawal Accounts'); ?>
+<?php $__env->startSection('page-title', 'Withdrawal Accounts'); ?>
 
-@section('content')
+<?php $__env->startSection('content'); ?>
 <div style="display:grid; grid-template-columns:1fr 360px; gap:20px;" class="pa-grid">
 
-    {{-- LEFT: saved accounts list --}}
+    
     <div>
         <div style="font-size:13px; color:var(--fg-3); margin-bottom:16px;">
             Save your payout account details so you don't have to re-enter them every time you withdraw.
         </div>
 
-        @if($accounts->isEmpty())
+        <?php if($accounts->isEmpty()): ?>
         <div class="card" style="padding:50px 24px; text-align:center; margin-bottom:14px;">
             <div style="font-size:28px; margin-bottom:10px;">🏦</div>
             <div style="font-size:14px; font-weight:500; color:var(--fg); margin-bottom:6px;">No saved accounts yet</div>
             <p style="font-size:13px; color:var(--fg-3); margin:0;">Add a withdrawal account using the form on the right.</p>
         </div>
-        @else
+        <?php else: ?>
         <div style="display:flex; flex-direction:column; gap:10px;">
-            @foreach($accounts as $account)
+            <?php $__currentLoopData = $accounts; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $account): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
             <div class="card" style="padding:16px 18px;">
                 <div style="display:flex; align-items:flex-start; gap:12px;">
                     <div style="width:38px; height:38px; border-radius:10px; background:rgba(47,84,235,0.1); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
@@ -28,49 +27,51 @@
                     <div style="flex:1; min-width:0;">
                         <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px; flex-wrap:wrap;">
                             <div style="font-size:13.5px; font-weight:500; color:var(--fg);">
-                                {{ $account->label ?: ($account->payoutMethod->name ?? '—') }}
+                                <?php echo e($account->label ?: ($account->payoutMethod->name ?? '—')); ?>
+
                             </div>
-                            @if($account->is_default)
+                            <?php if($account->is_default): ?>
                             <span style="font-size:10px; padding:2px 7px; border-radius:999px; background:rgba(47,84,235,0.12); color:var(--accent); border:1px solid rgba(47,84,235,0.2); font-weight:600;">DEFAULT</span>
-                            @endif
+                            <?php endif; ?>
                         </div>
                         <div style="font-size:12px; color:var(--fg-3); margin-bottom:8px;">
-                            {{ $account->payoutMethod->name ?? '—' }}
+                            <?php echo e($account->payoutMethod->name ?? '—'); ?>
+
                         </div>
                         <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;">
-                            @foreach($account->details as $key => $val)
+                            <?php $__currentLoopData = $account->details; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $key => $val): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                             <span class="mono" style="font-size:11.5px; padding:2px 8px; border-radius:6px; background:var(--surface-2); color:var(--fg-2);">
-                                {{ ucfirst(str_replace('_',' ',$key)) }}: {{ $val }}
+                                <?php echo e(ucfirst(str_replace('_',' ',$key))); ?>: <?php echo e($val); ?>
+
                             </span>
-                            @endforeach
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </div>
                         <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                            @if(! $account->is_default)
-                            <form method="POST" action="{{ route('user.wallet.payout-accounts.default', $account->id) }}" style="display:inline;">
-                                @csrf
+                            <?php if(! $account->is_default): ?>
+                            <form method="POST" action="<?php echo e(route('user.wallet.payout-accounts.default', $account->id)); ?>" style="display:inline;">
+                                <?php echo csrf_field(); ?>
                                 <button type="submit" class="btn" style="font-size:11.5px; padding:5px 12px;">Set as default</button>
                             </form>
-                            @endif
-                            <form method="POST" action="{{ route('user.wallet.payout-accounts.delete', $account->id) }}" style="display:inline;"
+                            <?php endif; ?>
+                            <form method="POST" action="<?php echo e(route('user.wallet.payout-accounts.delete', $account->id)); ?>" style="display:inline;"
                                   onsubmit="return confirm('Remove this account?')">
-                                @csrf @method('DELETE')
+                                <?php echo csrf_field(); ?> <?php echo method_field('DELETE'); ?>
                                 <button type="submit" class="btn" style="font-size:11.5px; padding:5px 12px; color:#EF4444; border-color:rgba(239,68,68,0.25);">Remove</button>
                             </form>
                         </div>
                     </div>
                 </div>
             </div>
-            @endforeach
+            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
         </div>
-        @endif
+        <?php endif; ?>
     </div>
 
-    {{-- RIGHT: add new account form --}}
-    {{-- loadFields() never existed and threw on every page load. Field groups are
-         rendered server-side per method and toggled by selectedMethodId instead. --}}
-    <div x-data="{ selectedMethodId: '{{ old('payout_method_id', '') }}' }">
+    
+    
+    <div x-data="{ selectedMethodId: '<?php echo e(old('payout_method_id', '')); ?>' }">
 
-        @if($methods->isEmpty())
+        <?php if($methods->isEmpty()): ?>
         <div class="card" style="padding:40px 24px; text-align:center; margin-bottom:12px;">
             <div style="width:48px; height:48px; border-radius:12px; background:rgba(47,84,235,0.08); border:1px solid rgba(47,84,235,0.18); display:flex; align-items:center; justify-content:center; margin:0 auto 14px;">
                 <i data-lucide="banknote" style="width:22px; height:22px; color:var(--accent);"></i>
@@ -78,12 +79,12 @@
             <div style="font-size:13.5px; font-weight:600; color:var(--fg); margin-bottom:6px;">No withdrawal methods configured</div>
             <p style="font-size:12px; color:var(--fg-3); margin:0; line-height:1.6;">The platform hasn't set up any payout methods yet. Please check back later or contact support.</p>
         </div>
-        @else
+        <?php else: ?>
         <div class="card" style="padding:22px;">
             <div style="font-size:13px; font-weight:600; color:var(--fg); margin-bottom:16px;">Add new account</div>
 
-            <form method="POST" action="{{ route('user.wallet.payout-accounts.store') }}">
-                @csrf
+            <form method="POST" action="<?php echo e(route('user.wallet.payout-accounts.store')); ?>">
+                <?php echo csrf_field(); ?>
                 <div style="display:flex; flex-direction:column; gap:14px;">
 
                     <div>
@@ -92,82 +93,98 @@
                                 @change="selectedMethodId = $event.target.value"
                                 style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:9px 10px; color:var(--fg); font-size:13px; outline:none;">
                             <option value="">Select method…</option>
-                            @foreach($methods as $m)
-                            <option value="{{ $m->id }}" {{ old('payout_method_id') == $m->id ? 'selected' : '' }}>{{ $m->name }}</option>
-                            @endforeach
+                            <?php $__currentLoopData = $methods; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $m): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                            <option value="<?php echo e($m->id); ?>" <?php echo e(old('payout_method_id') == $m->id ? 'selected' : ''); ?>><?php echo e($m->name); ?></option>
+                            <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
                         </select>
-                        @error('payout_method_id')
-                        <div style="font-size:11.5px; color:#EF4444; margin-top:4px;">{{ $message }}</div>
-                        @enderror
+                        <?php $__errorArgs = ['payout_method_id'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                        <div style="font-size:11.5px; color:#EF4444; margin-top:4px;"><?php echo e($message); ?></div>
+                        <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                     </div>
 
                     <div>
                         <label style="font-size:11.5px; color:var(--fg-3); display:block; margin-bottom:7px;">Label <span style="font-size:10.5px; color:var(--fg-4);">(optional)</span></label>
-                        <input type="text" name="label" value="{{ old('label') }}" maxlength="60"
+                        <input type="text" name="label" value="<?php echo e(old('label')); ?>" maxlength="60"
                                style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--fg); font-size:13px; outline:none;"
                                placeholder="e.g. My M-Pesa, Business Account">
                     </div>
 
-                    {{-- One field group per method, driven by that method's DynamicForm.
-                         A crypto method asks for a wallet address; a bank method asks for
-                         account details. x-if rather than x-show so the inputs of the
-                         methods you did not pick are absent from the DOM entirely and
-                         their `required` attributes cannot block submission. --}}
-                    @foreach($methods as $m)
-                        <template x-if="selectedMethodId === '{{ $m->id }}'">
+                    
+                    <?php $__currentLoopData = $methods; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $m): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+                        <template x-if="selectedMethodId === '<?php echo e($m->id); ?>'">
                             <div style="display:flex; flex-direction:column; gap:14px;">
-                                @php $mFields = $m->form->form_data ?? []; @endphp
+                                <?php $mFields = $m->form->form_data ?? []; ?>
 
-                                @forelse($mFields as $field)
-                                    @php
+                                <?php $__empty_1 = true; $__currentLoopData = $mFields; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $field): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
+                                    <?php
                                         $fName  = $field['name'] ?? 'account';
                                         $fLabel = $field['label'] ?? ucfirst(str_replace('_', ' ', $fName));
                                         $fReq   = (bool) ($field['required'] ?? false);
-                                    @endphp
+                                    ?>
                                     <div>
                                         <label style="font-size:11.5px; color:var(--fg-3); display:block; margin-bottom:7px;">
-                                            {{ $fLabel }}@if($fReq) <span style="color:#EF4444;">*</span>@endif
+                                            <?php echo e($fLabel); ?><?php if($fReq): ?> <span style="color:#EF4444;">*</span><?php endif; ?>
                                         </label>
-                                        <input type="text" name="details[{{ $fName }}]"
-                                               value="{{ old('details.' . $fName) }}"
-                                               {{ $fReq ? 'required' : '' }}
+                                        <input type="text" name="details[<?php echo e($fName); ?>]"
+                                               value="<?php echo e(old('details.' . $fName)); ?>"
+                                               <?php echo e($fReq ? 'required' : ''); ?>
+
                                                autocomplete="off" spellcheck="false"
-                                               style="width:100%; background:var(--surface-2); border:1px solid {{ $errors->has('details.' . $fName) ? '#EF4444' : 'var(--border)' }}; border-radius:8px; padding:9px 12px; color:var(--fg); font-size:13px; outline:none; font-family:ui-monospace,monospace;"
-                                               placeholder="{{ $field['placeholder'] ?? '' }}">
-                                        @error('details.' . $fName)
-                                        <div style="font-size:11.5px; color:#EF4444; margin-top:4px;">{{ $message }}</div>
-                                        @enderror
+                                               style="width:100%; background:var(--surface-2); border:1px solid <?php echo e($errors->has('details.' . $fName) ? '#EF4444' : 'var(--border)'); ?>; border-radius:8px; padding:9px 12px; color:var(--fg); font-size:13px; outline:none; font-family:ui-monospace,monospace;"
+                                               placeholder="<?php echo e($field['placeholder'] ?? ''); ?>">
+                                        <?php $__errorArgs = ['details.' . $fName];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                        <div style="font-size:11.5px; color:#EF4444; margin-top:4px;"><?php echo e($message); ?></div>
+                                        <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                                     </div>
-                                @empty
-                                    {{-- Method has no field definition: fall back to a generic
-                                         pair so it is still usable. Pass an explicit null so a
-                                         stale $field from the loop above cannot leak in. --}}
-                                    @php $field = null; @endphp
+                                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); if ($__empty_1): ?>
+                                    
+                                    <?php $field = null; ?>
                                     <div>
                                         <label style="font-size:11.5px; color:var(--fg-3); display:block; margin-bottom:7px;">Account number / address <span style="color:#EF4444;">*</span></label>
-                                        <input type="text" name="details[account]" value="{{ old('details.account') }}" required
-                                               style="width:100%; background:var(--surface-2); border:1px solid {{ $errors->has('details.account') ? '#EF4444' : 'var(--border)' }}; border-radius:8px; padding:9px 12px; color:var(--fg); font-size:13px; outline:none;"
+                                        <input type="text" name="details[account]" value="<?php echo e(old('details.account')); ?>" required
+                                               style="width:100%; background:var(--surface-2); border:1px solid <?php echo e($errors->has('details.account') ? '#EF4444' : 'var(--border)'); ?>; border-radius:8px; padding:9px 12px; color:var(--fg); font-size:13px; outline:none;"
                                                placeholder="Account number, phone, or wallet address">
-                                        @error('details.account')
-                                        <div style="font-size:11.5px; color:#EF4444; margin-top:4px;">{{ $message }}</div>
-                                        @enderror
+                                        <?php $__errorArgs = ['details.account'];
+$__bag = $errors->getBag($__errorArgs[1] ?? 'default');
+if ($__bag->has($__errorArgs[0])) :
+if (isset($message)) { $__messageOriginal = $message; }
+$message = $__bag->first($__errorArgs[0]); ?>
+                                        <div style="font-size:11.5px; color:#EF4444; margin-top:4px;"><?php echo e($message); ?></div>
+                                        <?php unset($message);
+if (isset($__messageOriginal)) { $message = $__messageOriginal; }
+endif;
+unset($__errorArgs, $__bag); ?>
                                     </div>
                                     <div>
                                         <label style="font-size:11.5px; color:var(--fg-3); display:block; margin-bottom:7px;">Account name</label>
-                                        <input type="text" name="details[name]" value="{{ old('details.name', auth()->user()->fullname) }}"
+                                        <input type="text" name="details[name]" value="<?php echo e(old('details.name', auth()->user()->fullname)); ?>"
                                                style="width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:8px; padding:9px 12px; color:var(--fg); font-size:13px; outline:none;"
                                                placeholder="Name on the account">
                                     </div>
-                                @endforelse
+                                <?php endif; ?>
 
-                                @if(str_contains(strtolower($m->name), 'crypto') || str_contains(strtolower($m->name), 'usdt'))
+                                <?php if(str_contains(strtolower($m->name), 'crypto') || str_contains(strtolower($m->name), 'usdt')): ?>
                                 <div style="font-size:11px; color:#b45309; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:8px; padding:9px 11px; line-height:1.5;">
                                     Check the address character by character. Crypto transfers cannot be reversed or recovered.
                                 </div>
-                                @endif
+                                <?php endif; ?>
                             </div>
                         </template>
-                    @endforeach
+                    <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 
                     <template x-if="!selectedMethodId">
                         <div style="font-size:11.5px; color:var(--fg-4); padding:2px 0;">
@@ -181,21 +198,21 @@
                 </div>
             </form>
         </div>
-        @endif
+        <?php endif; ?>
 
         <div class="card" style="padding:18px; margin-top:12px;">
             <div style="font-size:12.5px; font-weight:600; color:var(--fg); margin-bottom:10px;">How saved accounts work</div>
             <div style="display:flex; flex-direction:column; gap:10px;">
-                @foreach([
+                <?php $__currentLoopData = [
                     ['icon'=>'zap','text'=>'Saved accounts appear as quick-select options when you withdraw'],
                     ['icon'=>'shield','text'=>'Your details are stored securely and only used for payouts'],
                     ['icon'=>'star','text'=>'Set one account as default for fastest withdrawals'],
-                ] as $tip)
+                ]; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $tip): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
                 <div style="display:flex; gap:10px; align-items:flex-start;">
-                    <i data-lucide="{{ $tip['icon'] }}" style="width:13px; height:13px; color:var(--fg-3); margin-top:1.5px; flex-shrink:0;"></i>
-                    <span style="font-size:12px; color:var(--fg-3); line-height:1.55;">{{ $tip['text'] }}</span>
+                    <i data-lucide="<?php echo e($tip['icon']); ?>" style="width:13px; height:13px; color:var(--fg-3); margin-top:1.5px; flex-shrink:0;"></i>
+                    <span style="font-size:12px; color:var(--fg-3); line-height:1.55;"><?php echo e($tip['text']); ?></span>
                 </div>
-                @endforeach
+                <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
             </div>
         </div>
     </div>
@@ -204,4 +221,6 @@
 <style>
 @media (max-width: 860px) { .pa-grid { grid-template-columns: 1fr !important; } }
 </style>
-@endsection
+<?php $__env->stopSection(); ?>
+
+<?php echo $__env->make('user.layouts.app', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH /var/www/resources/views/user/wallet/payout-accounts.blade.php ENDPATH**/ ?>

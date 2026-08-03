@@ -11,9 +11,14 @@
         'approved' => $user->workSubmissions()->where('status', 2)->count(),
         'rejected' => $user->workSubmissions()->where('status', 3)->count(),
     ];
-    $totalEarned = $user->workSubmissions()->where('status', 2)
-        ->join('works', 'work_submissions.work_id', '=', 'works.id')
-        ->sum('works.coins_per_worker');
+    // Was summing works.coins_per_worker, which is 0 on every admin-posted task and
+    // in any case gross rather than what the worker actually received. Reads the USD
+    // work_earn ledger rows instead: net of commission, and denominated correctly.
+    $totalEarned = $user->ledgerEntries()
+        ->where('entry_type', '+')
+        ->where('category', 'work_earn')
+        ->inUsd()
+        ->sum('coins');
     $currentStatus = request('status', '');
 @endphp
 
@@ -136,12 +141,12 @@
             @if($work && $sub->status == 2)
             <div style="display:flex; align-items:baseline; gap:3px;">
                 <span style="font-size:13px; color:var(--coin); font-family:ui-monospace,monospace;">{{ coinSymbol() }}</span>
-                <span class="mono" style="font-size:20px; font-weight:600; color:var(--coin);">{{ $work->coins_per_worker }}</span>
+                <span class="mono" style="font-size:20px; font-weight:600; color:var(--coin);">{{ formatUsd($work->payout_usd) }}</span>
             </div>
             @elseif($work)
             <div style="display:flex; align-items:baseline; gap:3px; opacity:0.5;">
                 <span style="font-size:13px; color:var(--coin); font-family:ui-monospace,monospace;">{{ coinSymbol() }}</span>
-                <span class="mono" style="font-size:20px; font-weight:600; color:var(--coin);">{{ $work->coins_per_worker }}</span>
+                <span class="mono" style="font-size:20px; font-weight:600; color:var(--coin);">{{ formatUsd($work->payout_usd) }}</span>
             </div>
             @endif
 

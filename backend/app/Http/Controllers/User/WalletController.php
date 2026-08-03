@@ -206,7 +206,10 @@ class WalletController extends Controller
     public function payoutAccounts()
     {
         $user     = Auth::guard('web')->user();
-        $methods  = PayoutMethod::where('status', 1)->get();
+        // Eager load the field definitions: the add-account form renders one input
+        // group per method from its DynamicForm, so a crypto method asks for a wallet
+        // address instead of bank account fields.
+        $methods  = PayoutMethod::where('status', 1)->with('form')->get();
         $accounts = UserPayoutAccount::where('user_id', $user->id)
             ->with('payoutMethod')
             ->latest()

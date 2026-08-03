@@ -31,9 +31,17 @@ class DashboardController extends Controller
             'active' => $user->works()->where('work_status', 1)->count(),
         ];
 
-        // Earnings chart: last 30 days of credit ledger entries
+        // Earnings chart: last 30 days of TASK EARNINGS, in USD.
+        //
+        // This previously summed every credit row, which meant coin top-ups and
+        // referral bonuses were added to dollar payouts in one total. Because the
+        // amount lives in a single `coins` column for both currencies, that produced
+        // a meaningless figure labelled as coins. Scoped to work_earn + USD so the
+        // number matches what the panel claims to show.
         $earningsChart = $user->ledgerEntries()
             ->where('entry_type', '+')
+            ->where('category', 'work_earn')
+            ->inUsd()
             ->where('created_at', '>=', now()->subDays(29))
             ->select(
                 DB::raw('DATE(created_at) as date'),
