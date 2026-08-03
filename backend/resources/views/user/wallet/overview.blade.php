@@ -4,72 +4,88 @@
 
 @section('content')
 
-{{-- Two balances, deliberately shown side by side and never summed: coins are
-     bought and spent on application fees, USD is earned and withdrawn. --}}
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px;" class="wallet-balance-pair">
-    <div class="jobstation-card" style="padding:18px;">
-        <div class="label" style="margin-bottom:6px;">Spending balance</div>
-        <div class="mono" style="font-size:26px; font-weight:600; letter-spacing:-0.8px;">{{ formatCoins(auth('web')->user()->coin_balance, 2) }}</div>
-        <div style="font-size:11.5px; color:var(--fg-3); margin-top:5px;">JC coins. Used for task application fees. Not withdrawable.</div>
+{{-- Two balances, side by side, never summed and never converted.
+
+     This replaces two competing displays: a small pair of cards here plus a large
+     hero further down that showed the coin balance a second time. It also drops the
+     "≈ $1,272 USD" line that sat under the coin figure. That conversion was left
+     over from when one balance did everything, and it now makes a claim the platform
+     does not honour — it read as though the coin balance were withdrawable dollars.
+     Coins buy task applications and have no exit; USD is what leaves.
+
+     Earnings comes first and gets the accent treatment because it is the number a
+     worker is actually here for, and each balance carries only the action that
+     applies to it. --}}
+<div class="wallet-hero" style="display:grid; grid-template-columns:1.15fr 1fr; gap:14px; margin-bottom:14px;">
+
+    {{-- Earnings (USD) --}}
+    <div class="card" style="padding:26px; position:relative; overflow:hidden; background:linear-gradient(135deg,rgba(34,197,94,0.10),var(--surface)); border-color:rgba(34,197,94,0.28);">
+        <div style="position:absolute; right:-50px; top:-50px; width:200px; height:200px; border-radius:50%; background:radial-gradient(circle,rgba(34,197,94,0.18),transparent 70%); pointer-events:none;"></div>
+        <div style="position:relative;">
+            <div style="display:flex; align-items:center; gap:7px; margin-bottom:12px;">
+                <i data-lucide="banknote" style="width:15px; height:15px; color:#22C55E;"></i>
+                <span style="font-size:11px; color:var(--fg-3); text-transform:uppercase; letter-spacing:0.09em; font-weight:600;">Earnings &middot; withdrawable</span>
+            </div>
+            <div class="mono" style="font-size:clamp(34px,4.4vw,52px); font-weight:600; letter-spacing:-2px; line-height:1; color:var(--fg);">
+                {{ formatUsd($user->usd_balance) }}
+            </div>
+            <div style="font-size:12px; color:var(--fg-3); margin-top:8px; line-height:1.5;">
+                Paid in USD when an admin approves your work, after the category commission.
+            </div>
+            <div style="display:flex; gap:9px; flex-wrap:wrap; margin-top:22px;">
+                <a href="{{ route('user.wallet.cashout') }}" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:6px;">
+                    <i data-lucide="download" style="width:14px; height:14px;"></i> Withdraw
+                </a>
+                <a href="{{ route('user.wallet.cashout.history') }}" class="btn" style="display:inline-flex; align-items:center; gap:6px;">
+                    <i data-lucide="receipt" style="width:14px; height:14px;"></i> Withdrawals
+                </a>
+            </div>
+        </div>
     </div>
-    <div class="jobstation-card" style="padding:18px;">
-        <div class="label" style="margin-bottom:6px;">Earnings balance</div>
-        <div class="mono" style="font-size:26px; font-weight:600; letter-spacing:-0.8px;">${{ number_format(auth('web')->user()->usd_balance, 2) }}</div>
-        <div style="font-size:11.5px; color:var(--fg-3); margin-top:5px;">USD from approved work. This is what you withdraw.</div>
+
+    {{-- Spending (JC coins) --}}
+    <div class="card" style="padding:26px; position:relative; overflow:hidden;">
+        <div style="position:relative;">
+            <div style="display:flex; align-items:center; gap:7px; margin-bottom:12px;">
+                <i data-lucide="coins" style="width:15px; height:15px; color:#E6C400;"></i>
+                <span style="font-size:11px; color:var(--fg-3); text-transform:uppercase; letter-spacing:0.09em; font-weight:600;">Spending &middot; {{ coinSymbol() }}</span>
+            </div>
+            <div class="mono" style="font-size:clamp(28px,3.4vw,40px); font-weight:600; letter-spacing:-1.4px; line-height:1; color:var(--fg);">
+                {{ formatCoins($user->coin_balance) }}
+            </div>
+            <div style="font-size:12px; color:var(--fg-3); margin-top:8px; line-height:1.5;">
+                Spent on task application fees. Not withdrawable and never converted to USD.
+            </div>
+            <div style="display:flex; gap:9px; flex-wrap:wrap; margin-top:22px;">
+                <a href="{{ route('user.wallet.topup') }}" class="btn" style="display:inline-flex; align-items:center; gap:6px;">
+                    <i data-lucide="plus-circle" style="width:14px; height:14px;"></i> Top up
+                </a>
+                <a href="{{ route('user.wallet.ledger') }}" class="btn" style="display:inline-flex; align-items:center; gap:6px;">
+                    <i data-lucide="list" style="width:14px; height:14px;"></i> Full history
+                </a>
+            </div>
+        </div>
     </div>
 </div>
-<style>@media (max-width:640px){ .wallet-balance-pair{ grid-template-columns:1fr !important; } }</style>
+
+{{-- One line stating the model, so the two balances are not read as one pot. --}}
+<div style="display:flex; align-items:flex-start; gap:9px; padding:11px 14px; border:1px solid var(--border); border-radius:10px; margin-bottom:20px; background:var(--surface-2);">
+    <i data-lucide="info" style="width:14px; height:14px; color:var(--fg-3); flex-shrink:0; margin-top:1px;"></i>
+    <span style="font-size:12px; color:var(--fg-3); line-height:1.55;">
+        You buy {{ coinSymbol() }} to apply for tasks, and you earn USD when work is approved.
+        The two are separate: coins never become USD, and USD is never spent on applications.
+    </span>
+</div>
+
+<style>
+@media (max-width:820px) { .wallet-hero { grid-template-columns:1fr !important; } }
+</style>
 
 
 <div style="display:grid; grid-template-columns:1fr 340px; gap:20px;" class="wallet-grid">
 
     {{-- ── LEFT COLUMN ─────────────────────────────────────────── --}}
     <div>
-
-        {{-- Balance Hero --}}
-        @php
-            $walletCurrencies = gs()->currencies ?? [];
-            $walletDefaultCode = gs()->default_currency ?? ($walletCurrencies[0]['code'] ?? null);
-        @endphp
-        <div class="card" style="padding:28px; background:linear-gradient(135deg,#1a1533,var(--surface)); border-color:rgba(47,84,235,0.25); margin-bottom:16px; position:relative; overflow:hidden;"
-             x-data="{
-                currencies: {{ json_encode($walletCurrencies) }},
-                sel: '{{ $walletDefaultCode }}',
-                balance: {{ (float) $user->coin_balance }},
-                get cur() { return this.currencies.find(c => c.code === this.sel) || null },
-                get fiat() { return this.cur ? (this.balance * this.cur.rate).toLocaleString('en-US', {minimumFractionDigits:0,maximumFractionDigits:0}) : null }
-             }">
-            <div style="position:absolute; right:-40px; top:-40px; width:200px; height:200px; border-radius:50%; background:radial-gradient(circle,rgba(47,84,235,0.25),transparent 70%); pointer-events:none;"></div>
-            <div style="position:relative;">
-                <div style="font-size:11.5px; color:var(--fg-3); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.08em;">Available balance</div>
-                <div style="display:flex; align-items:baseline; gap:8px; margin-bottom:8px;">
-                    <span class="mono" style="font-size:clamp(36px,5vw,64px); font-weight:600; letter-spacing:-2.5px; line-height:1;">{{ formatCoins($user->coin_balance) }}</span>
-                </div>
-                {{-- Fiat equivalent --}}
-                <template x-if="cur && currencies.length > 0">
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
-                        <span style="font-size:14px; color:var(--fg-2);">≈ <span x-text="(cur ? cur.symbol + ' ' : '') + fiat" style="font-weight:600; color:var(--fg);"></span></span>
-                        <select x-model="sel" style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:3px 8px; color:var(--fg); font-size:12px; font-family:ui-monospace,monospace; outline:none; cursor:pointer;">
-                            <template x-for="c in currencies" :key="c.code">
-                                <option :value="c.code" x-text="c.code"></option>
-                            </template>
-                        </select>
-                    </div>
-                </template>
-                <div style="font-size:13px; color:var(--fg-2); margin-bottom:24px;">Lifetime earned: <span class="mono" style="color:var(--fg);">{{ formatUsd($stats['total_earned']) }}</span></div>
-                <div style="display:flex; gap:10px; flex-wrap:wrap;">
-                    <a href="{{ route('user.wallet.cashout') }}" class="btn btn-primary" style="display:inline-flex; align-items:center; gap:6px;">
-                        <i data-lucide="download" style="width:14px; height:14px;"></i> Withdraw
-                    </a>
-                    <a href="{{ route('user.wallet.topup') }}" class="btn" style="display:inline-flex; align-items:center; gap:6px;">
-                        <i data-lucide="upload" style="width:14px; height:14px;"></i> Top up
-                    </a>
-                    <a href="{{ route('user.wallet.ledger') }}" class="btn" style="display:inline-flex; align-items:center; gap:6px;">
-                        <i data-lucide="list" style="width:14px; height:14px;"></i> Full history
-                    </a>
-                </div>
-            </div>
-        </div>
 
         {{-- Stat tiles --}}
         <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;" class="wallet-stats">

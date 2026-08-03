@@ -6,7 +6,19 @@
 <div style="display:grid; grid-template-columns:1fr 340px; gap:20px;" class="co-preview-grid"
      x-data="{ useSaved: {{ $savedAccounts->isNotEmpty() ? 'true' : 'false' }}, selectedAccountId: '{{ $savedAccounts->where('is_default',true)->first()?->id ?? $savedAccounts->first()?->id ?? '' }}' }">
 
-    {{-- LEFT: payout details form --}}
+    {{-- LEFT: payout details form.
+
+         The <form> opens HERE, wrapping every payout detail input.
+
+         It used to be an empty form further down with a comment claiming the inputs
+         were "injected by the sections above" — they were not. The inputs sat outside
+         it with no form= attribute, so nothing but the CSRF token was ever submitted.
+         payout_details arrived empty, $request->validate() failed, and the resulting
+         redirect-back landed on this URL as a GET. Because cashout/preview is a
+         POST-only route, that surfaced as a 405 Method Not Allowed and no withdrawal
+         could ever complete. --}}
+    <form method="POST" action="{{ route('user.wallet.cashout.submit') }}" id="cashout-form">
+        @csrf
     <div>
         <div style="margin-bottom:16px;">
             <a href="{{ route('user.wallet.cashout') }}"
@@ -117,21 +129,25 @@
             </div>
         </div>
 
-        {{-- Submit --}}
-        <form method="POST" action="{{ route('user.wallet.cashout.submit') }}" id="cashout-form">
-            @csrf
-            {{-- Payout details are injected by the sections above; the form just wraps the submit --}}
-        </form>
-
-        @php $confirmMsg = 'Confirm withdrawal of ' . formatCoins($preview['net_coins_deducted']) . '?'; @endphp
-        <button type="submit" form="cashout-form" class="btn btn-primary"
-                style="padding:11px 28px; font-size:13.5px; display:inline-flex; align-items:center; gap:7px;"
-                onclick="return confirm('{{ $confirmMsg }}')">
-            <i data-lucide="send" style="width:14px; height:14px;"></i> Confirm withdrawal
-        </button>
-        <a href="{{ route('user.wallet.cashout') }}" class="btn"
-           style="padding:11px 18px; font-size:13.5px; margin-left:8px;">Cancel</a>
+        {{-- Submit. No confirm() dialog: the amount, fee and payout total are all on
+             screen directly above this button, so a browser prompt repeating the figure
+             adds a click without adding information. The button disables itself instead,
+             which is what actually needs preventing (a double submit). --}}
+        <div x-data="{ sending: false }">
+            <button type="submit" class="btn btn-primary"
+                    x-bind:disabled="sending"
+                    x-bind:style="sending ? 'opacity:.65; cursor:progress;' : ''"
+                    @click="sending = true"
+                    style="padding:11px 28px; font-size:13.5px; display:inline-flex; align-items:center; gap:7px;">
+                <i data-lucide="send" style="width:14px; height:14px;"></i>
+                <span x-show="!sending">Confirm withdrawal</span>
+                <span x-show="sending" x-cloak>Submitting…</span>
+            </button>
+            <a href="{{ route('user.wallet.cashout') }}" class="btn"
+               style="padding:11px 18px; font-size:13.5px; margin-left:8px;">Cancel</a>
+        </div>
     </div>
+    </form>
 
     {{-- RIGHT: summary --}}
     <div>
@@ -140,11 +156,12 @@
 
             @php $rows = [
                 ['label' => 'Method',              'value' => $method->name,                                 'mono' => false, 'color' => 'var(--fg)'],
-                ['label' => 'Coins requested',     'value' => formatCoins($preview['coin_amount']), 'mono' => true,  'color' => 'var(--fg)'],
+                {{-- Withdrawals are denominated in USD earnings, not coins. --}}
+                ['label' => 'Amount requested',     'value' => formatUsd($preview['coin_amount']), 'mono' => true,  'color' => 'var(--fg)'],
                 ['label' => 'Fee (' . $method->percent_fee . '% + ' . number_format($method->fixed_fee, 0) . ' fixed)',
-                                                   'value' => '−' . formatCoins($preview['fee'], 2),     'mono' => true,  'color' => '#EF4444'],
-                ['label' => 'Total deducted',      'value' => formatCoins($preview['net_coins_deducted']), 'mono' => true, 'color' => 'var(--fg)'],
-                ['label' => 'Exchange rate',       'value' => '1 ' . coinSymbol() . ' = ' . $method->coin_to_currency_rate . ' ' . $method->currency, 'mono' => true, 'color' => 'var(--fg-3)'],
+                                                   'value' => '−' . formatUsd($preview['fee']),     'mono' => true,  'color' => '#EF4444'],
+                ['label' => 'Total deducted',      'value' => formatUsd($preview['net_coins_deducted']), 'mono' => true, 'color' => 'var(--fg)'],
+                ['label' => 'Exchange rate',       'value' => '$1 = ' . $method->coin_to_currency_rate . ' ' . $method->currency, 'mono' => true, 'color' => 'var(--fg-3)'],
             ]; @endphp
 
             @foreach($rows as $row)

@@ -327,10 +327,25 @@ class WalletController extends Controller
 
         // Optionally save payout account for future use
         if ($request->boolean('save_account')) {
+            // Was keyed on details->account, a field that only exists for bank-style
+            // methods. A crypto payout stores wallet_address, so the comparison was
+            // null-to-null, always missed, and saved a duplicate account every time.
+            // Compares the whole details payload, order-insensitively.
+            $incoming = $request->payout_details ?? [];
+            ksort($incoming);
+
             $exists = UserPayoutAccount::where('user_id', $user->id)
                 ->where('payout_method_id', $method->id)
-                ->where('details->account', $request->input('payout_details.account'))
-                ->exists();
+                ->get()
+                ->contains(function ($account) use ($incoming) {
+                    $existing = $account->details ?? [];
+                    if (! is_array($existing)) {
+                        return false;
+                    }
+                    ksort($existing);
+
+                    return $existing == $incoming;
+                });
             if (! $exists) {
                 $isFirst = ! UserPayoutAccount::where('user_id', $user->id)->exists();
                 UserPayoutAccount::create([
