@@ -67,6 +67,18 @@ class MembershipApplicationController extends Controller
             return back()->with('error', $e->getMessage());
         }
 
+        if (! $this->memberships->credentialsEmailed) {
+            // The account exists and the password is hashed, so nobody can recover it
+            // from the database. Admin must reset it or fix mail and resend, and needs
+            // to know that now rather than when the applicant reports they never got in.
+            return back()->with(
+                'warning',
+                "Account created for {$user->email} (username {$user->username}), but the "
+                . "email with their temporary password COULD NOT BE SENT. Check Settings → "
+                . "Mail, send a test email, then reset this user's password so they can log in."
+            );
+        }
+
         return back()->with(
             'success',
             "Approved. Account created for {$user->email} (username {$user->username}) and login details emailed."

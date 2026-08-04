@@ -480,7 +480,9 @@
         </header>
 
         {{-- Flash Messages --}}
-        @if(session('success') || session('error') || session('info'))
+        {{-- 'warning' included: it was missing, so any ->with('warning', ...) was
+             flashed and then silently never rendered. --}}
+        @if(session('success') || session('error') || session('warning') || session('info'))
         <div style="padding:16px 24px 0;">
             @if(session('success'))
                 <div x-data="{ show: true }" x-show="show" x-transition
@@ -497,6 +499,16 @@
                      style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:10px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);color:#EF4444;font-size:13px;margin-bottom:0;">
                     <i data-lucide="alert-circle" style="width:16px;height:16px;flex-shrink:0;"></i>
                     <span style="flex:1;">{{ session('error') }}</span>
+                    <button @click="show = false" style="background:none;border:none;cursor:pointer;color:inherit;padding:0;">
+                        <i data-lucide="x" style="width:14px;height:14px;"></i>
+                    </button>
+                </div>
+            @endif
+            @if(session('warning'))
+                <div x-data="{ show: true }" x-show="show" x-transition
+                     style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;border-radius:10px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);color:#F59E0B;font-size:13px;margin-bottom:0;line-height:1.55;">
+                    <i data-lucide="alert-triangle" style="width:16px;height:16px;flex-shrink:0;margin-top:1px;"></i>
+                    <span style="flex:1;">{{ session('warning') }}</span>
                     <button @click="show = false" style="background:none;border:none;cursor:pointer;color:inherit;padding:0;">
                         <i data-lucide="x" style="width:14px;height:14px;"></i>
                     </button>

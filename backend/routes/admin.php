@@ -245,6 +245,7 @@ Route::middleware('admin')->group(function () {
         Route::post('general',   [\App\Http\Controllers\Admin\SettingsController::class, 'updateGeneral'])->name('general.update');
         Route::get('mail',       [\App\Http\Controllers\Admin\SettingsController::class, 'mailSettings'])->name('mail');
         Route::post('mail',      [\App\Http\Controllers\Admin\SettingsController::class, 'updateMailSettings'])->name('mail.update');
+        Route::post('mail/test', [\App\Http\Controllers\Admin\SettingsController::class, 'sendTestMail'])->name('mail.test');
         Route::get('notification',[\App\Http\Controllers\Admin\SettingsController::class, 'notification'])->name('notification');
         Route::post('notification',[\App\Http\Controllers\Admin\SettingsController::class, 'updateNotification'])->name('notification.update');
         Route::get('logo',       [\App\Http\Controllers\Admin\SettingsController::class, 'logoIcon'])->name('logo');

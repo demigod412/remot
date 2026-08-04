@@ -107,10 +107,19 @@ class MembershipService
     // Mail
     // -------------------------------------------------------------------------
 
+    /**
+     * Whether the last approve() managed to email the credentials.
+     *
+     * Read by the admin controller so the flash message tells the truth. The account
+     * is created either way, but the temporary password exists in exactly one place —
+     * that email — so "and login details emailed" must not be claimed when it failed.
+     */
+    public bool $credentialsEmailed = true;
+
     protected function sendCredentials(User $user, MembershipApplication $app, string $tempPassword): void
     {
         try {
-            NotifyService::send($user, 'MEMBERSHIP_APPROVED', [
+            $this->credentialsEmailed = NotifyService::send($user, 'MEMBERSHIP_APPROVED', [
                 'full_name'      => $app->full_name,
                 'username'       => $user->username,
                 'email'          => $user->email,
@@ -120,8 +129,8 @@ class MembershipService
                 'site_name'      => gs()->site_name ?? config('app.name'),
             ]);
         } catch (\Throwable $e) {
-            // The account exists either way. Surface this loudly so admin knows to
-            // resend rather than leaving the applicant wondering.
+            $this->credentialsEmailed = false;
+
             Log::error('Membership approval email failed', [
                 'application_id' => $app->id,
                 'user_id'        => $user->id,

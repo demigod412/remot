@@ -1,0 +1,58 @@
+# Production overlay. Use WITH the base file, not instead of it:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# What this changes and why:
+#
+#   1. MySQL is no longer published to the internet. The base file binds
+#      "3306:3306", which on a public IP is a database reachable from anywhere.
+#      Nothing outside this compose network needs that port — the app talks to the
+#      `db` host over the internal bridge. It is bound to 127.0.0.1 rather than
+#      removed entirely so you can still tunnel in over SSH for a dump.
+#
+#   2. Credentials come from .env instead of being hardcoded to "secret".
+#
+#   3. Every service restarts on boot. Only `db` had restart: unless-stopped, so a
+#      reboot brought the database back and left the site down.
+#
+#   4. nginx serves 80 and 443. Cloudflare talks to the origin over TLS with an
+#      Origin CA certificate, so "Full (strict)" works instead of "Flexible" —
+#      Flexible leaves the Cloudflare-to-origin hop unencrypted, which for a site
+#      handling KYC documents is not acceptable.
+
+services:
+  app:
+    restart: unless-stopped
+    environment:
+      PHP_MEMORY_LIMIT: "${PHP_MEMORY_LIMIT:-256M}"
+
+  nginx:
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./backend:/var/www
+      - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/certs:/etc/nginx/certs:ro
+
+  db:
+    restart: unless-stopped
+    # Loopback only. Reach it with:
+    #   ssh -L 3306:127.0.0.1:3306 ubuntu@your-server
+    ports:
+      - "127.0.0.1:3306:3306"
+    environment:
+      MYSQL_DATABASE: "${DB_DATABASE:-laravel}"
+      MYSQL_USER: "${DB_USERNAME:-laravel}"
+      MYSQL_PASSWORD: "${DB_PASSWORD:?DB_PASSWORD must be set}"
+      MYSQL_ROOT_PASSWORD: "${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD must be set}"
+    command:
+      # 2 GB box shared with PHP and nginx. MySQL's default buffer pool plus its
+      # baseline is enough to trigger the OOM killer during an asset build.
+      - --innodb-buffer-pool-size=256M
+      - --max-connections=60
+      - --performance-schema=OFF
+
+  scheduler:
+    restart: unless-stopped

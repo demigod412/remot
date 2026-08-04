@@ -104,6 +104,30 @@ class SettingsController extends Controller
         return view('admin.settings.mail', compact('settings'));
     }
 
+    /**
+     * Send a probe email to whatever address the admin gives, and report the result.
+     *
+     * Without this there is no way to know mail works until a real applicant is
+     * approved and their temporary password disappears — the password is hashed on
+     * save, so a failed send means that account cannot be logged into at all until it
+     * is reset. Verifying beforehand is the difference between a config mistake and a
+     * locked-out member.
+     */
+    public function sendTestMail(Request $request)
+    {
+        $data = $request->validate([
+            'test_email' => ['required', 'email'],
+        ]);
+
+        $result = \App\Services\NotifyService::sendTestEmail($data['test_email']);
+
+        if ($result['sent']) {
+            return back()->with('success', 'Test email sent to ' . $data['test_email'] . '. Check the inbox, and the spam folder.');
+        }
+
+        return back()->with('error', 'Test email FAILED: ' . $result['error']);
+    }
+
     public function updateMailSettings(Request $request)
     {
         $data = $request->validate([

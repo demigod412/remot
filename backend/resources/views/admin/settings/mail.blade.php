@@ -77,6 +77,47 @@
     </div>
 </div>
 </form>
+
+{{-- Separate form, deliberately. Nesting it inside the settings form would submit
+     the whole configuration on a test, and a test needs to run against what is
+     ALREADY SAVED, not against unsaved fields. Save first, then test. --}}
+<div class="jobstation-card" style="padding:20px;margin-top:16px;">
+    <div style="font-size:13px;font-weight:600;color:var(--fg);margin-bottom:6px;">Send a test email</div>
+    <p style="font-size:12.5px;color:var(--fg-3);line-height:1.6;margin:0 0 14px;">
+        Uses the settings above as currently saved. Worth doing before approving anyone:
+        a member's temporary password is hashed the moment the account is created, so it
+        exists in exactly one place &mdash; that email. If it never arrives, the account
+        cannot be logged into until you reset the password by hand.
+    </p>
+
+    <form method="POST" action="{{ route('admin.settings.mail.test') }}"
+          style="display:flex;gap:9px;flex-wrap:wrap;align-items:flex-start;"
+          x-data="{ sending: false }" @submit="sending = true">
+        @csrf
+        <div style="flex:1;min-width:240px;">
+            <input type="email" name="test_email" required
+                   value="{{ old('test_email', auth('admin')->user()->email ?? '') }}"
+                   placeholder="you@example.com"
+                   style="width:100%;font-size:13px;">
+            @error('test_email')
+                <div style="font-size:12px;color:#EF4444;margin-top:4px;">{{ $message }}</div>
+            @enderror
+        </div>
+        <button type="submit" class="btn" x-bind:disabled="sending"
+                x-bind:style="sending ? 'opacity:.65;cursor:progress;' : ''"
+                style="padding:9px 18px;font-size:13px;display:inline-flex;align-items:center;gap:7px;">
+            <i data-lucide="send" style="width:14px;height:14px;"></i>
+            <span x-show="!sending">Send test</span>
+            <span x-show="sending" x-cloak>Sending&hellip;</span>
+        </button>
+    </form>
+
+    <p style="font-size:11.5px;color:var(--fg-3);margin:12px 0 0;line-height:1.55;">
+        Leaving the mail fields blank is fine &mdash; the app then uses MAIL_* from
+        <code>.env</code>. Filling only some of them is what breaks it: a blank host
+        saved here overrides a working one in .env.
+    </p>
+</div>
 </div>
 </div>
 

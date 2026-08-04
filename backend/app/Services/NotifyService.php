@@ -24,13 +24,17 @@ class NotifyService
      * @param  string $act   Template act key (e.g. 'TOPUP_APPROVED')
      * @param  array  $data  Shortcode replacements (e.g. ['coins' => 100])
      */
-    public static function send(User $user, string $act, array $data = []): void
+    public static function send(User $user, string $act, array $data = []): bool
     {
         $template = NotificationTemplate::getByAct($act);
 
         if (! $template) {
+            // A missing template is a configuration problem, not a delivery one, and
+            // it is the reason MEMBERSHIP_APPROVED sends nothing until
+            // MarketplaceSeeder has been run.
             Log::warning("NotifyService: no template found for act [{$act}]");
-            return;
+
+            return false;
         }
 
         $gs = gs();
@@ -47,10 +51,11 @@ class NotifyService
         ], $data);
 
         // Send email
+        $emailed = null;
         if ($template->email_status && $gs->email_notify) {
             $subject = static::replacePlaceholders($template->subj, $baseData);
             $body    = static::replacePlaceholders($template->email_body, $baseData);
-            static::sendEmailTo($user, $subject, $body);
+            $emailed = static::sendEmailTo($user, $subject, $body);
         }
 
         // Send SMS
@@ -88,6 +93,11 @@ class NotifyService
         ) {
             FcmService::sendToUser($user, $pushTitle, $pushBody);
         }
+
+        // true when email went out, or when this template does not send email at all.
+        // Only an actual delivery failure returns false, so callers that care about
+        // the email specifically can tell the difference.
+        return $emailed !== false;
     }
 
     /** Map a template act key to an in-app feed type + lucide icon. */
@@ -108,7 +118,7 @@ class NotifyService
     /**
      * Send a raw email directly (bypasses template system).
      */
-    public static function sendEmailTo(User $user, string $subject, string $body): void
+    public static function sendEmailTo(User $user, string $subject, string $body): bool
     {
         $gs = gs();
 
@@ -127,8 +137,15 @@ class NotifyService
                 'message'           => $body,
                 'notification_type' => 'email',
             ]);
+
+            return true;
         } catch (\Throwable $e) {
             Log::error("NotifyService email failed for user #{$user->id}: " . $e->getMessage());
+
+            // Reported rather than only logged. A caller that has just created an
+            // account whose ONLY copy of the password is in this email needs to know
+            // it did not arrive; the log is not somewhere an admin is looking.
+            return false;
         }
     }
 
@@ -144,7 +161,7 @@ class NotifyService
         string $name,
         string $subject,
         string $body
-    ): void {
+    ): bool {
         $gs = gs();
 
         try {
@@ -161,8 +178,12 @@ class NotifyService
                 'message'           => $body,
                 'notification_type' => 'email',
             ]);
+
+            return true;
         } catch (\Throwable $e) {
             Log::error("NotifyService raw email failed for {$email}: " . $e->getMessage());
+
+            return false;
         }
     }
 
@@ -218,20 +239,89 @@ class NotifyService
      */
     private static function configureMailer(array $mailConfig): void
     {
-        if (empty($mailConfig)) return;
+        // Anything the admin left blank is DISCARDED rather than applied.
+        //
+        // This used to read $mailConfig['host'] ?? env('MAIL_HOST'). The ?? operator
+        // only falls back on null, and the admin form always posts every key — so a
+        // blank host field posted '' and overwrote a perfectly good MAIL_HOST with an
+        // empty string. Half-filling that form silently broke all outgoing mail while
+        // appearing configured.
+        $set = array_filter(
+            $mailConfig,
+            fn ($v) => $v !== null && $v !== '' && $v !== []
+        );
 
-        $driver = $mailConfig['driver'] ?? 'smtp';
+        // Nothing usable in the database: leave Laravel's env-driven config alone.
+        // .env alone is a perfectly valid way to run this.
+        if ($set === []) {
+            return;
+        }
 
-        config([
-            'mail.default'                => $driver,
-            'mail.mailers.smtp.host'      => $mailConfig['host'] ?? env('MAIL_HOST', 'smtp.mailgun.org'),
-            'mail.mailers.smtp.port'      => $mailConfig['port'] ?? env('MAIL_PORT', 587),
-            'mail.mailers.smtp.username'  => $mailConfig['username'] ?? env('MAIL_USERNAME'),
-            'mail.mailers.smtp.password'  => $mailConfig['password'] ?? env('MAIL_PASSWORD'),
-            'mail.mailers.smtp.encryption'=> $mailConfig['encryption'] ?? env('MAIL_ENCRYPTION', 'tls'),
-            'mail.from.address'           => $mailConfig['from_address'] ?? env('MAIL_FROM_ADDRESS'),
-            'mail.from.name'              => $mailConfig['from_name'] ?? env('MAIL_FROM_NAME'),
-        ]);
+        $driver = $set['driver'] ?? config('mail.default', 'smtp');
+
+        $values = ['mail.default' => $driver];
+
+        foreach ([
+            'host'     => 'mail.mailers.smtp.host',
+            'port'     => 'mail.mailers.smtp.port',
+            'username' => 'mail.mailers.smtp.username',
+            'password' => 'mail.mailers.smtp.password',
+        ] as $key => $path) {
+            if (isset($set[$key])) {
+                $values[$path] = $set[$key];
+            }
+        }
+
+        // Laravel 11+ dropped 'encryption' for the SMTP transport in favour of
+        // 'scheme' (smtp | smtps). config/mail.php in this app uses 'scheme', so the
+        // old code was writing a key nothing reads: an admin choosing SSL got no SSL.
+        //
+        // Explicit beats inferred here. Left unset, Symfony guesses from the port,
+        // which is right often enough to hide the problem and wrong on custom ports.
+        if (isset($set['encryption'])) {
+            $values['mail.mailers.smtp.scheme'] = $set['encryption'] === 'ssl' ? 'smtps' : 'smtp';
+        }
+
+        if (isset($set['from_address'])) {
+            $values['mail.from.address'] = $set['from_address'];
+        }
+        if (isset($set['from_name'])) {
+            $values['mail.from.name'] = $set['from_name'];
+        }
+
+        config($values);
+    }
+
+    /**
+     * Send a probe email and report what actually happened.
+     *
+     * Exists because every other send path in this class swallows failures into the
+     * log. That is right for a background notification and wrong for configuration:
+     * an admin needs to know whether the settings they just saved work, before a
+     * worker's temporary password is the thing that goes missing.
+     *
+     * @return array{sent: bool, error: string|null}
+     */
+    public static function sendTestEmail(string $to): array
+    {
+        $gs = gs();
+
+        try {
+            static::configureMailer($gs->mail_config ?? []);
+
+            $subject = ($gs->site_name ?? config('app.name')) . ' — test email';
+            $body    = '<p>This is a test email. If you are reading it, outgoing mail works.</p>'
+                . '<p>Sent ' . now()->toDayDateTimeString() . ' from '
+                . e(config('mail.mailers.smtp.host') ?: config('mail.default')) . '.</p>';
+
+            Mail::to($to)->send(new UserNotification($subject, $body));
+
+            return ['sent' => true, 'error' => null];
+        } catch (\Throwable $e) {
+            Log::error('Test email failed: ' . $e->getMessage());
+
+            return ['sent' => false, 'error' => $e->getMessage()];
+        }
     }
 
     /**
