@@ -8,13 +8,24 @@ class WorkCategory extends Model
 {
     protected $fillable = [
         'name', 'icon', 'status',
-        'commission_percent', 'application_cost', 'eligible_user_type', 'description',
+        'commission_percent', 'application_cost', 'daily_application_limit',
+        'eligible_user_type', 'description',
         'result_schema', 'schema_strict',
     ];
+
+    /**
+     * Applications one worker may make in this category per calendar day.
+     * 0 means unlimited, so existing categories are unaffected.
+     */
+    public function hasDailyLimit(): bool
+    {
+        return (int) $this->daily_application_limit > 0;
+    }
 
     protected function casts(): array
     {
         return [
+            'daily_application_limit' => 'integer',
             'status'             => 'integer',
             'commission_percent' => 'decimal:2',
             'application_cost'   => 'decimal:2',

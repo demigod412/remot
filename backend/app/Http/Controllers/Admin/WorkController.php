@@ -9,6 +9,7 @@ use App\Models\Work;
 use App\Models\WorkCategory;
 use App\Models\WorkSubcategory;
 use App\Models\WorkSubmission;
+use App\Services\ActivityLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -43,6 +44,15 @@ class WorkController extends Controller
         if ($request->filled('poster')) {
             $query->where('poster_type', $request->input('poster'));
         }
+
+        // Slot occupancy and expiry, so a full or closed task can be found and
+        // reposted instead of sitting invisible at the bottom of the list.
+        match ($request->input('slots')) {
+            'filled'    => $query->slotsFilled(),
+            'available' => $query->slotsAvailable(),
+            'expired'   => $query->expiredTasks(),
+            default     => null,
+        };
 
         $works      = $query->latest()->paginate(config('jobstation.per_page', 20))->withQueryString();
         $categories = WorkCategory::orderBy('name')->get();
@@ -336,4 +346,116 @@ class WorkController extends Controller
             'category'      => 'work_refund',
         ]);
     }
+
+    /**
+     * Add capacity to an existing task.
+     *
+     * The task keeps its identity, its applications and its history — only the slot
+     * count grows. Workers who already applied still cannot apply again, because one
+     * application per worker per task is a locked rule and this does not touch it.
+     *
+     * Use this when a task simply needs more hands. Use repost() when you want the
+     * same work done again by a fresh set of workers, including previous ones.
+     */
+    public function extendSlots(Request $request, int $id)
+    {
+        $work = Work::findOrFail($id);
+
+        $data = $request->validate([
+            'additional_slots' => ['required', 'integer', 'min:1', 'max:10000'],
+        ]);
+
+        $before = (int) $work->worker_slots;
+        $work->update([
+            'worker_slots' => $before + (int) $data['additional_slots'],
+            // A task that finished because it filled up should open again.
+            'work_status'  => $work->work_status === 2 ? 1 : $work->work_status,
+            // total_coins tracks the legacy coin budget; keep it consistent.
+            'total_coins'  => (float) $work->coins_per_worker * ($before + (int) $data['additional_slots']),
+        ]);
+
+        ActivityLogger::log('work.extend_slots', $work, [
+            'slots_before' => $before,
+            'slots_after'  => $work->worker_slots,
+            'added'        => (int) $data['additional_slots'],
+        ]);
+
+        return back()->with('success', sprintf(
+            'Added %d slot(s). "%s" now has %d slots, %d still open.',
+            $data['additional_slots'],
+            $work->title,
+            $work->worker_slots,
+            $work->slots_remaining
+        ));
+    }
+
+    /**
+     * Clone a task into a fresh one.
+     *
+     * A copy rather than a reset, deliberately. Resetting in place would mean either
+     * deleting the completed applications — destroying the record of work already paid
+     * for — or leaving them attached, in which case every previous worker is permanently
+     * barred from the reposted task by the one-application-per-task rule.
+     *
+     * Cloning keeps the finished task and its history intact for reporting, and gives
+     * the new one a clean slate that everybody, including previous workers, can apply to.
+     *
+     * The old task is marked finished so it stops appearing as open.
+     */
+    public function repost(Request $request, int $id)
+    {
+        $original = Work::findOrFail($id);
+
+        $data = $request->validate([
+            'worker_slots' => ['required', 'integer', 'min:1', 'max:10000'],
+            'expires_at'   => ['nullable', 'date', 'after:now'],
+            'close_original' => ['sometimes', 'boolean'],
+        ]);
+
+        $clone = null;
+
+        DB::transaction(function () use ($original, $data, $request, &$clone) {
+            $clone = Work::create([
+                'poster_id'                 => Auth::guard('admin')->id(),
+                'poster_type'               => 1,
+                'category_id'               => $original->category_id,
+                'subcategory_id'            => $original->subcategory_id,
+                'title'                     => $original->title,
+                'description'               => $original->description,
+                'cover_image'               => $original->cover_image,
+                'worker_slots'              => (int) $data['worker_slots'],
+                'coins_per_worker'          => $original->coins_per_worker,
+                'total_coins'               => (float) $original->coins_per_worker * (int) $data['worker_slots'],
+                'payout_usd'                => $original->payout_usd,
+                'avg_minutes'               => $original->avg_minutes,
+                'requires_kyc'              => $original->requires_kyc,
+                'auto_approve_hours'        => $original->auto_approve_hours,
+                // Not carried over: a cosmetic applicant head start belongs to the run it
+                // was set for, and copying it would silently inflate the new task too.
+                'display_application_boost' => 0,
+                'expires_at'                => $data['expires_at'] ?? null,
+                'work_status'               => 1,
+                'approval_status'           => 1,
+                'slug'                      => Str::slug($original->title) . '-' . Str::random(6),
+            ]);
+
+            if ($request->boolean('close_original', true)) {
+                $original->update(['work_status' => 2]);
+            }
+
+            ActivityLogger::log('work.repost', $clone, [
+                'cloned_from'  => $original->id,
+                'worker_slots' => $clone->worker_slots,
+                'original_closed' => $request->boolean('close_original', true),
+            ]);
+        });
+
+        return redirect()
+            ->route('admin.works.edit', $clone->id)
+            ->with('success', sprintf(
+                'Reposted as a new task with %d slots. The original is kept for its history.',
+                $clone->worker_slots
+            ));
+    }
+
 }

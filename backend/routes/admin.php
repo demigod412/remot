@@ -61,6 +61,12 @@ Route::middleware('admin')->group(function () {
         Route::get('/',             [\App\Http\Controllers\Admin\WorkController::class, 'index'])->name('index');
         Route::get('pending',       [\App\Http\Controllers\Admin\WorkController::class, 'pending'])->name('pending');
         Route::get('create',        [\App\Http\Controllers\Admin\WorkController::class, 'create'])->name('create');
+
+        // Bulk import. Declared BEFORE the {id} routes: 'import' would otherwise be
+        // captured as an id by works/{id} and 404 on a findOrFail.
+        Route::get('import',          [\App\Http\Controllers\Admin\WorkImportController::class, 'form'])->name('import');
+        Route::get('import/template', [\App\Http\Controllers\Admin\WorkImportController::class, 'template'])->name('import.template');
+        Route::post('import',         [\App\Http\Controllers\Admin\WorkImportController::class, 'import'])->name('import.store');
         Route::post('/',            [\App\Http\Controllers\Admin\WorkController::class, 'store'])->name('store');
         Route::get('{id}',          [\App\Http\Controllers\Admin\WorkController::class, 'show'])->name('show');
         Route::get('{id}/edit',     [\App\Http\Controllers\Admin\WorkController::class, 'edit'])->name('edit');
@@ -69,6 +75,8 @@ Route::middleware('admin')->group(function () {
         Route::post('{id}/approve', [\App\Http\Controllers\Admin\WorkController::class, 'approve'])->name('approve');
         Route::post('{id}/reject',  [\App\Http\Controllers\Admin\WorkController::class, 'reject'])->name('reject');
         Route::post('{id}/feature', [\App\Http\Controllers\Admin\WorkController::class, 'toggleFeature'])->name('feature');
+        Route::post('{id}/extend',  [\App\Http\Controllers\Admin\WorkController::class, 'extendSlots'])->name('extend');
+        Route::post('{id}/repost',  [\App\Http\Controllers\Admin\WorkController::class, 'repost'])->name('repost');
     });
 
     /*

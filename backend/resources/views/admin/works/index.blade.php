@@ -66,12 +66,24 @@
                 @endforeach
             </select>
 
+            {{-- Occupancy, so filled and closed tasks can be found and reposted rather
+                 than sitting invisible at the bottom of the list. --}}
+            <select name="slots" style="width:auto;padding:7px 10px;font-size:12px;">
+                <option value="">Any occupancy</option>
+                <option value="filled" @selected(request('slots')==='filled')>Slots full</option>
+                <option value="available" @selected(request('slots')==='available')>Slots open</option>
+                <option value="expired" @selected(request('slots')==='expired')>Expired</option>
+            </select>
+
             <button type="submit" class="btn btn-sm">Filter</button>
-            @if(request()->hasAny(['search','approval','category','status']))
+            @if(request()->hasAny(['search','approval','category','status','slots']))
             <a href="{{ route('admin.works.index') }}" class="btn btn-sm btn-ghost">Clear</a>
             @endif
         </form>
 
+        <a href="{{ route('admin.works.import') }}" class="btn btn-sm">
+            <i data-lucide="upload" style="width:12px;height:12px;"></i> Import CSV
+        </a>
         <a href="{{ route('admin.works.create') }}" class="btn btn-sm btn-primary">
             <i data-lucide="plus" style="width:12px;height:12px;"></i> New work
         </a>
@@ -120,6 +132,52 @@
                 <div style="width:{{ $pct }}%;height:100%;background:var(--accent);border-radius:2px;"></div>
             </div>
             <span class="mono" style="font-size:10.5px;color:var(--fg-3);">{{ $filled }}/{{ $slots }}</span>
+
+            {{-- Offered only when there is something to reopen. Extend keeps the task
+                 and its history and just adds capacity; Repost clones it so previous
+                 workers can take part again, which the one-application-per-task rule
+                 would otherwise prevent. --}}
+            @if($work->slots_remaining <= 0 || ($work->expires_at && $work->expires_at->isPast()))
+            <div x-data="{ open: false }" style="display:inline-block;margin-left:8px;">
+                <button type="button" @click="open = !open" class="btn btn-sm btn-ghost"
+                        style="font-size:10.5px;padding:2px 7px;">Reopen</button>
+
+                <div x-show="open" x-cloak @click.outside="open = false"
+                     style="position:absolute;z-index:30;margin-top:6px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:13px;width:265px;box-shadow:0 8px 24px rgba(0,0,0,0.14);">
+
+                    <form method="POST" action="{{ route('admin.works.extend', $work->id) }}" style="margin-bottom:12px;">
+                        @csrf
+                        <div style="font-size:11.5px;color:var(--fg-2);font-weight:600;margin-bottom:5px;">Add slots to this task</div>
+                        <div style="display:flex;gap:6px;">
+                            <input type="number" name="additional_slots" value="10" min="1" max="10000"
+                                   style="width:78px;font-size:12px;font-family:ui-monospace,monospace;">
+                            <button type="submit" class="btn btn-sm" style="font-size:11.5px;">Extend</button>
+                        </div>
+                        <div style="font-size:10.5px;color:var(--fg-3);margin-top:5px;line-height:1.45;">
+                            Workers who already applied cannot apply again.
+                        </div>
+                    </form>
+
+                    <form method="POST" action="{{ route('admin.works.repost', $work->id) }}"
+                          style="border-top:1px solid var(--border);padding-top:11px;">
+                        @csrf
+                        <div style="font-size:11.5px;color:var(--fg-2);font-weight:600;margin-bottom:5px;">Repost as a new task</div>
+                        <div style="display:flex;gap:6px;">
+                            <input type="number" name="worker_slots" value="{{ $work->worker_slots }}" min="1" max="10000"
+                                   style="width:78px;font-size:12px;font-family:ui-monospace,monospace;">
+                            <button type="submit" class="btn btn-sm btn-primary" style="font-size:11.5px;">Repost</button>
+                        </div>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--fg-3);margin-top:7px;">
+                            <input type="checkbox" name="close_original" value="1" checked style="margin:0;">
+                            Close the original
+                        </label>
+                        <div style="font-size:10.5px;color:var(--fg-3);margin-top:5px;line-height:1.45;">
+                            Fresh copy. Everyone can apply, including previous workers.
+                        </div>
+                    </form>
+                </div>
+            </div>
+            @endif
         </div>
 
         <span style="font-size:11px;color:var(--fg-3);">{{ $work->created_at->format('M j, Y') }}</span>

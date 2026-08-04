@@ -116,6 +116,40 @@ class Work extends Model
     // Scopes
     // -------------------------------------------------------------------------
 
+    /**
+     * Tasks whose slots are all taken.
+     *
+     * slots_remaining is an accessor, not a column, so filtering has to be done as a
+     * subquery against the same definition occupyingSubmissions() uses: rejected and
+     * expired applications release their slot and must not count.
+     */
+    public function scopeSlotsFilled($query)
+    {
+        return $query->whereRaw(
+            '(select count(*) from work_submissions
+                where work_submissions.work_id = works.id
+                  and work_submissions.application_status != ?
+                  and work_submissions.delivery_status != ?) >= works.worker_slots',
+            [WorkSubmission::APP_REJECTED, WorkSubmission::DEL_EXPIRED]
+        );
+    }
+
+    public function scopeSlotsAvailable($query)
+    {
+        return $query->whereRaw(
+            '(select count(*) from work_submissions
+                where work_submissions.work_id = works.id
+                  and work_submissions.application_status != ?
+                  and work_submissions.delivery_status != ?) < works.worker_slots',
+            [WorkSubmission::APP_REJECTED, WorkSubmission::DEL_EXPIRED]
+        );
+    }
+
+    public function scopeExpiredTasks($query)
+    {
+        return $query->whereNotNull('expires_at')->where('expires_at', '<', now());
+    }
+
     public function scopeApproved($query)
     {
         return $query->where('approval_status', 1);

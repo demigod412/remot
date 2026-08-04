@@ -31,6 +31,18 @@
     </div>
 
     <div>
+        <label style="display:block;font-size:11.5px;color:var(--fg-3);margin-bottom:4px;">
+            Daily application limit
+        </label>
+        <input type="number" name="daily_application_limit" step="1" min="0" max="1000"
+               value="{{ old('daily_application_limit', $cat->daily_application_limit ?? 0) }}"
+               style="width:100%;font-size:13px;font-family:ui-monospace,monospace;">
+        <small style="color:var(--fg-3);font-size:11px;">
+            Most tasks in this category one worker may apply to per day. 0 = unlimited.
+        </small>
+    </div>
+
+    <div>
         <label style="display:block;font-size:11.5px;color:var(--fg-3);margin-bottom:4px;">Open to</label>
         <select name="eligible_user_type" required style="width:100%;font-size:13px;">
             <option value="0" @selected(old('eligible_user_type', $cat->eligible_user_type ?? 0) == 0)>Individuals and businesses</option>

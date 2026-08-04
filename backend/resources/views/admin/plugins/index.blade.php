@@ -44,7 +44,18 @@
             <form method="POST" action="{{ route('admin.plugins.update', $plugin->id) }}">
                 @csrf @method('PUT')
 
-                @php $shortcodes = $plugin->shortcode ?? []; @endphp
+                @php
+                    // Tolerate a non-array shortcode instead of fataling. Rows seeded
+                    // before the double-encoding fix hand back a JSON string, and one
+                    // bad row should not take out the whole plugins screen.
+                    $shortcodes = $plugin->shortcode;
+                    if (is_string($shortcodes) && $shortcodes !== '') {
+                        $decoded    = json_decode($shortcodes, true);
+                        $shortcodes = is_array($decoded) ? $decoded : [];
+                    } elseif (! is_array($shortcodes)) {
+                        $shortcodes = [];
+                    }
+                @endphp
                 @foreach($shortcodes as $key => $val)
                     <label style="display:block;font-size:11.5px;color:var(--fg-3);margin:0 0 4px;">
                         {{ ucwords(str_replace('_', ' ', $key)) }}

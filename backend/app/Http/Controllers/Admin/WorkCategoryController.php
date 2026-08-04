@@ -26,6 +26,8 @@ class WorkCategoryController extends Controller
         }
         $data['result_schema'] = $schema;
         $data['schema_strict'] = $request->boolean('schema_strict');
+        // NOT NULL with a default of 0, so an omitted field must be 0, not null.
+        $data['daily_application_limit'] = (int) ($data['daily_application_limit'] ?? 0);
         $data['status']        = 1;
 
         WorkCategory::create($data);
@@ -43,6 +45,8 @@ class WorkCategoryController extends Controller
         }
         $data['result_schema'] = $schema;
         $data['schema_strict'] = $request->boolean('schema_strict');
+        // NOT NULL with a default of 0, so an omitted field must be 0, not null.
+        $data['daily_application_limit'] = (int) ($data['daily_application_limit'] ?? 0);
 
         $cat->update($data);
         return back()->with('success', 'Category updated.');
@@ -65,6 +69,8 @@ class WorkCategoryController extends Controller
             'commission_percent' => ['required', 'numeric', 'min:0', 'max:100'],
             // Coins a worker spends to apply to any task in this category.
             'application_cost'   => ['required', 'numeric', 'min:0', 'max:99999999'],
+            // 0 = unlimited, so existing categories are unaffected.
+            'daily_application_limit' => ['nullable', 'integer', 'min:0', 'max:1000'],
             // 0 = both, 1 = individuals only, 2 = businesses only.
             'eligible_user_type' => ['required', 'integer', 'in:0,1,2'],
         ];

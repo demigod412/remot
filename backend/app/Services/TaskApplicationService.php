@@ -46,6 +46,7 @@ class TaskApplicationService
                 // are for fast, friendly errors; these are the authoritative ones.
                 $this->assertNotAlreadyApplied($user, $lockedWork);
                 $this->assertSlotAvailable($lockedWork);
+                $this->assertWithinDailyLimit($user, $lockedWork);
 
                 if ($cost > 0) {
                     // Throws RuntimeException on insufficient balance, which rolls
@@ -134,6 +135,8 @@ class TaskApplicationService
             );
         }
 
+        $this->assertWithinDailyLimit($user, $work);
+
         // Reliability gate. Checked before the fee is taken, so a blocked worker is
         // never charged for an application that would have been refused anyway.
         $reliability = app(WorkerReliabilityService::class);
@@ -143,6 +146,52 @@ class TaskApplicationService
 
         $this->assertNotAlreadyApplied($user, $work);
         $this->assertSlotAvailable($work);
+    }
+
+    /**
+     * Per-category daily application quota.
+     *
+     * work_categories.daily_application_limit caps how many tasks in one category a
+     * worker may apply to in a calendar day. 0 means unlimited.
+     *
+     * Rejected applications are excluded from the count. An admin rejecting an
+     * application refunds the fee, so it would be unfair to also spend a day's quota
+     * on it. Expired and quality-rejected work DOES count, because the worker
+     * consumed a slot and review time in those cases.
+     *
+     * Counted in the app timezone, not UTC, so "today" means what the worker sees.
+     *
+     * Residual race: two applications to DIFFERENT tasks in the same category submitted
+     * in the same instant can both pass, because the transaction locks the task row and
+     * these are different rows. That would let a worker exceed the quota by one under
+     * precise timing. Accepted deliberately — this is a fairness quota, not a money
+     * guard, and locking every category application behind one row would serialise all
+     * applications platform-wide.
+     */
+    protected function assertWithinDailyLimit(User $user, Work $work): void
+    {
+        $category = $work->category;
+
+        if (! $category || ! $category->hasDailyLimit()) {
+            return;
+        }
+
+        $limit = (int) $category->daily_application_limit;
+
+        $usedToday = WorkSubmission::where('worker_id', $user->id)
+            ->where('worker_type', 2)
+            ->where('application_status', '!=', WorkSubmission::APP_REJECTED)
+            ->whereDate('created_at', now()->toDateString())
+            ->whereHas('work', fn ($q) => $q->where('category_id', $category->id))
+            ->count();
+
+        if ($usedToday >= $limit) {
+            throw new ApplicationException(
+                'You have reached your daily limit of ' . $limit . ' '
+                . \Illuminate\Support\Str::plural('task', $limit)
+                . ' in ' . $category->name . '. Try again tomorrow.'
+            );
+        }
     }
 
     protected function assertNotAlreadyApplied(User $user, Work $work): void
