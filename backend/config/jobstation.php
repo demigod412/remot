@@ -221,6 +221,27 @@ return [
     | Ledger Entry Categories
     |--------------------------------------------------------------------------
     */
+    /*
+    |--------------------------------------------------------------------------
+    | Cloudflare Turnstile
+    |--------------------------------------------------------------------------
+    | Bot protection for the public membership apply form. Active only when BOTH
+    | keys are set, so a half-configured install is treated as off rather than
+    | silently passing every submission — which is exactly what the reCAPTCHA
+    | helper does and why the form has had no protection until now.
+    |
+    | Get the keys from the Cloudflare dashboard under Turnstile. Add your domain
+    | AND 127.0.0.1 to the widget's allowed hostnames so it works locally.
+    |
+    | strict = fail closed if Cloudflare cannot be reached. See TurnstileService.
+    */
+
+    'turnstile' => [
+        'site_key'   => env('TURNSTILE_SITE_KEY', ''),
+        'secret_key' => env('TURNSTILE_SECRET_KEY', ''),
+        'strict'     => env('JOBSTATION_TURNSTILE_STRICT', true),
+    ],
+
     'ledger_categories' => [
         'topup'       => 'Coin Top-Up',
         'cashout'     => 'Cash Out',

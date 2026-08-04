@@ -52,7 +52,7 @@
 
             <h2 style="font-size:20px;font-weight:700;margin:28px 0 12px;color:var(--text);">6. Cookies</h2>
             <p style="font-size:14px;line-height:1.7;color:var(--muted);">
-                We use cookies and similar tracking technologies to enhance your experience, analyse usage, and personalise content. You can manage your cookie preferences through your browser settings. For more details, see our <a href="{{ route('pages.show', 'cookie-policy') }}" style="color:var(--accent);">Cookie Policy</a>.
+                We use cookies and similar tracking technologies to enhance your experience, analyse usage, and personalise content. You can manage your cookie preferences through your browser settings. For more details, see our <a href="{{ route('cookie-policy') }}" style="color:var(--accent);">Cookie Policy</a>.
             </p>
 
             <h2 style="font-size:20px;font-weight:700;margin:28px 0 12px;color:var(--text);">7. Children’s Privacy</h2>

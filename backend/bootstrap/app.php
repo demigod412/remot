@@ -41,6 +41,28 @@ return Application::configure(basePath: dirname(__DIR__))
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Cloudflare sits in front of this app, so every request arrives from a
+        // Cloudflare edge IP. Without trusting it, $request->ip() is that edge address
+        // rather than the visitor's, which quietly breaks anything IP-based:
+        //
+        //   - throttle:6,1 on admin login would rate limit every visitor behind the
+        //     same edge together, so one person's failed logins lock out strangers;
+        //   - audit log entries all record the same handful of addresses;
+        //   - HTTPS detection depends on X-Forwarded-Proto, and without it Laravel can
+        //     generate http:// URLs behind an https:// site.
+        //
+        // Trusting '*' is correct only because Cloudflare is the ONLY thing that can
+        // reach the origin. If the origin is ever exposed directly, replace this with
+        // Cloudflare's published IP ranges, or a spoofed header becomes a spoofed IP.
+        $middleware->trustProxies(
+            at: '*',
+            headers: \Illuminate\Http\Request::HEADER_X_FORWARDED_FOR
+                | \Illuminate\Http\Request::HEADER_X_FORWARDED_HOST
+                | \Illuminate\Http\Request::HEADER_X_FORWARDED_PORT
+                | \Illuminate\Http\Request::HEADER_X_FORWARDED_PROTO
+                | \Illuminate\Http\Request::HEADER_X_FORWARDED_AWS_ELB
+        );
+
         // CSRF exclusions for payment gateway callbacks
         $middleware->validateCsrfTokens(except: [
             'payment/*',

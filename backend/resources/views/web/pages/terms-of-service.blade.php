@@ -20,7 +20,7 @@
 
             <h2 style="font-size:20px;font-weight:700;margin:28px 0 12px;color:var(--text);">1. Acceptance of Terms</h2>
             <p style="font-size:14px;line-height:1.7;color:var(--muted);">
-                By using our website and services, you accept these Terms and our <a href="{{ route('pages.show', 'privacy-policy') }}" style="color:var(--accent);">Privacy Policy</a>. If you do not agree, please do not use our platform.
+                By using our website and services, you accept these Terms and our <a href="{{ route('privacy-policy') }}" style="color:var(--accent);">Privacy Policy</a>. If you do not agree, please do not use our platform.
             </p>
 
             <h2 style="font-size:20px;font-weight:700;margin:28px 0 12px;color:var(--text);">2. Description of Services</h2>

@@ -303,7 +303,34 @@
             </div>
         </section>
 
-        @if (recaptchaEnabled())
+        {{-- Bot check. Turnstile when configured, otherwise the legacy reCAPTCHA, never
+             both: two challenges on one form is a good way to lose an applicant.
+
+             The widget renders explicitly rather than via auto-detection so the
+             callbacks can feed the same `verified` flag the rest of this form uses,
+             and so a re-render after a failed submit does not leave a stale token. --}}
+        @if (turnstileEnabled())
+            <div style="margin-bottom:22px;"
+                 x-data="{ problem: '' }"
+                 @turnstile-expired.window="problem = 'expired'"
+                 @turnstile-error.window="problem = 'error'"
+                 @turnstile-ok.window="problem = ''">
+                <div id="turnstile-widget" style="min-height:65px;"></div>
+
+                <p x-show="problem === 'expired'" x-cloak aria-live="polite"
+                   style="font-size:12.5px; color:#b45309; margin:8px 0 0;">
+                    {{ __('That check expired. Please complete it again before submitting.') }}
+                </p>
+                <p x-show="problem === 'error'" x-cloak aria-live="polite"
+                   style="font-size:12.5px; color:#dc2626; margin:8px 0 0;">
+                    {{ __('The verification check could not load. Please refresh the page and try again.') }}
+                </p>
+
+                @error('captcha')
+                    <p aria-live="polite" style="font-size:12.5px; color:#dc2626; margin:8px 0 0;">{{ $message }}</p>
+                @enderror
+            </div>
+        @elseif (recaptchaEnabled())
             <div style="margin-bottom:20px;">
                 <div class="g-recaptcha" data-sitekey="{{ recaptchaPlugin()->shortcode['site_key'] ?? '' }}"></div>
                 @error('captcha')
@@ -319,20 +346,17 @@
              button while fields are incomplete hides WHICH field is missing; letting the
              submit through means the browser points at it. --}}
         <div class="apply-submit">
+            {{-- One button. There were two identical ones stacked here: an edit landed
+                 alongside the original instead of replacing it.
 
-
-              <button type="submit" x-bind:disabled="submitting"
-                x-bind:style="submitting ? 'opacity:.65; cursor:progress;' : ''"
-                style="width:100%; padding:13px; border:0; border-radius:8px; background:var(--accent); color:#fff; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:9px;">
-            <span x-show="submitting" x-cloak class="apply-spinner" aria-hidden="true"></span>
-            <span x-show="!submitting">{{ __('Submit application') }}</span>
-            <span x-show="submitting" x-cloak>{{ __('Uploading your application') }}</span>
-        </button>
-
-            
+                 background carries an explicit #2f54eb fallback behind var(--accent).
+                 If the stylesheet ever fails to load or the variable is renamed, the
+                 fallback keeps a blue button with white text; without it the background
+                 resolves to nothing and you get white-on-white — a button that is
+                 present, clickable, and completely invisible. --}}
             <button type="submit" x-bind:disabled="submitting"
                     x-bind:style="submitting ? 'opacity:.65; cursor:progress;' : ''"
-                    style="width:100%; padding:14px; border:0; border-radius:9px; background:var(--accent); color:#fff; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:9px;">
+                    style="width:100%; padding:14px; border:0; border-radius:9px; background:var(--accent, #2f54eb); color:#fff; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:9px;">
                 <span x-show="submitting" x-cloak class="apply-spinner" aria-hidden="true"></span>
                 <span x-show="!submitting">{{ __('Submit application') }}</span>
                 <span x-show="submitting" x-cloak>{{ __('Uploading your application') }}</span>
@@ -436,7 +460,39 @@
 @endsection
 
 @push('scripts')
-    @if (recaptchaEnabled())
+    @if (turnstileEnabled())
+        {{-- Explicit rendering: onload names the callback, so the widget cannot appear
+             before Alpine is ready and the token cannot be created without us knowing. --}}
+        <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?onload=onTurnstileLoad&render=explicit" async defer></script>
+        <script>
+            function onTurnstileLoad() {
+                const holder = document.getElementById('turnstile-widget');
+                if (! holder || ! window.turnstile) { return; }
+
+                window.turnstile.render(holder, {
+                    sitekey: @json(turnstileSiteKey()),
+                    theme: 'auto',
+                    action: 'membership-apply',
+                    callback: function () {
+                        window.dispatchEvent(new CustomEvent('turnstile-ok'));
+                    },
+                    'error-callback': function () {
+                        // Not swallowed: if the widget itself fails to load, the submit
+                        // WILL be refused server-side, so the applicant needs to know now
+                        // rather than after filling the whole form and uploading a CV.
+                        window.dispatchEvent(new CustomEvent('turnstile-error'));
+                    },
+                    'expired-callback': function () {
+                        // Tokens are single use and expire after ~5 minutes. This form can
+                        // easily take longer than that, so reset and tell them, otherwise
+                        // they get an unexplained rejection on submit.
+                        window.dispatchEvent(new CustomEvent('turnstile-expired'));
+                        window.turnstile.reset();
+                    }
+                });
+            }
+        </script>
+    @elseif (recaptchaEnabled())
         <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     @endif
 @endpush

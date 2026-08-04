@@ -307,6 +307,27 @@ if (! function_exists('verifyRecaptcha')) {
     }
 }
 
+if (! function_exists('turnstile')) {
+    function turnstile(): \App\Services\TurnstileService
+    {
+        return app(\App\Services\TurnstileService::class);
+    }
+}
+
+if (! function_exists('turnstileEnabled')) {
+    function turnstileEnabled(): bool
+    {
+        return turnstile()->enabled();
+    }
+}
+
+if (! function_exists('turnstileSiteKey')) {
+    function turnstileSiteKey(): string
+    {
+        return turnstile()->siteKey();
+    }
+}
+
 if (! function_exists('richBody')) {
     /**
      * Render a user/admin-authored content field (work/job description, etc.).

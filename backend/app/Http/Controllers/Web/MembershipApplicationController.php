@@ -16,7 +16,16 @@ class MembershipApplicationController extends Controller
 
     public function store(MembershipApplicationRequest $request)
     {
-        if (! verifyRecaptcha($request->input('g-recaptcha-response'))) {
+        // Turnstile takes precedence when configured; reCAPTCHA remains as a
+        // fallback so an install that has not switched over yet keeps working.
+        // Only one is ever rendered, so only one is ever checked.
+        if (turnstileEnabled()) {
+            if (! turnstile()->verify($request->input('cf-turnstile-response'))) {
+                return back()->withInput()->withErrors([
+                    'captcha' => 'We could not confirm you are human. Please complete the check and try again.',
+                ]);
+            }
+        } elseif (! verifyRecaptcha($request->input('g-recaptcha-response'))) {
             return back()->withInput()
                 ->withErrors(['captcha' => 'Please complete the reCAPTCHA verification and try again.']);
         }

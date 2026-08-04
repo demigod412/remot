@@ -236,7 +236,18 @@
 @media(max-width:900px){
     .footer-main-grid{ grid-template-columns:1fr !important; gap:40px !important; }
 }
-</style>
+
+/* The cookie banner is position:fixed, bottom:24px, max-width:680px, z-index:9999.
+   Centred, that puts it directly over the last element on any page whose content
+   column is around the same width — including the Submit button on /apply, which it
+   both hid and swallowed the clicks for.
+
+   The class is added by the banner's own script and removed when it is dismissed, so
+   the clearance exists only while something is actually covering the page. */
+body.has-cookie-banner { padding-bottom: 132px; }
+@media(max-width:620px){
+    body.has-cookie-banner { padding-bottom: 190px; }
+}</style>
 
 {{-- Cookie consent --}}
 @php $showCookie = (gs()->cookie_enabled ?? true); @endphp
@@ -252,7 +263,7 @@
         <div style="font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:2px;">{{ __('We use cookies') }}</div>
         <div style="font-size:12.5px;color:var(--muted);line-height:1.55;">
             {{ gs()->cookie_text ?? __('We use cookies to improve your experience and analyse site usage.') }}
-            <a href="{{ route('pages.show', 'cookie-policy') }}"
+            <a href="{{ route('cookie-policy') }}"
                style="color:var(--accent);text-decoration:none;font-weight:500;"
                onmouseover="this.style.textDecoration='underline'"
                onmouseout="this.style.textDecoration='none'">{{ __('Learn more') }}</a>
@@ -277,9 +288,14 @@
         banner.remove();
         return;
     }
+
+    // Only while the banner is really on screen, so pages are not padded for nothing.
+    document.body.classList.add('has-cookie-banner');
+
     function decide(value) {
         document.cookie = 'cookie_consent=' + value + ';path=/;max-age=31536000;SameSite=Lax';
         banner.classList.add('hiding');
+        document.body.classList.remove('has-cookie-banner');
         setTimeout(function () { banner.remove(); }, 280);
     }
     var a = document.getElementById('accept-cookie');
@@ -290,7 +306,11 @@
 </script>
 @endif
 
-<script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+{{-- Alpine is bundled by resources/js/app.js, which @vite loads at the top of this
+     file. The CDN copy that used to sit here started a SECOND instance: Alpine warns
+     about multiple instances and components can initialise twice, which means event
+     handlers firing twice on the same click. It also pinned an unversioned 3.x.x from
+     a third party on every page load. --}}
 <script>
     setTimeout(() => document.querySelectorAll('.flash-item').forEach(el => el.remove()), 5000);
 </script>
