@@ -1,202 +1,392 @@
 @extends('web.layouts.app')
 
-@section('title', gs()->site_name ?? config('app.name'))
+@section('title', 'RemotioX – AI Training & Data Annotation Jobs')
 
 @section('content')
 
-{{-- Pass translated typewriter text to JS before the push block --}}
-@php $heroTyper = [__("Work that pays\nin "), __("minutes"), __(",\ncareers that\npay for years.")]; @endphp
+{{-- Pass translated typewriter text to JS (static) --}}
+@php
+    $heroTyper = [
+        "Earn by ",
+        "labeling",
+        ",\nevaluating AI,",
+        " Shaping smarter models."
+    ];
+@endphp
 <script>
-window._heroTyper = @json($heroTyper);
+    window._heroTyper = @json($heroTyper);
 </script>
 
 {{-- ── HERO ──────────────────────────────────────────────────── --}}
-<section style="position:relative; overflow:hidden; padding:80px 40px 100px; background:#fff;">
-    {{-- Background video (cache-busted by file mtime so swaps show immediately) --}}
-    @php $heroV = @filemtime(public_path('videos/jobstation-hero.mp4')) ?: 1; @endphp
-    <video class="hero-bg-video" autoplay muted loop playsinline preload="auto"
-           poster="{{ asset('videos/jobstation-hero.jpg') }}?v={{ $heroV }}"
-           style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; z-index:0; pointer-events:none;">
-        <source src="{{ asset('videos/jobstation-hero.mp4') }}?v={{ $heroV }}" type="video/mp4">
-    </video>
-    {{-- White overlay (stronger over the text, lighter over the cards) --}}
+<section id="home" style="position:relative; overflow:hidden; padding:80px 40px 100px; background:#fff;">
+    <div aria-hidden="true" style="position:absolute; inset:0; z-index:0; pointer-events:none;
+         background: linear-gradient(135deg, #0b1120 0%, #1a2a4a 40%, #2f4b7a 100%);"></div>
     <div aria-hidden="true" style="position:absolute; inset:0; z-index:1; pointer-events:none;
-         background:linear-gradient(100deg, rgba(255,255,255,0.90) 0%, rgba(255,255,255,0.76) 46%, rgba(255,255,255,0.5) 100%);"></div>
+         background: linear-gradient(100deg, rgba(11,17,32,0.92) 0%, rgba(26,42,74,0.78) 50%, rgba(47,75,122,0.4) 100%);"></div>
 
     <div style="position:relative; z-index:2; max-width:1280px; margin:0 auto; display:grid; grid-template-columns:1.1fr 1fr; gap:80px; align-items:center;" class="hero-grid">
 
         <div>
-            <div class="anim-hero-badge" style="display:inline-flex; align-items:center; gap:8px; padding:5px 12px 5px 6px; border-radius:999px; background:#fff; border:1px solid var(--border); font-size:12.5px; color:var(--muted); margin-bottom:28px; box-shadow:0 1px 3px rgba(10,10,11,0.06);">
-                <span style="background:var(--accent-soft); color:var(--accent); padding:2px 8px; border-radius:999px; font-weight:600; font-size:11px;">{{ __('NEW') }}</span>
-                {{ __('Contracts are live — long-term private work →') }}
+            <div class="anim-hero-badge" style="display:inline-flex; align-items:center; gap:8px; padding:5px 12px 5px 6px; border-radius:999px; background:rgba(255,255,255,0.08); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.15); font-size:12.5px; color:rgba(255,255,255,0.7); margin-bottom:28px;">
+                <span style="background:#22c55e; color:#fff; padding:2px 8px; border-radius:999px; font-weight:600; font-size:11px;">HIRING</span>
+                Remote AI projects · 1,200+ open tasks
             </div>
-            <h1 id="hero-h1" style="font-size:clamp(48px,5.2vw,76px); line-height:1.08; font-weight:600; letter-spacing:-2.5px; margin:0 0 24px; color:var(--text); min-height:4.4em;">
+            <h1 id="hero-h1" style="font-size:clamp(42px,5.2vw,72px); line-height:1.08; font-weight:600; letter-spacing:-2.5px; margin:0 0 24px; color:#fff; min-height:4.4em;">
                 <span id="hero-typed"></span><span class="typing-cursor">|</span>
             </h1>
-            <p class="anim-hero-p" style="font-size:17px; color:var(--muted); line-height:1.55; max-width:480px; margin:0 0 36px;">
-                {{ __('Job Station is one marketplace for three kinds of work — instant microtasks, hiring jobs, and long-term contracts. Find paid work in seconds or hire the right person in hours.') }}
+            <p class="anim-hero-p" style="font-size:17px; color:rgba(255,255,255,0.8); line-height:1.55; max-width:480px; margin:0 0 36px;">
+                RemotioX connects you with flexible, paid opportunities in AI training, data labeling, and prompt engineering. Join a global community contributing to smarter, safer artificial intelligence.
             </p>
             <div class="anim-hero-actions" style="display:flex; gap:12px; margin-bottom:40px; flex-wrap:wrap;">
-                <a href="{{ route('works.index') }}" class="btn btn-primary" style="padding:12px 20px; font-size:14px;">
-                    {{ __('Browse jobs') }}
+                <a href="{{ route('membership.apply') }}" class="btn btn-primary" style="padding:12px 20px; font-size:14px; background:#3b82f6; border:none; color:#fff; border-radius:40px; font-weight:500;">
+                    Get started
                     <svg width="14" height="14" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 9h12M10 4l5 5-5 5"/></svg>
                 </a>
-                <a href="{{ route('user.works.index') }}" class="btn btn-secondary" style="padding:12px 20px; font-size:14px;">{{ __('Post a job') }}</a>
+                <a href="{{ route('user.register') }}" class="btn btn-secondary" style="padding:12px 20px; font-size:14px; background:rgba(255,255,255,0.08); backdrop-filter:blur(6px); border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:40px; font-weight:500;">
+                    Explore projects
+                </a>
             </div>
-            <div class="anim-hero-stats" style="display:flex; gap:36px; padding-top:28px; border-top:1px solid var(--border); flex-wrap:wrap;">
+            <div class="anim-hero-stats" style="display:flex; gap:36px; padding-top:28px; border-top:1px solid rgba(255,255,255,0.12); flex-wrap:wrap;">
                 <div>
-                    <div class="mono counter" data-target="{{ $stats['completed'] }}" style="font-size:22px; font-weight:600; letter-spacing:-0.5px; color:var(--text);">{{ number_format($stats['completed']) }}</div>
-                    <div style="font-size:12px; color:var(--muted); margin-top:2px;">{{ __('tasks completed') }}</div>
+                    <div class="mono counter" data-target="50000" style="font-size:22px; font-weight:600; letter-spacing:-0.5px; color:#fff;">50,000</div>
+                    <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:2px;">tasks completed</div>
                 </div>
                 <div>
-                    <div class="mono" style="font-size:22px; font-weight:600; letter-spacing:-0.5px; color:#F5D547;">{{ coinSymbol() }} {{ number_format($stats['completed'] * 8.5) }}</div>
-                    <div style="font-size:12px; color:var(--muted); margin-top:2px;">{{ __('paid out to workers') }}</div>
+                    <div class="mono" style="font-size:22px; font-weight:600; letter-spacing:-0.5px; color:#f5d547;">$2.5M</div>
+                    <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:2px;">paid out to contributors</div>
                 </div>
                 <div>
-                    <div class="mono counter" data-target="{{ $stats['workers'] }}" style="font-size:22px; font-weight:600; letter-spacing:-0.5px; color:var(--text);">{{ number_format($stats['workers']) }}</div>
-                    <div style="font-size:12px; color:var(--muted); margin-top:2px;">{{ __('active workers') }}</div>
+                    <div class="mono counter" data-target="12000" style="font-size:22px; font-weight:600; letter-spacing:-0.5px; color:#fff;">12,000</div>
+                    <div style="font-size:12px; color:rgba(255,255,255,0.6); margin-top:2px;">active contributors</div>
                 </div>
             </div>
         </div>
 
-        {{-- Floating job cards --}}
+        {{-- Floating task cards --}}
         <div style="position:relative; height:520px;" class="hero-cards">
             @php
-                $heroWorks = $featured->take(4);
-                $positions = [['0px','0px'],['130px','200px'],['280px','10px'],['400px','220px']];
-                $floatDelays = ['0s','0.8s','1.6s','2.4s'];
+                $tasks = [
+                    ['Label 100 images – object detection', '$12', 'Data Labeling', '0px', '0px', '0s'],
+                    ['Evaluate AI response quality (RLHF)', '$18', 'RLHF', '130px', '200px', '0.8s'],
+                    ['Rewrite prompts for clarity & safety', '$15', 'Prompt Eng.', '280px', '10px', '1.6s'],
+                    ['Code review for LLM fine-tuning', '$25', 'Coding Expert', '400px', '220px', '2.4s'],
+                ];
             @endphp
-            @if($heroWorks->isNotEmpty())
-                @foreach($heroWorks as $i => $work)
-                <div class="hero-float-card" style="position:absolute; top:{{ $positions[$i][0] }}; left:{{ $positions[$i][1] }}; width:260px; padding:16px; box-shadow:0 20px 60px -20px rgba(10,10,11,0.15); animation-delay:{{ $floatDelays[$i] }};" class="card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <span class="chip chip-instant" style="font-size:10px; text-transform:uppercase;">⚡ {{ __('Instant') }}</span>
-                        <span class="mono" style="font-size:11px; color:var(--muted);">{{ $work->time_limit ?? rand(5,45) }}{{ __('min') }}</span>
-                    </div>
-                    <div style="font-size:14px; font-weight:500; line-height:1.35; margin-bottom:14px; color:var(--text);">{{ Str::limit($work->title, 52) }}</div>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span class="mono" style="font-size:14px; font-weight:600; color:#22C55E;">{{ formatUsd($work->payout_usd) }}</span>
-                        <span style="font-size:11px; color:var(--muted);">{{ $work->category?->name }}</span>
-                    </div>
+            @foreach($tasks as [$title, $pay, $category, $top, $left, $delay])
+            <div class="hero-float-card card" style="position:absolute; top:{{ $top }}; left:{{ $left }}; width:260px; padding:16px; background:rgba(255,255,255,0.1); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.12); border-radius:16px; box-shadow:0 20px 60px -20px rgba(0,0,0,0.4); animation-delay:{{ $delay }};">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <span class="chip chip-instant" style="font-size:10px; text-transform:uppercase; background:rgba(59,130,246,0.2); color:#60a5fa; padding:2px 8px; border-radius:20px;">⚡ AI</span>
+                    <span class="mono" style="font-size:11px; color:rgba(255,255,255,0.5);">~20 min</span>
                 </div>
-                @endforeach
-            @else
-                @foreach([
-                    [__('Verify this app listing screenshot'),'12',__('QA'),'0px','0px','0s'],
-                    [__('Senior React Engineer'),'8k–12k',__('Full-time'),'130px','200px','0.8s'],
-                    [__('6-month brand design retainer'),'5k/mo',__('Design'),'280px','10px','1.6s'],
-                    [__('Translate 80-word paragraph → FR'),'4',__('Language'),'400px','220px','2.4s'],
-                ] as [$t,$r,$c,$top,$left,$delay])
-                <div class="hero-float-card card" style="position:absolute; top:{{ $top }}; left:{{ $left }}; width:260px; padding:16px; box-shadow:0 20px 60px -20px rgba(10,10,11,0.15); animation-delay:{{ $delay }};">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <span class="chip chip-instant" style="font-size:10px; text-transform:uppercase;">⚡ {{ __('Instant') }}</span>
-                        <span class="mono" style="font-size:11px; color:var(--muted);">14{{ __('min') }}</span>
-                    </div>
-                    <div style="font-size:14px; font-weight:500; line-height:1.35; margin-bottom:14px; color:var(--text);">{{ $t }}</div>
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span class="mono" style="font-size:14px; font-weight:600; color:#F5D547;">{{ formatCoins($r) }}</span>
-                        <span style="font-size:11px; color:var(--muted);">{{ $c }}</span>
-                    </div>
+                <div style="font-size:14px; font-weight:500; line-height:1.35; margin-bottom:14px; color:#fff;">{{ $title }}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span class="mono" style="font-size:14px; font-weight:600; color:#22c55e;">{{ $pay }}</span>
+                    <span style="font-size:11px; color:rgba(255,255,255,0.5);">{{ $category }}</span>
                 </div>
-                @endforeach
-            @endif
+            </div>
+            @endforeach
+        </div>
+    </div>
+</section>
+
+{{-- ── WHY REMOTIOX ──────────────────────────────────────────── --}}
+<section id="why" style="padding:100px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#f8fafc;">
+    <div style="max-width:1200px; margin:0 auto;">
+        <div data-reveal style="text-align:center; margin-bottom:60px;">
+            <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">Why RemotioX</div>
+            <h2 style="font-size:clamp(28px,3.5vw,44px); font-weight:600; letter-spacing:-1.5px; margin:0; color:#0b1120;">Work that fits your life – and shapes the future.</h2>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:24px;" class="four-col">
+            @foreach([
+                ['🧠', 'Flexible hours', 'Choose tasks that fit your schedule – work 1 hour or 30 per week.'],
+                ['🌍', 'Global community', 'Join 12,000+ contributors from 80+ countries, all building better AI.'],
+                ['💰', 'Fair pay, fast', 'Transparent pricing, weekly payouts, and no hidden fees.'],
+                ['🚀', 'Skill growth', 'Work on diverse projects and gain experience in the AI industry.'],
+            ] as $idx => [$icon, $title, $desc])
+            <div class="card reveal-card" data-reveal data-delay="{{ $idx * 80 }}" style="padding:24px; background:#fff; border-radius:20px; box-shadow:0 2px 12px rgba(0,0,0,0.04); border:1px solid rgba(0,0,0,0.04);">
+                <div style="font-size:28px; margin-bottom:12px;">{{ $icon }}</div>
+                <h3 style="font-size:18px; font-weight:600; margin:0 0 8px; color:#0b1120;">{{ $title }}</h3>
+                <p style="font-size:13.5px; color:#475569; line-height:1.5; margin:0;">{{ $desc }}</p>
+            </div>
+            @endforeach
+        </div>
+    </div>
+</section>
+
+{{-- ── ABOUT REMOTIOX (mission & values) ────────────────────── --}}
+<section id="about" style="padding:100px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#fff;">
+    <div style="max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center;" class="about-grid">
+        <div data-reveal>
+            <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">About RemotioX</div>
+            <h2 style="font-size:clamp(28px,3.5vw,44px); font-weight:600; letter-spacing:-1.5px; margin:0 0 20px; color:#0b1120; line-height:1.1;">
+                Human intelligence meets AI innovation.
+            </h2>
+            <p style="font-size:16px; color:#475569; line-height:1.7; margin-bottom:20px;">
+                RemotioX is a global platform that connects skilled professionals with flexible opportunities in AI training and data annotation. We partner with leading AI labs and enterprises to label data, evaluate model outputs, and fine‑tune large language models.
+            </p>
+            <p style="font-size:16px; color:#475569; line-height:1.7; margin-bottom:20px;">
+                Our mission is to make AI development more inclusive, transparent, and human‑centric. By empowering contributors from diverse backgrounds, we help build AI systems that are accurate, safe, and representative of the world we live in.
+            </p>
+            <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:24px;">
+                <span style="padding:4px 12px; background:#3b82f622; border-radius:20px; font-size:13px; color:#3b82f6;">🌱 Mission-driven</span>
+                <span style="padding:4px 12px; background:#3b82f622; border-radius:20px; font-size:13px; color:#3b82f6;">🤝 Community-first</span>
+                <span style="padding:4px 12px; background:#3b82f622; border-radius:20px; font-size:13px; color:#3b82f6;">🔬 Quality-obsessed</span>
+            </div>
+        </div>
+        <div data-reveal data-delay="100" style="background:linear-gradient(135deg, #0b1120, #1a2a4a); border-radius:24px; padding:40px; color:#fff; position:relative; overflow:hidden;">
+            <div style="position:absolute; top:-40px; right:-40px; font-size:120px; opacity:0.06; font-weight:700;">AI</div>
+            <blockquote style="font-size:18px; line-height:1.6; margin:0; font-style:italic; color:rgba(255,255,255,0.9);">
+                “The future of AI is built through human knowledge, collaboration, and continuous learning.”
+            </blockquote>
+            <div style="margin-top:24px; display:flex; align-items:center; gap:12px;">
+                <div style="width:48px; height:48px; border-radius:50%; background:#3b82f6; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px;">R</div>
+                <div>
+                    <div style="font-weight:600; font-size:16px;">RemotioX Team</div>
+                    <div style="font-size:13px; opacity:0.6;">Empowering AI contributors worldwide</div>
+                </div>
+            </div>
         </div>
     </div>
 </section>
 
 {{-- ── HOW IT WORKS ──────────────────────────────────────────── --}}
-<section id="how-it-works" style="padding:100px 40px; border-top:1px solid var(--border); background:#fff;">
+<section id="how" style="padding:100px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#f8fafc;">
     <div style="max-width:1200px; margin:0 auto;">
         <div data-reveal style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:60px; flex-wrap:wrap; gap:20px;">
             <div>
-                <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); margin-bottom:12px;">{{ __('How Job Station works') }}</div>
-                <h2 style="font-size:clamp(28px,3.5vw,48px); font-weight:600; letter-spacing:-1.5px; margin:0; max-width:600px; color:var(--text); line-height:1.1;">
-                    {{ __('Three systems, one wallet, zero friction.') }}
+                <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">How it works</div>
+                <h2 style="font-size:clamp(28px,3.5vw,44px); font-weight:600; letter-spacing:-1.5px; margin:0; max-width:600px; color:#0b1120; line-height:1.1;">
+                    Three steps to start earning with AI.
                 </h2>
             </div>
-            <a href="{{ route('contact') }}" class="btn btn-secondary" style="font-size:13px;">
-                {{ __('Learn more') }}
-                <svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 9h12M10 4l5 5-5 5"/></svg>
-            </a>
+            
         </div>
         <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:24px;" class="three-col">
             @foreach([
-                ['01','⚡',__('Instant Jobs'),'#FF7A59',[__('Take a task, beat the timer'),__('Submit proof — screenshot or text'),__("Coins credit the moment it's approved")]],
-                ['02','💼',__('Hiring Jobs'),'#60A5FA',[__('Search or filter by skill'),__('One-click apply with your Job Station profile'),__('Chat, interview, get hired on platform')]],
-                ['03','📄',__('Contracts'),'#34D399',[__('Define milestones privately'),__('Funds held in escrow until delivery'),__('Dispute-protected by Job Station mediation')]],
-            ] as $idx => [$n,$icon,$title,$color,$bullets])
-            <div class="card reveal-card" data-reveal data-delay="{{ $idx * 120 }}" style="padding:28px;">
+                ['01', '📝', 'Sign up & verify', 'Create your profile, complete basic assessments, and get verified in minutes.'],
+                ['02', '🎯', 'Choose projects', 'Browse tasks that match your skills – from data labeling to expert coding.'],
+                ['03', '💎', 'Earn & grow', 'Complete tasks, get paid, and build your reputation for higher‑value projects.'],
+            ] as $idx => [$num, $icon, $title, $desc])
+            <div class="card reveal-card" data-reveal data-delay="{{ $idx * 120 }}" style="padding:28px; background:#fff; border-radius:20px; border:1px solid rgba(0,0,0,0.04); box-shadow:0 2px 8px rgba(0,0,0,0.02);">
                 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:28px;">
-                    <div style="width:44px; height:44px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:20px; background:{{ $color }}22; color:{{ $color }};">{{ $icon }}</div>
-                    <span class="mono" style="font-size:11px; color:#A1A1AA;">{{ $n }}</span>
+                    <div style="width:44px; height:44px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:20px; background:#3b82f622; color:#3b82f6;">{{ $icon }}</div>
+                    <span class="mono" style="font-size:11px; color:#94a3b8;">{{ $num }}</span>
                 </div>
-                <h3 style="font-size:22px; font-weight:600; margin:0 0 20px; letter-spacing:-0.4px; color:var(--text);">{{ $title }}</h3>
-                <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px;">
-                    @foreach($bullets as $b)
-                    <li style="font-size:13.5px; color:var(--muted); display:flex; gap:10px; align-items:flex-start;">
-                        <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="{{ $color }}" stroke-width="1.8" stroke-linecap="round" style="flex-shrink:0; margin-top:2px;"><path d="M3 9l4 4 8-8"/></svg>
-                        {{ $b }}
-                    </li>
-                    @endforeach
-                </ul>
+                <h3 style="font-size:22px; font-weight:600; margin:0 0 12px; letter-spacing:-0.4px; color:#0b1120;">{{ $title }}</h3>
+                <p style="font-size:13.5px; color:#475569; line-height:1.5; margin:0;">{{ $desc }}</p>
             </div>
             @endforeach
         </div>
     </div>
 </section>
 
-{{-- ── LIVE STRIP ─────────────────────────────────────────────── --}}
-<section style="padding:80px 40px; border-top:1px solid var(--border);">
+{{-- ── PROJECT TYPES ──────────────────────────────────────────── --}}
+<section id="projects" style="padding:100px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#fff;">
+    <div style="max-width:1200px; margin:0 auto;">
+        <div data-reveal style="text-align:center; margin-bottom:60px;">
+            <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">Project types</div>
+            <h2 style="font-size:clamp(28px,3.5vw,44px); font-weight:600; letter-spacing:-1.5px; margin:0; color:#0b1120;">Diverse AI tasks for every skill level.</h2>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:18px;" class="four-col">
+            @foreach([
+                ['🖼️', 'Data Labeling', 'Annotate images, text, or audio for computer vision and NLP models.', '#3b82f6'],
+                ['🤖', 'RLHF Evaluators', 'Evaluate AI responses for safety, helpfulness, and accuracy.', '#8b5cf6'],
+                ['✍️', 'Prompt Engineering', 'Craft and refine prompts to improve LLM output quality.', '#f59e0b'],
+                ['💻', 'Domain Experts', 'Apply coding, math, science, or language expertise to advanced AI training.', '#22c55e'],
+            ] as $idx => [$icon, $title, $desc, $color])
+            <div class="card reveal-card" data-reveal data-delay="{{ $idx * 80 }}" style="padding:24px; background:#f8fafc; border-radius:20px; border:1px solid rgba(0,0,0,0.04); box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+                <div style="font-size:32px; margin-bottom:10px;">{{ $icon }}</div>
+                <h3 style="font-size:17px; font-weight:600; margin:0 0 6px; color:#0b1120;">{{ $title }}</h3>
+                <p style="font-size:13px; color:#475569; line-height:1.5; margin:0;">{{ $desc }}</p>
+                <div style="margin-top:12px; display:inline-block; padding:2px 10px; background:{{ $color }}22; color:{{ $color }}; border-radius:20px; font-size:11px; font-weight:500;">open</div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+</section>
+
+{{-- ── FEATURED PROJECTS (was Live strip) ─────────────────────── --}}
+<section style="padding:80px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#f8fafc;">
     <div style="max-width:1200px; margin:0 auto;">
         <div data-reveal style="display:flex; align-items:center; gap:12px; margin-bottom:28px;">
-            <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--urgent); animation:pulse-urgent 1.6s infinite; flex-shrink:0;"></span>
-            <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--urgent);">{{ __('Live right now') }}</span>
-            <div style="flex:1; height:1px; background:var(--border);"></div>
-            <span style="font-size:12.5px; color:var(--muted);">{{ $stats['works'] }} {{ __('active tasks') }}</span>
+            <span style="display:inline-block; width:6px; height:6px; border-radius:50%; background:#22c55e; animation:pulse-urgent 1.6s infinite; flex-shrink:0;"></span>
+            <span style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#22c55e;">Featured projects</span>
+            <div style="flex:1; height:1px; background:rgba(0,0,0,0.06);"></div>
+            <span style="font-size:12.5px; color:#64748b;">1,200+ active tasks</span>
         </div>
         <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:14px;" class="four-col">
-            @forelse($featured->take(4) as $idx => $work)
-            <a href="{{ route('works.show', $work->slug) }}" style="text-decoration:none; display:block;" data-reveal data-delay="{{ $idx * 80 }}">
-                <div class="card" style="padding:14px; transition:transform .2s cubic-bezier(.34,1.56,.64,1), box-shadow .2s ease;" onmouseover="this.style.transform='translateY(-4px) scale(1.01)';this.style.boxShadow='0 12px 32px rgba(10,10,11,0.12)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <span class="chip chip-instant" style="font-size:10px; text-transform:uppercase;">⚡ {{ __('Instant') }}</span>
-                        <span class="mono" style="font-size:11px; color:var(--muted);">{{ $work->category?->name }}</span>
-                    </div>
-                    <div style="font-size:13.5px; font-weight:500; line-height:1.35; margin-bottom:12px; min-height:38px; color:var(--text);">{{ Str::limit($work->title, 55) }}</div>
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px solid var(--border);">
-                        <span class="mono" style="font-size:14px; font-weight:600; color:#22C55E;">{{ formatUsd($work->payout_usd) }}</span>
-                        <span style="font-size:11px; font-weight:500; color:var(--accent);">{{ __('Start →') }}</span>
-                    </div>
-                </div>
-            </a>
-            @empty
-            @foreach([[__('Find business address on website'),3,__('Research')],[__('Proofread product page copy'),8,__('Writing')],[__('Test checkout flow on iOS'),15,__('QA')],[__('Categorize 50 support tickets'),22,__('Data')]] as $idx => [$t,$r,$c])
-            <div class="card" style="padding:14px;" data-reveal data-delay="{{ $idx * 80 }}">
+            @foreach([
+                ['Identify 50 images of traffic signs', '$10', 'Data Labeling'],
+                ['Evaluate a set of 20 chatbot responses', '$14', 'RLHF'],
+                ['Rewrite 30 prompts for clarity', '$12', 'Prompt Eng.'],
+                ['Debug a Python code snippet for LLM training', '$20', 'Coding Expert'],
+            ] as $idx => [$title, $pay, $cat])
+            <div class="card" data-reveal data-delay="{{ $idx * 80 }}" style="padding:14px; background:#fff; border-radius:16px; border:1px solid rgba(0,0,0,0.04); transition:transform .2s, box-shadow .2s; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                    <span class="chip chip-instant" style="font-size:10px; text-transform:uppercase;">⚡ {{ __('Instant') }}</span>
-                    <span style="font-size:11px; color:var(--muted);">{{ $c }}</span>
+                    <span class="chip chip-instant" style="font-size:10px; text-transform:uppercase; background:#3b82f622; color:#3b82f6; padding:2px 8px; border-radius:20px;">⚡ AI</span>
+                    <span style="font-size:11px; color:#94a3b8;">{{ $cat }}</span>
                 </div>
-                <div style="font-size:13.5px; font-weight:500; line-height:1.35; margin-bottom:12px; min-height:38px; color:var(--text);">{{ $t }}</div>
-                <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px solid var(--border);">
-                    <span class="mono" style="font-size:14px; font-weight:600; color:#F5D547;">{{ formatCoins($r) }}</span>
-                    <a href="{{ route('works.index') }}" style="font-size:11px; font-weight:500; color:var(--accent);">{{ __('Start →') }}</a>
+                <div style="font-size:13.5px; font-weight:500; line-height:1.35; margin-bottom:12px; min-height:38px; color:#0b1120;">{{ $title }}</div>
+                <div style="display:flex; justify-content:space-between; align-items:center; padding-top:10px; border-top:1px solid rgba(0,0,0,0.04);">
+                    <span class="mono" style="font-size:14px; font-weight:600; color:#22c55e;">{{ $pay }}</span>
+                    <span style="font-size:11px; font-weight:500; color:#3b82f6;">Apply →</span>
                 </div>
             </div>
             @endforeach
-            @endforelse
+        </div>
+    </div>
+</section>
+
+{{-- ── WHY JOIN (Benefits for Contributors) ───────────────────── --}}
+<section id="benefits" style="padding:100px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#fff;">
+    <div style="max-width:1200px; margin:0 auto;">
+        <div data-reveal style="text-align:center; margin-bottom:60px;">
+            <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">Why join</div>
+            <h2 style="font-size:clamp(28px,3.5vw,44px); font-weight:600; letter-spacing:-1.5px; margin:0; color:#0b1120;">More than just a side gig.</h2>
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:24px;" class="three-col">
+            @foreach([
+                ['🌿', 'Work‑life balance', 'Set your own hours and work from anywhere. No commuting, no fixed schedules – you’re in control.'],
+                ['📚', 'Learn new skills', 'Get hands‑on experience with cutting‑edge AI tools and workflows. Many contributors use RemotioX to pivot into AI careers.'],
+                ['🤝', 'Supportive community', 'Join a global network of like‑minded individuals. Share tips, ask questions, and grow together.'],
+                ['🏆', 'Recognition & growth', 'Top performers gain access to premium projects and mentorship opportunities. Build a portfolio that stands out.'],
+                ['💵', 'Competitive pay', 'Earn above market rates for your skills. No fees, no hidden costs – what you see is what you get.'],
+                ['🔒', 'Secure & transparent', 'We handle payments, disputes, and quality checks so you can focus on the work. Your data and earnings are always safe.'],
+            ] as $idx => [$icon, $title, $desc])
+            <div class="card reveal-card" data-reveal data-delay="{{ $idx * 80 }}" style="padding:24px; background:#f8fafc; border-radius:20px; border:1px solid rgba(0,0,0,0.04); display:flex; gap:14px; align-items:flex-start;">
+                <div style="font-size:28px; flex-shrink:0;">{{ $icon }}</div>
+                <div>
+                    <h3 style="font-size:17px; font-weight:600; margin:0 0 6px; color:#0b1120;">{{ $title }}</h3>
+                    <p style="font-size:13px; color:#475569; line-height:1.5; margin:0;">{{ $desc }}</p>
+                </div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+</section>
+
+{{-- ── QUALITY ASSURANCE ───────────────────────────────────────── --}}
+<section id="quality" style="padding:100px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#f8fafc;">
+    <div style="max-width:1200px; margin:0 auto;">
+        <div data-reveal style="display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center;" class="quality-grid">
+            <div>
+                <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">Quality assurance</div>
+                <h2 style="font-size:clamp(28px,3.5vw,44px); font-weight:600; letter-spacing:-1.5px; margin:0 0 20px; color:#0b1120; line-height:1.1;">
+                    Trusted by leading AI labs.
+                </h2>
+                <p style="font-size:16px; color:#475569; line-height:1.7; margin-bottom:16px;">
+                    Our quality framework ensures that every task meets the highest standards. We combine automated checks with human review to guarantee accuracy and fairness.
+                </p>
+                <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:12px;">
+                    <li style="display:flex; gap:10px; align-items:flex-start; font-size:14px; color:#475569;">
+                        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"><path d="M4 10l3 3 9-9"/></svg>
+                        <span><strong>Clear guidelines</strong> – every project comes with detailed instructions and examples.</span>
+                    </li>
+                    <li style="display:flex; gap:10px; align-items:flex-start; font-size:14px; color:#475569;">
+                        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"><path d="M4 10l3 3 9-9"/></svg>
+                        <span><strong>Fair reviews</strong> – submissions are evaluated by trained moderators; you can appeal any rejection.</span>
+                    </li>
+                    <li style="display:flex; gap:10px; align-items:flex-start; font-size:14px; color:#475569;">
+                        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"><path d="M4 10l3 3 9-9"/></svg>
+                        <span><strong>Continuous feedback</strong> – we share performance insights to help you improve and earn more.</span>
+                    </li>
+                    <li style="display:flex; gap:10px; align-items:flex-start; font-size:14px; color:#475569;">
+                        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#22c55e" stroke-width="2" stroke-linecap="round"><path d="M4 10l3 3 9-9"/></svg>
+                        <span><strong>98.7% approval rate</strong> – our contributors consistently deliver high‑quality work.</span>
+                    </li>
+                </ul>
+            </div>
+            <div data-reveal data-delay="100" style="background:#fff; border-radius:24px; padding:40px; border:1px solid rgba(0,0,0,0.04); box-shadow:0 4px 16px rgba(0,0,0,0.03);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:24px;">
+                    <span style="font-size:14px; font-weight:600; color:#0b1120;">Quality metrics</span>
+                    <span style="font-size:12px; color:#94a3b8;">Last 30 days</span>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                    <div style="background:#f1f5f9; border-radius:12px; padding:16px; text-align:center;">
+                        <div style="font-size:24px; font-weight:700; color:#22c55e;">98.7%</div>
+                        <div style="font-size:12px; color:#64748b;">Approval rate</div>
+                    </div>
+                    <div style="background:#f1f5f9; border-radius:12px; padding:16px; text-align:center;">
+                        <div style="font-size:24px; font-weight:700; color:#3b82f6;">4.2m</div>
+                        <div style="font-size:12px; color:#64748b;">Avg. review time</div>
+                    </div>
+                    <div style="background:#f1f5f9; border-radius:12px; padding:16px; text-align:center;">
+                        <div style="font-size:24px; font-weight:700; color:#f59e0b;">98%</div>
+                        <div style="font-size:12px; color:#64748b;">Contributor satisfaction</div>
+                    </div>
+                    <div style="background:#f1f5f9; border-radius:12px; padding:16px; text-align:center;">
+                        <div style="font-size:24px; font-weight:700; color:#8b5cf6;">12k+</div>
+                        <div style="font-size:12px; color:#64748b;">Tasks reviewed</div>
+                    </div>
+                </div>
+                <div style="margin-top:20px; padding:16px; background:#f8fafc; border-radius:12px; text-align:center; font-size:13px; color:#475569;">
+                    <span style="font-weight:600;">🔍</span> Every task is checked by our quality assurance team before payment.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{{-- ── SUCCESS METRICS (narrative stats) ──────────────────────── --}}
+<section style="padding:80px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#fff;">
+    <div style="max-width:1200px; margin:0 auto;">
+        <div data-reveal style="display:grid; grid-template-columns:repeat(4,1fr); gap:24px; text-align:center;" class="four-col">
+            <div>
+                <div style="font-size:38px; font-weight:700; color:#0b1120;">50K+</div>
+                <div style="font-size:13px; color:#64748b;">Tasks completed</div>
+            </div>
+            <div>
+                <div style="font-size:38px; font-weight:700; color:#0b1120;">$2.5M</div>
+                <div style="font-size:13px; color:#64748b;">Paid to contributors</div>
+            </div>
+            <div>
+                <div style="font-size:38px; font-weight:700; color:#0b1120;">12K+</div>
+                <div style="font-size:13px; color:#64748b;">Active contributors</div>
+            </div>
+            <div>
+                <div style="font-size:38px; font-weight:700; color:#0b1120;">80+</div>
+                <div style="font-size:13px; color:#64748b;">Countries represented</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{{-- ── LATEST INSIGHTS (Blog) ──────────────────────────────────── --}}
+<section id="insights" style="padding:100px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#f8fafc;">
+    <div style="max-width:1200px; margin:0 auto;">
+        <div data-reveal style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:48px; flex-wrap:wrap; gap:20px;">
+            <div>
+                <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">Insights</div>
+                <h2 style="font-size:clamp(28px,3.5vw,44px); font-weight:600; letter-spacing:-1.5px; margin:0; color:#0b1120;">Latest from the world of AI.</h2>
+            </div>
+           
+        </div>
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:24px;" class="three-col">
+            @foreach([
+                ['How RLHF is shaping safer LLMs', 'We break down the role of human feedback in reducing bias and improving model alignment.', 'May 12, 2026', '#3b82f6'],
+                ['5 tips to excel as a prompt engineer', 'Learn how to craft effective prompts that yield better AI responses and higher earnings.', 'May 8, 2026', '#8b5cf6'],
+                ['The future of remote AI work', 'Why distributed workforces are the backbone of next‑generation AI development.', 'May 2, 2026', '#22c55e'],
+            ] as $idx => [$title, $desc, $date, $color])
+            <div class="card reveal-card" data-reveal data-delay="{{ $idx * 100 }}" style="padding:24px; background:#fff; border-radius:20px; border:1px solid rgba(0,0,0,0.04); box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+                <div style="font-size:12px; color:{{ $color }}; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; margin-bottom:8px;">{{ $date }}</div>
+                <h3 style="font-size:18px; font-weight:600; margin:0 0 8px; color:#0b1120;">{{ $title }}</h3>
+                <p style="font-size:13.5px; color:#475569; line-height:1.5; margin:0 0 16px;">{{ $desc }}</p>
+                <a href="#" style="font-size:13px; font-weight:500; color:#3b82f6; text-decoration:none;">Read more →</a>
+            </div>
+            @endforeach
         </div>
     </div>
 </section>
 
 {{-- ── LOGO WALL ──────────────────────────────────────────────── --}}
-<section style="padding:60px 40px; border-top:1px solid var(--border); background:#fff;">
+<section style="padding:60px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#fff;">
     <div style="max-width:1200px; margin:0 auto;">
-        <div data-reveal style="text-align:center; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:36px;">
-            {{ __('Trusted by teams at 8,000+ companies') }}
+        <div data-reveal style="text-align:center; font-size:12px; color:#94a3b8; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:36px;">
+            Trusted by AI teams at 2,000+ companies
         </div>
-        <div style="display:grid; grid-template-columns:repeat(6,1fr); border-top:1px solid var(--border); border-left:1px solid var(--border);" class="logo-grid">
-            @foreach(['Parcel.io','Halo Studio','Delta','Framework','Pillar','Matter','Groundtruth','Loop Media','Astra','Tessera','Orbit','Kindred'] as $idx => $logo)
-            <div class="logo-cell" data-reveal data-delay="{{ ($idx % 6) * 60 }}" style="padding:28px 20px; border-right:1px solid var(--border); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:#A1A1AA; font-size:15px; font-weight:500; letter-spacing:-0.3px; transition:color .2s, background .2s;" onmouseover="this.style.color='var(--text)';this.style.background='rgba(47,84,235,0.04)'" onmouseout="this.style.color='#A1A1AA';this.style.background=''">
+        <div style="display:grid; grid-template-columns:repeat(6,1fr); border-top:1px solid rgba(0,0,0,0.04); border-left:1px solid rgba(0,0,0,0.04);" class="logo-grid">
+            @foreach(['Anthropic', 'OpenAI', 'Google DeepMind', 'Meta AI', 'Hugging Face', 'Scale AI', 'Cohere', 'Midjourney', 'Stability AI', 'NVIDIA', 'Databricks', 'Weights & Biases'] as $idx => $logo)
+            <div class="logo-cell" data-reveal data-delay="{{ ($idx % 6) * 60 }}" style="padding:28px 20px; border-right:1px solid rgba(0,0,0,0.04); border-bottom:1px solid rgba(0,0,0,0.04); display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:14px; font-weight:500; letter-spacing:-0.3px; transition:color .2s, background .2s;" onmouseover="this.style.color='#0b1120';this.style.background='rgba(59,130,246,0.04)'" onmouseout="this.style.color='#94a3b8';this.style.background=''">
                 {{ $logo }}
             </div>
             @endforeach
@@ -205,32 +395,32 @@ window._heroTyper = @json($heroTyper);
 </section>
 
 {{-- ── STATS BAND ─────────────────────────────────────────────── --}}
-<section style="padding:100px 40px; border-top:1px solid var(--border);">
+<section style="padding:100px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#f8fafc;">
     <div style="max-width:1200px; margin:0 auto;">
         <div data-reveal style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:48px; flex-wrap:wrap; gap:20px;">
             <div>
-                <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); margin-bottom:12px;">{{ __('Platform health') }}</div>
-                <h2 style="font-size:clamp(28px,3.5vw,48px); font-weight:600; letter-spacing:-1.5px; margin:0; max-width:620px; color:var(--text); line-height:1.1;">
-                    {{ __('The numbers behind the marketplace.') }}
+                <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">Platform health</div>
+                <h2 style="font-size:clamp(28px,3.5vw,44px); font-weight:600; letter-spacing:-1.5px; margin:0; max-width:620px; color:#0b1120; line-height:1.1;">
+                    The numbers behind our AI marketplace.
                 </h2>
             </div>
-            <span style="font-size:12.5px; color:var(--muted);">{{ __('Updated live · all time unless noted') }}</span>
+            <span style="font-size:12.5px; color:#94a3b8;">Updated live · all time</span>
         </div>
-        <div style="display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid var(--border); border-left:1px solid var(--border);" class="four-col stats-grid">
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); border-top:1px solid rgba(0,0,0,0.04); border-left:1px solid rgba(0,0,0,0.04);" class="four-col stats-grid">
             @foreach([
-                [formatCoins($stats['completed'] * 8.5), __('Paid out to workers'),  __('Since launch'),         null],
-                [number_format($stats['completed']),             __('Tasks completed'),        __('All time'),            $stats['completed']],
-                ['97.4%',                                        __('Approval rate'),          __('Across instant jobs'), null],
-                ['4m 12s',                                       __('Median payout time'),     __('Instant jobs'),        null],
-                [number_format($stats['workers']),               __('Active workers'),         __('Verified (L1+)'),      $stats['workers']],
-                [number_format($stats['works']),                 __('Active tasks'),           __('Right now'),           $stats['works']],
-                [$stats['categories'].' '.__('categories'),      __('Work categories'),        __('All types'),           null],
-                ['< 0.4%',                                       __('Dispute rate'),           __('Contracts system'),    null],
-            ] as $idx => [$v,$l,$s,$target])
-            <div data-reveal data-delay="{{ ($idx % 4) * 80 }}" style="padding:32px 28px; border-right:1px solid var(--border); border-bottom:1px solid var(--border);">
-                <div class="mono{{ $target ? ' counter' : '' }}"{{ $target ? ' data-target="'.$target.'"' : '' }} style="font-size:clamp(22px,2.5vw,34px); font-weight:600; letter-spacing:-1.2px; line-height:1; margin-bottom:12px; color:var(--text);">{{ $v }}</div>
-                <div style="font-size:13px; color:var(--text); font-weight:500; margin-bottom:4px;">{{ $l }}</div>
-                <div style="font-size:11.5px; color:var(--muted);">{{ $s }}</div>
+                ['$2.5M', 'Paid out to contributors', 'Since launch', null],
+                ['50,000+', 'Tasks completed', 'All time', '50000'],
+                ['98.7%', 'Approval rate', 'Across all projects', null],
+                ['4 min', 'Median payout time', 'After approval', null],
+                ['12,000+', 'Active contributors', 'Verified', '12000'],
+                ['1,200+', 'Active tasks', 'Right now', '1200'],
+                ['4+', 'Project categories', 'All types', null],
+                ['< 0.5%', 'Dispute rate', 'Fair & transparent', null],
+            ] as $idx => [$v, $l, $s, $target])
+            <div data-reveal data-delay="{{ ($idx % 4) * 80 }}" style="padding:32px 28px; border-right:1px solid rgba(0,0,0,0.04); border-bottom:1px solid rgba(0,0,0,0.04); background:#fff;">
+                <div class="mono{{ $target ? ' counter' : '' }}"{{ $target ? ' data-target="'.$target.'"' : '' }} style="font-size:clamp(22px,2.5vw,34px); font-weight:600; letter-spacing:-1.2px; line-height:1; margin-bottom:12px; color:#0b1120;">{{ $v }}</div>
+                <div style="font-size:13px; color:#0b1120; font-weight:500; margin-bottom:4px;">{{ $l }}</div>
+                <div style="font-size:11.5px; color:#94a3b8;">{{ $s }}</div>
             </div>
             @endforeach
         </div>
@@ -238,56 +428,56 @@ window._heroTyper = @json($heroTyper);
 </section>
 
 {{-- ── TESTIMONIALS ───────────────────────────────────────────── --}}
-<section style="padding:100px 40px; border-top:1px solid var(--border); background:#fff;">
+<section id="testimonials" style="padding:100px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#fff;">
     <div style="max-width:1200px; margin:0 auto;">
         <div data-reveal style="display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:48px; flex-wrap:wrap; gap:20px;">
             <div>
-                <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); margin-bottom:12px;">{{ __('Loved by workers and clients') }}</div>
-                <h2 style="font-size:clamp(28px,3.5vw,48px); font-weight:600; letter-spacing:-1.5px; margin:0; max-width:620px; color:var(--text); line-height:1.05;">
-                    {{ __('The marketplace people actually come back to.') }}
+                <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">Loved by contributors</div>
+                <h2 style="font-size:clamp(28px,3.5vw,44px); font-weight:600; letter-spacing:-1.5px; margin:0; max-width:620px; color:#0b1120; line-height:1.05;">
+                    Real stories from people building AI.
                 </h2>
             </div>
             <div style="display:flex; align-items:center; gap:14px;">
-                <div style="display:flex; gap:2px; font-size:18px; color:#F5D547;">★★★★★</div>
+                <div style="display:flex; gap:2px; font-size:18px; color:#f59e0b;">★★★★★</div>
                 <div>
-                    <div style="font-size:14px; font-weight:600; color:var(--text);">4.9 / 5</div>
-                    <div style="font-size:11px; color:var(--muted);">{{ __('Avg across 12,400 reviews') }}</div>
+                    <div style="font-size:14px; font-weight:600; color:#0b1120;">4.9 / 5</div>
+                    <div style="font-size:11px; color:#94a3b8;">Avg across 8,500 reviews</div>
                 </div>
             </div>
         </div>
 
         <div style="display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:18px;" class="testi-grid">
-            <div class="card" data-reveal data-delay="0" style="padding:36px; display:flex; flex-direction:column; gap:20px;">
-                <div style="font-size:40px; line-height:1; color:var(--accent); font-weight:600; font-family:'Poppins',sans-serif;">"</div>
-                <p style="font-size:20px; line-height:1.45; font-weight:500; letter-spacing:-0.3px; margin:0; color:var(--text);">
-                    {{ __('I earned my first JC500 in a weekend doing QA tasks during my commute. Three months later I landed a full hiring gig through the same platform — same profile, same wallet.') }}
+            <div class="card" data-reveal data-delay="0" style="padding:36px; display:flex; flex-direction:column; gap:20px; background:#f8fafc; border-radius:24px; border:1px solid rgba(0,0,0,0.04);">
+                <div style="font-size:40px; line-height:1; color:#3b82f6; font-weight:600; font-family:'Poppins',sans-serif;">"</div>
+                <p style="font-size:20px; line-height:1.45; font-weight:500; letter-spacing:-0.3px; margin:0; color:#0b1120;">
+                    I started with simple data labeling during my commute. Within a month, I was evaluating LLM responses – now I lead a small team of prompt engineers. RemotioX opened a whole new career path.
                 </p>
-                <div style="display:flex; align-items:center; gap:12px; padding-top:20px; border-top:1px solid var(--border); margin-top:auto;">
-                    <div style="width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,#2f54eb,#60A5FA); display:flex; align-items:center; justify-content:center; color:white; font-weight:600; font-size:16px; flex-shrink:0;">P</div>
+                <div style="display:flex; align-items:center; gap:12px; padding-top:20px; border-top:1px solid rgba(0,0,0,0.06); margin-top:auto;">
+                    <div style="width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,#3b82f6,#60a5fa); display:flex; align-items:center; justify-content:center; color:white; font-weight:600; font-size:16px; flex-shrink:0;">P</div>
                     <div style="flex:1;">
-                        <div style="font-size:13.5px; font-weight:500; color:var(--text);">Priya Nair</div>
-                        <div style="font-size:11.5px; color:var(--muted);">{{ __('QA Engineer · L2 verified') }}</div>
+                        <div style="font-size:13.5px; font-weight:500; color:#0b1120;">Priya Nair</div>
+                        <div style="font-size:11.5px; color:#64748b;">Prompt Engineer · Level 3</div>
                     </div>
                     <div style="text-align:right;">
-                        <div class="mono" style="font-size:15px; font-weight:600; color:#F5D547;">{{ coinSymbol() }} 28,463</div>
-                        <div style="font-size:10.5px; color:var(--muted);">{{ __('Lifetime earnings') }}</div>
+                        <div class="mono" style="font-size:15px; font-weight:600; color:#22c55e;">$8,420</div>
+                        <div style="font-size:10.5px; color:#94a3b8;">Total earnings</div>
                     </div>
                 </div>
             </div>
             @foreach([
-                ['M','Maya Rhee',__('Head of Ops · Parcel.io'),__('We posted 120 research tasks and had them all back in 4 hours. Quality checks are baked in, nobody had to chase anyone for proof.'),__('1.2k jobs posted'),'#FF7A59'],
-                ['T','Tom Winters',__('Creative Director · Halo Studio'),__('Contracts gave us a way to keep our best illustrator on retainer. Escrow removes every awkward conversation about money.'),__('6 active contracts'),'#34D399'],
-            ] as $idx => [$init,$name,$role,$quote,$meta,$color])
-            <div class="card" data-reveal data-delay="{{ ($idx + 1) * 120 }}" style="padding:24px; display:flex; flex-direction:column; gap:16px;">
-                <div style="font-size:13px; color:#F5D547;">★★★★★</div>
-                <p style="font-size:14px; line-height:1.55; color:var(--muted); margin:0; flex:1;">"{{ $quote }}"</p>
-                <div style="display:flex; align-items:center; gap:10px; padding-top:16px; border-top:1px solid var(--border);">
+                ['M', 'Maya Rhee', 'Data Labeler · Level 2', 'I love the flexibility – I can work after my classes and earn real money. The tasks are clear and the community is super supportive.', '250+ tasks completed', '#8b5cf6'],
+                ['T', 'Tom Winters', 'AI Evaluator · Level 3', 'Evaluating model outputs has improved my understanding of NLP. I’ve already recommended RemotioX to three friends.', 'Top 5% performer', '#22c55e'],
+            ] as $idx => [$init, $name, $role, $quote, $meta, $color])
+            <div class="card" data-reveal data-delay="{{ ($idx + 1) * 120 }}" style="padding:24px; background:#f8fafc; border-radius:20px; border:1px solid rgba(0,0,0,0.04); display:flex; flex-direction:column; gap:16px;">
+                <div style="font-size:13px; color:#f59e0b;">★★★★★</div>
+                <p style="font-size:14px; line-height:1.55; color:#475569; margin:0; flex:1;">"{{ $quote }}"</p>
+                <div style="display:flex; align-items:center; gap:10px; padding-top:16px; border-top:1px solid rgba(0,0,0,0.06);">
                     <div style="width:32px; height:32px; border-radius:50%; background:linear-gradient(135deg,{{ $color }},{{ $color }}99); display:flex; align-items:center; justify-content:center; color:white; font-weight:600; font-size:12px; flex-shrink:0;">{{ $init }}</div>
                     <div style="flex:1; min-width:0;">
-                        <div style="font-size:12.5px; font-weight:500; color:var(--text);">{{ $name }}</div>
-                        <div style="font-size:10.5px; color:var(--muted);">{{ $role }}</div>
+                        <div style="font-size:12.5px; font-weight:500; color:#0b1120;">{{ $name }}</div>
+                        <div style="font-size:10.5px; color:#64748b;">{{ $role }}</div>
                     </div>
-                    <span style="font-size:10px; color:var(--accent); padding:3px 7px; border-radius:4px; background:var(--accent-soft); white-space:nowrap; flex-shrink:0;">{{ $meta }}</span>
+                    <span style="font-size:10px; color:#3b82f6; padding:3px 7px; border-radius:4px; background:#3b82f622; white-space:nowrap; flex-shrink:0;">{{ $meta }}</span>
                 </div>
             </div>
             @endforeach
@@ -295,15 +485,15 @@ window._heroTyper = @json($heroTyper);
 
         <div style="margin-top:18px; display:grid; grid-template-columns:repeat(3,1fr); gap:18px;" class="three-col">
             @foreach([
-                ['T','Tomas Klein',__('Freelance translator'),'#60A5FA',__('Payouts hit my Wise account in under 10 minutes. Unreal.')],
-                ['A','Amara Obi',__('Data annotator'),'#22C55E',__('Clear briefs. Fair rejections. I finally quit the other platforms.')],
-                ['L','Lee Jung',__('iOS developer'),'#F59E0B',__('The contract escrow saved me from a 4-week payment chase.')],
-            ] as $idx => [$init,$name,$role,$color,$quote])
-            <div class="card" data-reveal data-delay="{{ $idx * 100 }}" style="padding:20px; display:flex; gap:12px; align-items:flex-start;">
+                ['A', 'Amara Obi', 'Data Annotator', '#60a5fa', 'The approval process is fast and fair. I’ve never had a dispute.'],
+                ['L', 'Lee Jung', 'RLHF Evaluator', '#f59e0b', 'I work 15 hours a week and earn more than my previous part‑time job.'],
+                ['C', 'Carlos Gomez', 'Coding Expert', '#22c55e', 'The coding tasks are challenging and help me sharpen my skills.'],
+            ] as $idx => [$init, $name, $role, $color, $quote])
+            <div class="card" data-reveal data-delay="{{ $idx * 100 }}" style="padding:20px; background:#f8fafc; border-radius:16px; border:1px solid rgba(0,0,0,0.04); display:flex; gap:12px; align-items:flex-start;">
                 <div style="width:36px; height:36px; border-radius:50%; background:linear-gradient(135deg,{{ $color }},{{ $color }}99); display:flex; align-items:center; justify-content:center; color:white; font-weight:600; font-size:13px; flex-shrink:0;">{{ $init }}</div>
                 <div>
-                    <p style="font-size:13px; line-height:1.45; margin:0 0 8px; color:var(--text);">"{{ $quote }}"</p>
-                    <div style="font-size:11px; color:var(--muted);">{{ $name }} · {{ $role }}</div>
+                    <p style="font-size:13px; line-height:1.45; margin:0 0 8px; color:#0b1120;">"{{ $quote }}"</p>
+                    <div style="font-size:11px; color:#94a3b8;">{{ $name }} · {{ $role }}</div>
                 </div>
             </div>
             @endforeach
@@ -312,38 +502,38 @@ window._heroTyper = @json($heroTyper);
 </section>
 
 {{-- ── FAQ ────────────────────────────────────────────────────── --}}
-<section style="padding:100px 40px; border-top:1px solid var(--border);">
+<section id="faq" style="padding:100px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#fff;">
     <div style="max-width:1100px; margin:0 auto; display:grid; grid-template-columns:380px 1fr; gap:80px;" class="faq-grid">
         <div data-reveal>
-            <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:var(--accent); margin-bottom:12px;">{{ __('FAQ') }}</div>
-            <h2 style="font-size:clamp(28px,3vw,44px); font-weight:600; letter-spacing:-1.5px; margin:0 0 20px; line-height:1.05; color:var(--text);">{{ __('Questions, answered.') }}</h2>
-            <p style="font-size:14.5px; color:var(--muted); line-height:1.55; margin:0 0 24px;">
-                {{ __("Can't find what you're looking for? Our help center has 200+ articles and our support team replies in under 4 hours.") }}
+            <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">FAQ</div>
+            <h2 style="font-size:clamp(28px,3vw,44px); font-weight:600; letter-spacing:-1.5px; margin:0 0 20px; line-height:1.05; color:#0b1120;">Common questions, answered.</h2>
+            <p style="font-size:14.5px; color:#475569; line-height:1.55; margin:0 0 24px;">
+                Still have questions? Our support team replies in under 4 hours.
             </p>
-            <a href="{{ route('contact') }}" class="btn btn-secondary" style="font-size:13px;">
-                {{ __('Visit help center') }}
+            <a href="#" class="btn btn-secondary" style="font-size:13px; padding:8px 16px; background:#f1f5f9; border-radius:40px; color:#0b1120; font-weight:500;">
+                Visit help center
                 <svg width="13" height="13" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 9h12M10 4l5 5-5 5"/></svg>
             </a>
         </div>
         <div x-data="{ open: 0 }" data-reveal data-delay="100">
             @foreach([
-                [__('What exactly is a "coin" on Job Station?'), __('Coins (JC) are Job Station\'s internal credit unit. 1 JC = $0.10 USD for accounting. You can cash out to bank, Wise, PayPal, or USDC anytime above a JC50 minimum.')],
-                [__('How fast do instant jobs pay?'), __('The moment a submission is approved (or auto-approved after the SLA), coins land in your wallet. Median approval time is 4m 12s.')],
-                [__('What if a submission is rejected unfairly?'), __('You can dispute within 48 hours. A Job Station moderator reviews the proof and the rejection reason; approved disputes pay double the reward as a trust bonus.')],
-                [__('Do I need KYC to get paid?'), __('You can earn and hold coins without KYC. To withdraw above JC500/month you\'ll need L1 (phone + ID). Contracts and high-value hiring jobs require L2.')],
-                [__('How is Contracts different from Hiring Jobs?'), __('Hiring Jobs is a job board — you apply and get hired off-platform. Contracts keep everything on Job Station: private scope, milestone escrow, and dispute mediation built in.')],
-                [__('Are there fees?'), __('Workers pay 0% on earnings. Clients pay a flat 5% on instant jobs and 3% on contracts. Hiring posts are free; we charge a success fee only if you hire.')],
-            ] as $idx => [$q,$a])
-            <div style="border-bottom:1px solid var(--border); {{ $idx===0 ? 'border-top:1px solid var(--border);' : '' }}">
+                ['What kind of AI projects can I work on?', 'RemotioX offers data labeling (images, text, audio), RLHF (evaluating AI responses), prompt engineering, and specialized expert tasks (coding, math, science, languages).'],
+                ['Do I need previous AI experience?', 'No. Many entry-level tasks require only basic computer skills. We also have advanced tasks for experts. Assessments help match you to suitable projects.'],
+                ['How much can I earn?', 'Pay varies by task complexity. Simple labeling starts at $5–$10 per task, while expert coding or evaluation can pay $20–$50+ per task. Top contributors earn over $1,500/month.'],
+                ['How and when do I get paid?', 'Payments are processed weekly via PayPal, Wise, or bank transfer. Minimum payout is $20. We also support crypto (USDC) on request.'],
+                ['Is there a fee for contributors?', 'No fees. You keep 100% of what you earn. Clients pay a small service fee.'],
+                ['How are tasks quality‑checked?', 'We use a combination of automated checks and manual reviews. Rejected tasks can be appealed; we have a transparent dispute process.'],
+            ] as $idx => [$q, $a])
+            <div style="border-bottom:1px solid rgba(0,0,0,0.04); {{ $idx===0 ? 'border-top:1px solid rgba(0,0,0,0.04);' : '' }}">
                 <button @click="open === {{ $idx }} ? open = -1 : open = {{ $idx }}"
                         style="width:100%; padding:20px 0; display:flex; justify-content:space-between; align-items:flex-start; gap:20px; background:none; border:none; cursor:pointer; text-align:left; font-family:inherit;">
-                    <span style="font-size:16px; font-weight:500; letter-spacing:-0.2px; color:var(--text);">{{ $q }}</span>
-                    <span style="color:var(--muted); flex-shrink:0; margin-top:2px; transition:transform .18s;" :style="open === {{ $idx }} ? 'transform:rotate(45deg)' : ''">
+                    <span style="font-size:16px; font-weight:500; letter-spacing:-0.2px; color:#0b1120;">{{ $q }}</span>
+                    <span style="color:#94a3b8; flex-shrink:0; margin-top:2px; transition:transform .18s;" :style="open === {{ $idx }} ? 'transform:rotate(45deg)' : ''">
                         <svg width="16" height="16" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 3v12M3 9h12"/></svg>
                     </span>
                 </button>
                 <div x-show="open === {{ $idx }}" x-transition style="padding-bottom:20px;">
-                    <p style="font-size:14px; color:var(--muted); line-height:1.6; margin:0;">{{ $a }}</p>
+                    <p style="font-size:14px; color:#475569; line-height:1.6; margin:0;">{{ $a }}</p>
                 </div>
             </div>
             @endforeach
@@ -351,27 +541,102 @@ window._heroTyper = @json($heroTyper);
     </div>
 </section>
 
+
+
 {{-- ── CTA BAND ───────────────────────────────────────────────── --}}
-<section style="padding:100px 40px; border-top:1px solid var(--border);">
-    <div data-reveal style="max-width:1000px; margin:0 auto; text-align:center; padding:80px 60px; background:linear-gradient(135deg,rgba(47,84,235,0.08),#fff); border:1px solid var(--border); border-radius:24px; box-shadow:0 1px 3px rgba(10,10,11,0.06);">
-        <h2 style="font-size:clamp(32px,4vw,56px); font-weight:600; letter-spacing:-2px; margin:0 0 20px; color:var(--text);">
-            {{ __('Your next JC is two clicks away.') }}
+<section id="cta" style="padding:100px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#fff;">
+    <div data-reveal style="max-width:1000px; margin:0 auto; text-align:center; padding:80px 60px; background:linear-gradient(135deg, rgba(59,130,246,0.08), #fff); border:1px solid rgba(0,0,0,0.04); border-radius:24px; box-shadow:0 2px 12px rgba(0,0,0,0.02);">
+        <h2 style="font-size:clamp(32px,4vw,56px); font-weight:600; letter-spacing:-2px; margin:0 0 20px; color:#0b1120;">
+            Your next AI project is one click away.
         </h2>
-        <p style="font-size:17px; color:var(--muted); max-width:560px; margin:0 auto 32px; line-height:1.55;">
-            {{ __('Sign up free. No listing fees. Get verified in 6 minutes and take your first task.') }}
+        <p style="font-size:17px; color:#475569; max-width:560px; margin:0 auto 32px; line-height:1.55;">
+            Join thousands of contributors shaping the future of AI. Sign up free, get verified in minutes, and start earning.
         </p>
         <div style="display:inline-flex; gap:12px; flex-wrap:wrap; justify-content:center;">
-            <a href="{{ route('user.register') }}" class="btn btn-primary" style="padding:12px 22px; font-size:14.5px;">{{ __('Get started free') }}</a>
-            <a href="{{ route('works.index') }}" class="btn btn-secondary" style="padding:12px 22px; font-size:14.5px;">{{ __('See open jobs') }}</a>
+            <a href="{{ route('membership.apply') }}" class="btn btn-primary" style="padding:12px 22px; font-size:14.5px; background:#3b82f6; border:none; color:#fff; border-radius:40px; font-weight:500;">Get started free</a>
+            <a href="{{ route('user.register') }}" class="btn btn-secondary" style="padding:12px 22px; font-size:14.5px; background:#f1f5f9; border:1px solid rgba(0,0,0,0.06); color:#0b1120; border-radius:40px; font-weight:500;">Explore projects</a>
         </div>
     </div>
 </section>
 
+{{-- ── FOOTER ──────────────────────────────────────────────────── --}}
+<footer style="background:#0b1120; color:rgba(255,255,255,0.7); padding:80px 40px 30px; border-top:1px solid rgba(255,255,255,0.05);">
+    <div style="max-width:1200px; margin:0 auto; display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr; gap:40px;" class="footer-grid">
+        {{-- Brand --}}
+        <div>
+            <div style="font-size:24px; font-weight:700; color:#fff; letter-spacing:-1px; margin-bottom:12px;">RemotioX</div>
+            <p style="font-size:13px; line-height:1.6; max-width:240px; color:rgba(255,255,255,0.5);">
+                Connecting talented professionals with flexible AI training and data annotation opportunities worldwide.
+            </p>
+          
+        </div>
+
+        {{-- Quick links --}}
+        <div>
+            <h4 style="font-size:14px; font-weight:600; color:#fff; margin:0 0 16px;">Platform</h4>
+            <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px;">
+                <li><a href="#projects" style="color:rgba(255,255,255,0.5); text-decoration:none; font-size:13px; transition:color .2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">Projects</a></li>
+                <li><a href="#how" style="color:rgba(255,255,255,0.5); text-decoration:none; font-size:13px; transition:color .2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">How it works</a></li>
+                <li><a href="#benefits" style="color:rgba(255,255,255,0.5); text-decoration:none; font-size:13px; transition:color .2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">Benefits</a></li>
+                
+            </ul>
+        </div>
+
+        {{-- Resources --}}
+        <div>
+            <h4 style="font-size:14px; font-weight:600; color:#fff; margin:0 0 16px;">Resources</h4>
+            <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px;">
+                <li><a href="{{ route('contact') }}" style="color:rgba(255,255,255,0.5); text-decoration:none; font-size:13px; transition:color .2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">Help Center</a></li>
+                <li><a href="#testimonials" style="color:rgba(255,255,255,0.5); text-decoration:none; font-size:13px; transition:color .2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">Testimonials</a></li>
+              
+                  <li><a href="#faq" style="color:rgba(255,255,255,0.5); text-decoration:none; font-size:13px; transition:color .2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">FAQ</a></li>
+             
+            </ul>
+        </div>
+
+        {{-- Company --}}
+        <div>
+            <h4 style="font-size:14px; font-weight:600; color:#fff; margin:0 0 16px;">Company</h4>
+            <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px;">
+                <li><a href="#about" style="color:rgba(255,255,255,0.5); text-decoration:none; font-size:13px; transition:color .2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">About</a></li>
+              
+                <li><a href="{{ route('membership.apply') }}" style="color:rgba(255,255,255,0.5); text-decoration:none; font-size:13px; transition:color .2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">Apply to join</a></li>
+                <li><a href="{{ route('contact') }}" style="color:rgba(255,255,255,0.5); text-decoration:none; font-size:13px; transition:color .2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">Contact</a></li>
+            </ul>
+        </div>
+
+        {{-- Legal --}}
+      <div>
+    <h4 style="font-size:14px; font-weight:600; color:#fff; margin:0 0 16px;">Legal</h4>
+    <ul style="list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:8px;">
+        <li><a href="{{ route('privacy-policy') }}" style="color:rgba(255,255,255,0.5); text-decoration:none; font-size:13px; transition:color .2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">Privacy Policy</a></li>
+        <li><a href="{{ route('terms') }}" style="color:rgba(255,255,255,0.5); text-decoration:none; font-size:13px; transition:color .2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">Terms of Service</a></li>
+        <li><a href="{{ route('cookie-policy') }}" style="color:rgba(255,255,255,0.5); text-decoration:none; font-size:13px; transition:color .2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='rgba(255,255,255,0.5)'">Cookie Policy</a></li>
+    </ul>
+</div>
+    </div>
+
+    {{-- Bottom bar --}}
+    <div style="max-width:1200px; margin:40px auto 0; padding-top:24px; border-top:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <span style="font-size:12px; color:rgba(255,255,255,0.3);">&copy; {{ date('Y') }} RemotioX. All rights reserved.</span>
+        <span style="font-size:12px; color:rgba(255,255,255,0.3);">
+            Built with ❤️ for the AI community
+        </span>
+        <a href="#home" style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:rgba(255,255,255,0.4); text-decoration:none; transition:color .2s;" onmouseover="this.style.color='#3b82f6'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3v12M5 10l7-7 7 7"/></svg>
+            Back to top
+        </a>
+    </div>
+</footer>
+
+{{-- ── STYLES ──────────────────────────────────────────────────── --}}
 <style>
+/* (same as before, plus smooth scroll for anchor links) */
+html { scroll-behavior: smooth; }
 @keyframes pulse-urgent {
-    0%   { box-shadow: 0 0 0 0 rgba(255,122,89,0.55); }
-    70%  { box-shadow: 0 0 0 8px rgba(255,122,89,0); }
-    100% { box-shadow: 0 0 0 0 rgba(255,122,89,0); }
+    0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.55); }
+    70%  { box-shadow: 0 0 0 8px rgba(34,197,94,0); }
+    100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
 }
 @keyframes fadeUp {
     from { opacity:0; transform:translateY(28px); }
@@ -402,7 +667,7 @@ window._heroTyper = @json($heroTyper);
     to { opacity:0; }
 }
 .typing-cursor {
-    color: var(--accent);
+    color: #60a5fa;
     font-weight: 300;
     animation: cursorBlink 0.65s step-end infinite;
 }
@@ -434,10 +699,12 @@ window._heroTyper = @json($heroTyper);
     .four-col        { grid-template-columns: 1fr 1fr !important; }
     .stats-grid      { grid-template-columns: 1fr 1fr !important; }
     .logo-grid       { grid-template-columns: repeat(3,1fr) !important; }
+    .about-grid, .quality-grid { grid-template-columns: 1fr !important; }
 }
 @media (max-width:640px) {
     .three-col, .four-col { grid-template-columns: 1fr !important; }
     .logo-grid { grid-template-columns: repeat(2,1fr) !important; }
+    .footer-grid { grid-template-columns: 1fr 1fr !important; }
     section { padding-left: 20px !important; padding-right: 20px !important; }
     footer  { padding-left: 20px !important; padding-right: 20px !important; }
 }
@@ -453,14 +720,14 @@ window._heroTyper = @json($heroTyper);
 @push('scripts')
 <script>
 (function() {
-    // Typewriter — text comes from server-side translation via window._heroTyper
+    // Typewriter – static text from window._heroTyper
     (function() {
         var el     = document.getElementById('hero-typed');
         var cursor = document.querySelector('.typing-cursor');
         if (!el) return;
 
-        var t = window._heroTyper || ['Work that pays\nin ', 'minutes', ',\ncareers that\npay for years.'];
-        var parts = [[t[0], null], [t[1], 'var(--urgent)'], [t[2], null]];
+        var t = window._heroTyper || ['Earn by ', 'labeling', ',\nevaluating AI', ' Shaping smarter models.'];
+        var parts = [[t[0], null], [t[1], '#22c55e'], [t[2], null], [t[3], '#60a5fa']];
 
         var chars = [];
         parts.forEach(function(p) {
@@ -478,7 +745,7 @@ window._heroTyper = @json($heroTyper);
                     html += '<br>';
                 } else if (c.color !== inColor) {
                     if (inColor) html += '</span>';
-                    if (c.color) { html += '<span style="color:' + c.color + '">'; }
+                    if (c.color) { html += '<span style="color:' + c.color + ';">'; }
                     inColor = c.color || null;
                     html += c.ch;
                 } else {

@@ -131,8 +131,22 @@ Route::get('secure/membership-doc/{application}/{kind}', [\App\Http\Controllers\
 Route::get('secure/task-file/{submission}/{index}', [\App\Http\Controllers\SecureFileController::class, 'taskFile'])
     ->whereNumber('submission')->whereNumber('index')->name('secure.taskFile');
 
-// Dynamic pages (about, privacy, terms, etc.)
-// Exclude reserved prefixes so admin/dashboard/payment routes are not swallowed
+/*
+|--------------------------------------------------------------------------
+| STATIC LEGAL PAGES (explicit routes, overriding the catch-all below)
+|--------------------------------------------------------------------------
+*/
+Route::view('/privacy-policy', 'web.pages.privacy-policy')->name('privacy-policy');
+Route::view('/terms', 'web.pages.terms-of-service')->name('terms');
+Route::view('/cookie-policy', 'web.pages.cookie-policy')->name('cookie-policy');
+
+/*
+|--------------------------------------------------------------------------
+| Dynamic Page Router (catch-all for slugs like /about, /faq, etc.)
+|--------------------------------------------------------------------------
+*/
 Route::get('{slug}', [\App\Http\Controllers\Web\PageController::class, 'show'])
-    ->where('slug', '^(?!admin|dashboard|payment|api|ipn|up|install)[a-zA-Z0-9\-_]+$')
+    // Explicitly exclude admin, dashboard, payment, api, ipn, up, install,
+    // and the static legal slugs we defined above, so they don't conflict.
+    ->where('slug', '^(?!admin|dashboard|payment|api|ipn|up|install|privacy-policy|terms|cookie-policy)[a-zA-Z0-9\-_]+$')
     ->name('pages.show');

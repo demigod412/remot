@@ -69,7 +69,7 @@
             <div class="card" style="text-align:center;padding:24px 16px;">
                 <div style="font-size:28px;margin-bottom:10px;">📧</div>
                 <div style="font-weight:700;color:var(--text);margin-bottom:4px;">{{ __('Email Us') }}</div>
-                <div style="font-size:13px;color:var(--muted);">{{ gs()->email_from ?? 'support@example.com' }}</div>
+                <div style="font-size:13px;color:var(--muted);">{{ gs()->email_from ?? 'support@remotiox.com' }}</div>
             </div>
             <div class="card" style="text-align:center;padding:24px 16px;">
                 <div style="font-size:28px;margin-bottom:10px;">🎫</div>
