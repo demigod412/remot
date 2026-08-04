@@ -138,7 +138,7 @@
                                 @endif
                             </div>
                         </div>
-                        <span class="mono" style="font-size:14px; font-weight:600; color:#F5D547; flex-shrink:0;">{{ formatCoins($work->coins_per_worker) }}</span>
+                        <span class="mono" style="font-size:14px; font-weight:600; color:#22C55E; flex-shrink:0;">{{ formatUsd($work->payout_usd) }}</span>
                         <span class="btn btn-sm fw-start-btn" style="padding:5px 12px; font-size:12px; flex-shrink:0; background:var(--accent); border-color:var(--accent); color:white;">{{ __('Start') }}</span>
                     </div>
                 </a>

@@ -10,7 +10,10 @@
 @php
     $work     = $submission->work;
     $category = $work?->category;
-    $gross    = (float) ($work->coins_per_worker ?? 0);
+    // payout_usd, not coins_per_worker. TaskReviewService pays from payout_usd in
+    // USD; reading the coin column here showed "0 connect" on every admin-posted task,
+    // on the one screen where the figure is actually authorised.
+    $gross    = (float) ($work->payout_usd ?? 0);
     $comm     = $category ? $category->calculateCommission($gross) : 0;
     $net      = $gross - $comm;
 @endphp
@@ -52,7 +55,7 @@
             <table style="width:100%;font-size:13.5px;border-collapse:collapse;">
                 <tr style="border-bottom:1px solid var(--border);">
                     <td style="padding:9px 0;color:var(--fg-3);">Task payout (gross)</td>
-                    <td style="padding:9px 0;text-align:right;" class="mono">{{ formatCoins($gross) }}</td>
+                    <td style="padding:9px 0;text-align:right;" class="mono">{{ formatUsd($gross) }}</td>
                 </tr>
                 <tr style="border-bottom:1px solid var(--border);">
                     <td style="padding:9px 0;color:var(--fg-3);">
@@ -62,7 +65,7 @@
                 </tr>
                 <tr>
                     <td style="padding:9px 0;font-weight:600;">Worker receives</td>
-                    <td style="padding:9px 0;text-align:right;font-weight:600;color:#22C55E;" class="mono">{{ formatCoins($net) }}</td>
+                    <td style="padding:9px 0;text-align:right;font-weight:600;color:#22C55E;" class="mono">{{ formatUsd($net) }}</td>
                 </tr>
             </table>
         </div>
@@ -136,12 +139,12 @@
         @elseif ($submission->delivery_status === \App\Models\WorkSubmission::DEL_SUBMITTED)
             <div class="label" style="margin-bottom:12px;">Approve work</div>
             <form method="POST" action="{{ route('admin.task-review.delivery.approve', $submission->id) }}"
-                  onsubmit="return confirm('Approve and pay {{ formatCoins($net) }} to this worker?');"
+                  onsubmit="return confirm('Approve and pay {{ formatUsd($net) }} to this worker?');"
                   style="margin-bottom:22px;">
                 @csrf
                 <button type="submit"
                         style="width:100%;padding:11px;border:0;border-radius:8px;background:#22C55E;color:#fff;font-size:13.5px;font-weight:600;cursor:pointer;">
-                    Approve &amp; pay {{ formatCoins($net) }}
+                    Approve &amp; pay {{ formatUsd($net) }}
                 </button>
             </form>
 

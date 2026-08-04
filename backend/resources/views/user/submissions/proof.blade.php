@@ -23,7 +23,7 @@
             <div style="font-size:12px; color:var(--fg-3); margin-top:3px;">{{ $submission->work->category->name ?? '' }}</div>
             <div style="font-size:12px; color:#E6C400; margin-top:4px; display:flex; align-items:center; gap:4px;">
                 <i data-lucide="coins" style="width:12px; height:12px;"></i>
-                You'll earn {{ formatCoins($submission->work->coins_per_worker) }} upon approval
+                You'll earn {{ formatUsd($submission->work->payout_usd) }} upon approval
             </div>
             @if($submission->deadline_at)
             <div style="font-size:11px; margin-top:4px; display:flex; align-items:center; gap:4px;

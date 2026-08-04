@@ -148,9 +148,10 @@
         <div class="jobstation-card" style="padding:20px;">
             <h3 style="font-size:13px;font-weight:600;margin:0 0 14px;">Reward details</h3>
             @foreach([
-                ['Per worker',   formatCoins($work->coins_per_worker), 'var(--coin)'],
-                ['Total budget', formatCoins($work->total_coins), 'var(--coin)'],
-                ['Distributed',  formatCoins($submissionStats['approved'] * $work->coins_per_worker), '#22C55E'],
+                {{-- Workers are paid payout_usd in USD. total_coins is the legacy coin
+                     budget and only means anything for user-posted gigs. --}}
+                ['Per worker (USD)', formatUsd($work->payout_usd), '#22C55E'],
+                ['Paid out so far',  formatUsd($submissionStats['approved'] * $work->payout_usd), '#22C55E'],
             ] as [$lbl, $val, $clr])
             <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
                 <span style="font-size:12.5px;color:var(--fg-2);">{{ $lbl }}</span>

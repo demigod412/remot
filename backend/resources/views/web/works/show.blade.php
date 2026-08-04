@@ -118,7 +118,7 @@
                         <div class="card" style="padding:14px 18px; display:flex; align-items:center; gap:14px; transition:transform .14s;" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
                             <div style="width:28px; height:28px; border-radius:7px; background:rgba(255,122,89,0.12); color:#FF7A59; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px;">⚡</div>
                             <div style="flex:1; font-size:13.5px; font-weight:500; color:var(--text);">{{ Str::limit($s->title, 60) }}</div>
-                            <span class="mono" style="font-size:13px; font-weight:600; color:#F5D547; flex-shrink:0;">{{ formatCoins($s->coins_per_worker) }}</span>
+                            <span class="mono" style="font-size:13px; font-weight:600; color:#22C55E; flex-shrink:0;">{{ formatUsd($s->payout_usd) }}</span>
                         </div>
                     </a>
                     @endforeach
@@ -134,8 +134,9 @@
                 <div style="text-align:center; padding-bottom:22px; border-bottom:1px solid var(--border); margin-bottom:22px;">
                     <div style="font-size:11.5px; color:var(--muted); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.08em;">Reward</div>
                     <div style="display:inline-flex; align-items:baseline; gap:6px;">
-                        <span style="font-size:40px; font-weight:600; color:#F5D547; font-family:ui-monospace,monospace; line-height:1;">{{ coinSymbol() }}</span>
-                        <span class="mono" style="font-size:52px; font-weight:600; letter-spacing:-2px; line-height:1; color:var(--text);">{{ $work->coins_per_worker }}</span>
+                        {{-- The reward is USD. It used to render the coin symbol beside
+                             coins_per_worker, which is 0 on every admin-posted task. --}}
+                        <span class="mono" style="font-size:52px; font-weight:600; letter-spacing:-2px; line-height:1; color:var(--text);">{{ formatUsd($work->payout_usd) }}</span>
                     </div>
                     <div style="font-size:12.5px; color:var(--muted); margin-top:8px;">paid instantly on approval</div>
                 </div>
@@ -214,7 +215,7 @@
                             ⚡ Do it again
                         </button>
                     </form>
-                    <div style="text-align:center; font-size:11.5px; color:var(--muted); margin-top:12px;">Each completion earns {{ number_format($work->coins_per_worker, 2) }} coins.</div>
+                    <div style="text-align:center; font-size:11.5px; color:var(--muted); margin-top:12px;">Each completion earns {{ formatUsd($work->payout_usd) }}.</div>
                     @elseif($canReapply && $slotsRemaining <= 0)
                     <button disabled class="btn" style="width:100%; justify-content:center; padding:12px; font-size:14px; opacity:0.5; cursor:not-allowed;">
                         No spots remaining

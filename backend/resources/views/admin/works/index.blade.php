@@ -125,7 +125,7 @@
 
         <span style="font-size:11.5px;color:var(--fg-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $work->category?->name ?? '—' }}</span>
 
-        <span class="mono" style="color:var(--coin);">{{ formatCoins($work->coins_per_worker) }}</span>
+        <span class="mono" style="color:#22C55E;">{{ formatUsd($work->payout_usd) }}</span>
 
         <div style="display:flex;align-items:center;gap:8px;">
             <div style="width:50px;height:4px;background:var(--surface-3);border-radius:2px;flex-shrink:0;">

@@ -34,7 +34,7 @@
             <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:12px;color:var(--fg-3);margin-bottom:10px;">
                 <span style="display:flex;align-items:center;gap:5px;"><i data-lucide="tag" style="width:12px;height:12px;"></i>{{ $work->category?->name ?? 'Uncategorized' }}</span>
                 <span style="display:flex;align-items:center;gap:5px;"><i data-lucide="users" style="width:12px;height:12px;"></i>{{ $work->worker_slots }} slots</span>
-                <span style="display:flex;align-items:center;gap:5px;"><i data-lucide="coins" style="width:12px;height:12px;"></i>{{ formatCoins($work->coins_per_worker) }} / worker</span>
+                <span style="display:flex;align-items:center;gap:5px;"><i data-lucide="banknote" style="width:12px;height:12px;"></i>{{ formatUsd($work->payout_usd) }} / worker</span>
                 @if($work->avg_minutes)
                 <span style="display:flex;align-items:center;gap:5px;"><i data-lucide="clock" style="width:12px;height:12px;"></i>~{{ $work->avg_minutes }} min</span>
                 @endif

@@ -319,6 +319,17 @@
              button while fields are incomplete hides WHICH field is missing; letting the
              submit through means the browser points at it. --}}
         <div class="apply-submit">
+
+
+              <button type="submit" x-bind:disabled="submitting"
+                x-bind:style="submitting ? 'opacity:.65; cursor:progress;' : ''"
+                style="width:100%; padding:13px; border:0; border-radius:8px; background:var(--accent); color:#fff; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:9px;">
+            <span x-show="submitting" x-cloak class="apply-spinner" aria-hidden="true"></span>
+            <span x-show="!submitting">{{ __('Submit application') }}</span>
+            <span x-show="submitting" x-cloak>{{ __('Uploading your application') }}</span>
+        </button>
+
+            
             <button type="submit" x-bind:disabled="submitting"
                     x-bind:style="submitting ? 'opacity:.65; cursor:progress;' : ''"
                     style="width:100%; padding:14px; border:0; border-radius:9px; background:var(--accent); color:#fff; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:9px;">

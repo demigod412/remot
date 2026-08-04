@@ -75,7 +75,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:14px;border-top:1px solid var(--border);">
         <div>
             <div style="font-size:20px;font-weight:900;color:var(--purple);">
-                {{ formatCoins($work->coins_per_worker) }}
+                {{ formatUsd($work->payout_usd) }}
                 <span style="font-size:13px;font-weight:500;color:var(--muted);">{{ gs()->coin_symbol ?? coinSymbol() }}</span>
             </div>
             <div style="font-size:12px;color:var(--muted);">{{ __('per work') }}</div>

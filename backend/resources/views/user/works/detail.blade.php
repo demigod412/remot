@@ -80,7 +80,7 @@
                     <div class="card" style="padding:13px 16px; display:flex; align-items:center; gap:14px;">
                         <div style="width:28px; height:28px; border-radius:7px; background:rgba(255,122,89,0.12); color:var(--urgent); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:12px;">⚡</div>
                         <div style="flex:1; font-size:13.5px; font-weight:500; color:var(--fg);">{{ Str::limit($s->title, 60) }}</div>
-                        <span class="mono" style="font-size:13px; font-weight:600; color:#E6C400; flex-shrink:0;">{{ formatCoins($s->coins_per_worker) }}</span>
+                        <span class="mono" style="font-size:13px; font-weight:600; color:#22C55E; flex-shrink:0;">{{ formatUsd($s->payout_usd) }}</span>
                     </div>
                 </a>
                 @endforeach

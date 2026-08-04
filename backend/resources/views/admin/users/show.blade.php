@@ -301,7 +301,7 @@
                 <div style="text-align:right;flex-shrink:0;">
                     <span class="status-pill {{ $sMap[$sub->status] ?? 'status-draft' }}" style="font-size:10.5px;">{{ $sLbl[$sub->status] ?? '—' }}</span>
                     @if($sub->status == 2)
-                    <div class="mono" style="font-size:10.5px;color:#22C55E;margin-top:2px;">+{{ formatCoins($sub->work?->coins_per_worker ?? 0) }}</div>
+                    <div class="mono" style="font-size:10.5px;color:#22C55E;margin-top:2px;">+{{ formatUsd($sub->work?->payout_usd ?? 0) }}</div>
                     @endif
                 </div>
             </div>
