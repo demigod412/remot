@@ -29,7 +29,7 @@
     <div style="font-size:14px; font-weight:600; color:var(--fg); margin-bottom:6px;">Your referral link</div>
     <p style="font-size:13px; color:var(--fg-3); margin:0 0 16px; line-height:1.55;">
         Invite friends to join {{ gs()->site_name ?? 'Job Station' }}. When they register and complete tasks, you earn
-        <span class="mono" style="color:var(--coin); font-weight:600;">{{ formatCoins(formatCoins(gs()->ref_commission ?? 0)) }}</span> per referral.
+        <span class="mono" style="color:var(--coin); font-weight:600;">{{ formatCoins(gs()->ref_commission ?? 0) }}</span> per referral.
     </p>
     <div style="display:flex; gap:8px;">
         <input type="text" value="{{ $referralLink }}" readonly

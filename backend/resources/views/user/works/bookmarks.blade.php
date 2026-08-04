@@ -50,12 +50,23 @@
             <span>~{{ $work->time_limit }} min</span>
             <span style="color:var(--border-strong);">·</span>
             @endif
-            <span style="color:{{ $remaining < 5 ? 'var(--urgent)' : 'var(--fg-3)' }};">{{ $remaining }} spots left</span>
+           <span style="color:{{ $remaining < 5 ? 'var(--urgent)' : 'var(--fg-3)' }};">{{ $remaining }} of {{ $work->display_slot_total }} spots left</span>
         </div>
     </div>
 
     {{-- Reward --}}
-    <span class="mono" style="font-size:15px; font-weight:600; color:#E6C400; flex-shrink:0;">{{ formatCoins($work->coins_per_worker) }}</span>
+  <div style="flex-shrink:0; text-align:right; line-height:1.35;">
+            <div class="mono" style="font-size:15px; font-weight:600; color:#22C55E;">
+                ${{ number_format($work->payout_usd, 2) }}
+            </div>
+            <div style="font-size:11px; color:var(--fg-3);">
+                @if((float) $work->application_cost > 0)
+                    Application : {{ formatCoins($work->application_cost) }}
+                @else
+                    free to apply
+                @endif
+            </div>
+        </div>
 
     {{-- Remove bookmark --}}
     <div x-data="{ removing: false }" @click.stop>
@@ -72,7 +83,7 @@
 
     {{-- CTA --}}
     @if($work->work_status === 1 && $work->approval_status === 1 && $remaining > 0)
-    <span style="font-size:12px; font-weight:500; padding:6px 14px; border-radius:7px; background:var(--accent); color:white; flex-shrink:0; white-space:nowrap;">{{ __('Start') }} →</span>
+    <span style="font-size:12px; font-weight:500; padding:6px 14px; border-radius:7px; background:var(--accent); color:white; flex-shrink:0; white-space:nowrap;">{{ __('Apply') }} →</span>
     @elseif($remaining <= 0)
     <span style="font-size:12px; padding:6px 12px; border-radius:7px; background:var(--surface-2); color:var(--fg-4); border:1px solid var(--border); flex-shrink:0;">{{ __('Full') }}</span>
     @endif

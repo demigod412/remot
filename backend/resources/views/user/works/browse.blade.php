@@ -160,7 +160,7 @@
             </div>
             <div style="font-size:11px; color:var(--fg-3);">
                 @if((float) $work->application_cost > 0)
-                    costs {{ formatCoins($work->application_cost) }}
+                    Application : {{ formatCoins($work->application_cost) }}
                 @else
                     free to apply
                 @endif
@@ -184,7 +184,7 @@
         @elseif($remaining <= 0)
         <span style="font-size:12px; padding:6px 12px; border-radius:7px; background:var(--surface-2); color:var(--fg-4); border:1px solid var(--border); flex-shrink:0; cursor:not-allowed;">{{ __('Full') }}</span>
         @else
-        <span style="font-size:12px; font-weight:500; padding:6px 14px; border-radius:7px; background:var(--accent); color:white; flex-shrink:0; white-space:nowrap;">{{ __('Start') }} →</span>
+        <span style="font-size:12px; font-weight:500; padding:6px 14px; border-radius:7px; background:var(--accent); color:white; flex-shrink:0; white-space:nowrap;">{{ __('Apply') }} →</span>
         @endif
     </div>
     @empty

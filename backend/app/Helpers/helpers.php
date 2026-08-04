@@ -39,9 +39,19 @@ if (! function_exists('formatCoins')) {
      * reads "50 connect" while a 2.50 fee reads "2.50 connect" instead of being
      * rounded to "3 connect".
      */
-    function formatCoins(float|int|string $amount, ?int $decimals = null): string
+    function formatCoins(float|int|string|null $amount, ?int $decimals = null): string
     {
-        $amount = (float) $amount;
+        // null is accepted on purpose and renders as zero.
+        //
+        // This helper replaced hand-built coinSymbol() . number_format($x) in 54
+        // places. number_format() tolerates null; a strict signature here does not,
+        // so every one of those call sites became a potential fatal wherever the value
+        // could be unset. Nullable settings like gs()->boost_cost_work took the admin
+        // skills page down in exactly that way.
+        //
+        // A display helper should never be the reason a page 500s. If a caller has no
+        // amount, zero is the honest thing to render.
+        $amount = (float) ($amount ?? 0);
 
         if ($decimals === null) {
             $decimals = fmod($amount, 1.0) === 0.0 ? 0 : 2;
@@ -60,10 +70,10 @@ if (! function_exists('formatMoney')) {
      * a USD payout as coins. Use this anywhere a ledger row, cashout or earnings
      * figure is displayed.
      */
-    function formatMoney(float|int|string $amount, string $currency = 'coin', ?int $decimals = null): string
+    function formatMoney(float|int|string|null $amount, string $currency = 'coin', ?int $decimals = null): string
     {
         if (strtolower($currency) === 'usd') {
-            return '$' . number_format((float) $amount, $decimals ?? 2);
+            return '$' . number_format((float) ($amount ?? 0), $decimals ?? 2);
         }
 
         return formatCoins($amount, $decimals);
@@ -71,9 +81,9 @@ if (! function_exists('formatMoney')) {
 }
 
 if (! function_exists('formatUsd')) {
-    function formatUsd(float|int|string $amount): string
+    function formatUsd(float|int|string|null $amount): string
     {
-        return '$' . number_format((float) $amount, 2);
+        return '$' . number_format((float) ($amount ?? 0), 2);
     }
 }
 
