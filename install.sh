@@ -155,6 +155,9 @@ if [ "${SKIP_CONFIG:-0}" -eq 0 ]; then
   echo "${c_dim}  Blank answers are allowed where something can be set later in the admin panel.${c_reset}"
 
   ask DOMAIN "Domain (no scheme, e.g. remotox.com)"
+  # Lowercased because it goes into APP_URL, the certificate hostnames and the
+  # Turnstile allowlist, and a capitalised host causes mismatches in all three.
+  DOMAIN="$(printf '%s' "$DOMAIN" | tr '[:upper:]' '[:lower:]')"
   ask ADMIN_EMAIL "Admin email address"
 
   echo
@@ -249,8 +252,44 @@ PY
   set_env JOBSTATION_ENABLE_JOB_BOARD "false"
 
   chmod 600 "$ENV_FILE"
-  ok ".env written (mode 600)"
-  echo "${c_dim}  Database passwords were generated and stored only in $ENV_FILE.${c_reset}"
+  ok "backend/.env written (mode 600)"
+
+  # Docker Compose interpolates ${VAR} from a .env in the directory holding the
+  # compose file — the repo root — and knows nothing about backend/.env. Without
+  # this second file, docker-compose.prod.yml fails before it starts anything:
+  #   required variable DB_PASSWORD is missing a value
+  # Both files must carry the same credentials or the app and the database
+  # disagree about the password.
+  {
+    echo "# Written by install.sh for Docker Compose interpolation."
+    echo "# Laravel reads backend/.env; Compose reads this one. Keep them in step."
+    echo "DB_DATABASE=laravel"
+    echo "DB_USERNAME=laravel"
+    echo "DB_PASSWORD=$DB_PASSWORD"
+    echo "DB_ROOT_PASSWORD=$DB_ROOT_PASSWORD"
+    echo "PHP_MEMORY_LIMIT=256M"
+  } > .env
+  chmod 600 .env
+  ok "root .env written for Compose"
+
+  echo "${c_dim}  Database passwords were generated and stored in backend/.env and .env only.${c_reset}"
+fi
+
+# Reusing an existing backend/.env still needs the Compose file to exist, and a
+# previous run of an older installer will not have created it.
+if [ ! -s .env ]; then
+  step "Creating the root .env Compose needs"
+  if grep -q '^DB_PASSWORD=' "$ENV_FILE"; then
+    {
+      echo "# Written by install.sh for Docker Compose interpolation."
+      grep -E '^(DB_DATABASE|DB_USERNAME|DB_PASSWORD|DB_ROOT_PASSWORD)=' "$ENV_FILE"
+      echo "PHP_MEMORY_LIMIT=256M"
+    } > .env
+    chmod 600 .env
+    ok "derived from $ENV_FILE"
+  else
+    die "No DB_PASSWORD in $ENV_FILE, so the root .env cannot be derived. Set DB_PASSWORD there and re-run."
+  fi
 fi
 
 # ── 5. TLS certificate from Cloudflare ──────────────────────────────────────────
@@ -308,7 +347,10 @@ fi
 
 # ── 6. build and boot ───────────────────────────────────────────────────────────
 step "Building containers"
-DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
+# Standalone, NOT layered over docker-compose.yml. Combining them merges the ports
+# lists rather than replacing them, which republished MySQL on 0.0.0.0:3306 and then
+# failed to bind a second time on the same port.
+DC="docker compose -f docker-compose.prod.yml"
 sg docker -c "$DC build" || die "build failed"
 sg docker -c "$DC up -d" || die "could not start containers"
 ok "containers running"
@@ -396,8 +438,8 @@ Still to do, in this order:
 Useful commands:
 
   cd $APP_DIR
-  $DC ps
-  $DC logs app --tail 50
-  $DC exec app php artisan optimize:clear
+  docker compose -f docker-compose.prod.yml ps
+  docker compose -f docker-compose.prod.yml logs app --tail 50
+  docker compose -f docker-compose.prod.yml exec app php artisan optimize:clear
 
 EOF

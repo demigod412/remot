@@ -1,2 +1,6 @@
 _backup_*/
 *.patch
+
+# install.sh writes this at the repo root for Compose interpolation.
+# It holds generated database passwords and must never be committed.
+/.env
