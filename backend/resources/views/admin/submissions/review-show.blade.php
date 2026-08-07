@@ -71,6 +71,14 @@
         </div>
 
         {{-- Worker's submitted result --}}
+        {{-- The worker's history, on the screen where the decision is made. --}}
+        @if ($performance && $submission->worker)
+            @include('admin.partials.user-performance-card', [
+                'user'        => $submission->worker,
+                'performance' => $performance,
+            ])
+        @endif
+
         @if ($submission->proof_note || !empty($submission->proof_files))
         <div class="jobstation-card" style="padding:22px;">
             <div class="label" style="margin-bottom:12px;">Submitted result</div>

@@ -251,8 +251,17 @@ PY
   set_env JOBSTATION_ENABLE_USER_GIGS "false"
   set_env JOBSTATION_ENABLE_JOB_BOARD "false"
 
-  chmod 600 "$ENV_FILE"
-  ok "backend/.env written (mode 600)"
+  # 640, not 600.
+  #
+  # PHP-FPM runs as www-data. A 600 file owned by ubuntu is unreadable to it, so
+  # Laravel starts with no APP_KEY and throws MissingAppKeyException on every
+  # request — while artisan keeps working, because docker exec runs as root. The
+  # result is a site that 500s with a key that is demonstrably present in the file,
+  # which is a genuinely confusing place to end up.
+  #
+  # Ownership is set to www-data once the containers exist, further down.
+  chmod 640 "$ENV_FILE"
+  ok "backend/.env written (mode 640)"
 
   # Docker Compose interpolates ${VAR} from a .env in the directory holding the
   # compose file — the repo root — and knows nothing about backend/.env. Without
@@ -395,10 +404,44 @@ for s in AdminSeeder LanguageSeeder AppSettingSeeder NotificationTemplateSeeder 
     && ok "seeded $s" || warn "seeder $s reported a problem (may already be applied)"
 done
 
+# Belt and braces: create the runtime directories before anything tries to write to
+# them. They are tracked via a .gitignore inside each, but an older clone predating
+# that fix will be missing them, and Laravel's failure mode is a 500 on every page
+# with "View path not found" in the log.
+sg docker -c "$DC exec -T app mkdir -p \
+  storage/framework/views storage/framework/cache/data storage/framework/sessions \
+  storage/framework/testing storage/app/public storage/logs bootstrap/cache" || true
+
+# .env must be readable by the web process, not just by root. Done here rather than
+# at write time because www-data only exists inside the container.
+sg docker -c "$DC exec -T app chown www-data:www-data .env" 2>/dev/null \
+  && ok ".env readable by www-data" \
+  || warn "Could not chown .env to www-data — expect MissingAppKeyException on every page"
+
 sg docker -c "$DC exec -T app php artisan storage:link" >/dev/null 2>&1 || true
-sg docker -c "$DC exec -T app chown -R www-data:www-data storage bootstrap/cache" || true
+if ! sg docker -c "$DC exec -T app chown -R www-data:www-data storage bootstrap/cache"; then
+  warn "Could not chown storage/. PHP-FPM runs as www-data and will 500 on every page"
+  warn "if it cannot write there. Fix with:"
+  warn "  $DC exec app chown -R www-data:www-data storage bootstrap/cache"
+fi
 sg docker -c "$DC exec -T app php artisan optimize:clear" >/dev/null
 ok "caches cleared"
+
+# ── 6b. prove it actually serves ────────────────────────────────────────────────
+step "Checking the site responds"
+HTTP_CODE="$(curl -sk -o /dev/null -w '%{http_code}' https://127.0.0.1/ || echo 000)"
+case "$HTTP_CODE" in
+  200|302) ok "origin returned $HTTP_CODE" ;;
+  500)
+    warn "origin returned 500. The most common causes, in order:"
+    warn "  1. .env unreadable by www-data:  $DC exec app ls -l .env   (want www-data, 640)"
+    warn "  2. missing APP_KEY:              grep '^APP_KEY=' backend/.env"
+    warn "  3. unwritable storage:           $DC exec app ls -ld storage/framework/views"
+    warn "Read the error with: $DC exec app tail -20 storage/logs/laravel.log"
+    ;;
+  000) warn "could not reach the origin at all. Is nginx running? $DC ps" ;;
+  *)   warn "origin returned $HTTP_CODE — check $DC logs nginx --tail 20" ;;
+esac
 
 # ── 7. what is left for a human ─────────────────────────────────────────────────
 cat <<EOF

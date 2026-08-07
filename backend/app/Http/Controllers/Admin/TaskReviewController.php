@@ -8,6 +8,7 @@ use App\Models\Work;
 use App\Models\WorkSubmission;
 use App\Services\ApplicationException;
 use App\Services\TaskReviewService;
+use App\Services\WorkerReliabilityService;
 use Illuminate\Http\Request;
 
 /**
@@ -73,10 +74,17 @@ class TaskReviewController extends Controller
 
     public function show(int $id)
     {
-        $submission = WorkSubmission::with(['work.category', 'worker'])->findOrFail($id);
+        $submission = WorkSubmission::with(['work.category', 'worker.skills'])->findOrFail($id);
         $submission->update(['is_read' => 1]);
 
-        return view('admin.submissions.review-show', compact('submission'));
+        // The worker's history and skills belong on THIS screen, not only on their
+        // profile. This is where approve-or-refuse is decided, and a check that
+        // requires opening another page in another tab is a check that stops happening.
+        $performance = $submission->worker
+            ? app(WorkerReliabilityService::class)->performance($submission->worker)
+            : null;
+
+        return view('admin.submissions.review-show', compact('submission', 'performance'));
     }
 
     // -------------------------------------------------------------------------

@@ -111,9 +111,16 @@ class UserController extends Controller
             ->limit(5)
             ->get();
 
-        $reliability = app(WorkerReliabilityService::class)->summary($user);
+        $reliabilityService = app(WorkerReliabilityService::class);
+        $reliability = $reliabilityService->summary($user);
+        $performance = $reliabilityService->performance($user);
 
-        return view('admin.users.show', compact('user', 'stats', 'recentLedger', 'recentSubmissions', 'reliability'));
+        // Eager loaded so the card does not issue its own query per render.
+        $user->load('skills');
+
+        return view('admin.users.show', compact(
+            'user', 'stats', 'recentLedger', 'recentSubmissions', 'reliability', 'performance'
+        ));
     }
 
     // -------------------------------------------------------------------------

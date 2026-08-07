@@ -24,8 +24,8 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 
-/storage/framework/cache/*
-/storage/framework/sessions/*
-/storage/framework/testing/*
-/storage/framework/views/*
-/storage/logs/*
+# Runtime directories are kept by a .gitignore inside each one (Laravel's own
+# convention) rather than by patterns here. A pattern like /storage/logs/* matches
+# the placeholder as well as the contents, so git records nothing and the directory
+# is absent from a fresh clone. Laravel then fails with "View path not found" and
+# every page returns 500.

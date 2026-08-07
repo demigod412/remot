@@ -156,4 +156,79 @@ class WorkerReliabilityService
             'rejected'         => $before['rejected'],
         ]);
     }
+
+    /**
+     * Application and delivery track record for one worker, ready to display.
+     *
+     * Two different rates, deliberately, because they answer different questions and
+     * confusing them leads to bad approval decisions:
+     *
+     *   ACCEPTANCE RATE — of the applications this worker made, how many did an admin
+     *   let onto the task. This measures YOUR past decisions about them, not their
+     *   ability. A low rate can simply mean they aim at tasks they are not suited to.
+     *
+     *   APPROVAL RATE — of the work they actually delivered, how much passed review.
+     *   This is the one that predicts whether approving them will end well. A worker
+     *   with few applications but 100% approval is a better bet than one with many
+     *   applications and 60% approval.
+     *
+     * Periods are calendar-based (today, this month) because that is how an admin
+     * thinks about it, plus all-time so a new worker with no activity this month is
+     * not shown as a blank.
+     *
+     * @return array<string, mixed>
+     */
+    public function performance(User $user): array
+    {
+        $periods = [
+            'today' => [now()->startOfDay(),   now()->endOfDay()],
+            'month' => [now()->startOfMonth(), now()->endOfMonth()],
+            'all'   => [null, null],
+        ];
+
+        $out = [];
+
+        foreach ($periods as $key => [$from, $to]) {
+            $base = WorkSubmission::where('worker_id', $user->id)->where('worker_type', 2);
+
+            if ($from) {
+                $base->whereBetween('created_at', [$from, $to]);
+            }
+
+            // Cloned per aggregate: each ->count() would otherwise consume the builder.
+            $applied  = (clone $base)->count();
+            $accepted = (clone $base)->where('application_status', WorkSubmission::APP_APPROVED)->count();
+            $refused  = (clone $base)->where('application_status', WorkSubmission::APP_REJECTED)->count();
+            $pending  = (clone $base)->where('application_status', WorkSubmission::APP_APPLIED)->count();
+
+            // "Delivered" means they actually turned work in — anything past
+            // not_started. An accepted application with nothing submitted yet is not a
+            // quality signal either way, so it is excluded from the approval rate.
+            $delivered = (clone $base)->whereIn('delivery_status', [
+                WorkSubmission::DEL_SUBMITTED,
+                WorkSubmission::DEL_REVISION_REQUESTED,
+                WorkSubmission::DEL_APPROVED,
+                WorkSubmission::DEL_REJECTED,
+            ])->count();
+
+            $approved = (clone $base)->where('delivery_status', WorkSubmission::DEL_APPROVED)->count();
+            $expired  = (clone $base)->where('delivery_status', WorkSubmission::DEL_EXPIRED)->count();
+
+            $out[$key] = [
+                'applied'         => $applied,
+                'accepted'        => $accepted,
+                'refused'         => $refused,
+                'pending'         => $pending,
+                'delivered'       => $delivered,
+                'approved'        => $approved,
+                'expired'         => $expired,
+                // null, not 0, when there is nothing to divide by. Zero would read as
+                // "this worker fails everything" when it means "no history yet".
+                'acceptance_rate' => $applied   > 0 ? round($accepted / $applied   * 100) : null,
+                'approval_rate'   => $delivered > 0 ? round($approved / $delivered * 100) : null,
+            ];
+        }
+
+        return $out;
+    }
 }

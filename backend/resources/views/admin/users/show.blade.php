@@ -176,6 +176,9 @@
             @endif
         </div>
 
+        {{-- Application and delivery rates, plus listed skills. --}}
+        @include('admin.partials.user-performance-card', ['user' => $user, 'performance' => $performance])
+
         {{-- Worker reliability: strike count, weighting and the forgive action.
              $reliability is already supplied by Admin\UserController::show(). --}}
         @include('admin.partials.user-reliability-card', ['user' => $user, 'reliability' => $reliability])
