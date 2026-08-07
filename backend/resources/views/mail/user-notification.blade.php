@@ -31,7 +31,7 @@
 
     <div class="body">
         <div class="content">
-            {!! nl2br(e($body)) !!}
+            {!! $body !!}
         </div>
         <hr class="divider">
         <div class="footer">
