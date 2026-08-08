@@ -173,7 +173,7 @@ class BatchApplicationApprovalService
             $locked->update([
                 'application_status' => WorkSubmission::APP_APPROVED,
                 'delivery_status'    => WorkSubmission::DEL_NOT_STARTED,
-                'annotate_code'      => $this->generateAnnotateCode(),
+                'annotate_code'      => app(AnnotateCodeGenerator::class)->generate(),
                 'approved_by_batch'  => true,
                 'task_delivered_at'  => now(),
             ]);
@@ -215,23 +215,6 @@ class BatchApplicationApprovalService
         });
     }
 
-    /**
-     * Codes are read aloud, retyped and pasted into chat, so the alphabet excludes
-     * characters that are read wrong: 0/O and 1/I/L.
-     */
-    private function generateAnnotateCode(): string
-    {
-        $alphabet = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
-
-        do {
-            $code = 'AN-';
-            for ($i = 0; $i < 8; $i++) {
-                $code .= $alphabet[random_int(0, strlen($alphabet) - 1)];
-            }
-        } while (WorkSubmission::where('annotate_code', $code)->exists());
-
-        return $code;
-    }
 
     private function recordOutcome(int $userId, WorkCategory $category, int $considered, int $approved): void
     {

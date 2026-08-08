@@ -31,7 +31,10 @@ class TaskReviewService
     public function approveApplication(
         WorkSubmission $submission,
         array $taskFiles,
-        string $instructions
+        // Nullable since the zip flow was removed: the task's own instructions live
+        // in the console, and this field is now only for anything specific to one
+        // worker. Typed as string it threw a TypeError the moment it was left blank.
+        ?string $instructions = null
     ): WorkSubmission {
         if (! $submission->isAwaitingApplicationReview()) {
             throw new ApplicationException('This application has already been reviewed.');
@@ -44,6 +47,10 @@ class TaskReviewService
             $submission->update([
                 'application_status' => WorkSubmission::APP_APPROVED,
                 'delivery_status'    => WorkSubmission::DEL_NOT_STARTED,
+                // Without this, an admin-approved worker had no code and could not
+                // open the console at all — only the batch job issued one. Both
+                // approval paths now use the same generator.
+                'annotate_code'      => app(AnnotateCodeGenerator::class)->generate(),
                 'task_files'         => $taskFiles,
                 'task_instructions'  => $instructions,
                 'task_delivered_at'  => now(),

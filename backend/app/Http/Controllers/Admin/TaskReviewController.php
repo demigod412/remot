@@ -98,7 +98,14 @@ class TaskReviewController extends Controller
         $stored = [];
         $path   = config('jobstation.upload_paths.task_files', 'uploads/tasks/packages');
 
-        foreach ($request->file('task_files') as $file) {
+        // Files are optional now. The questions come from the work's task_json and
+        // are served straight to the console, so approving an application normally
+        // attaches nothing — the upload only exists for the occasional task needing
+        // a supporting document.
+        //
+        // ?? [] because $request->file() returns NULL, not an empty array, when the
+        // field is absent, and foreach over null is a fatal.
+        foreach ($request->file('task_files') ?? [] as $file) {
             $stored[] = uploadPrivateFile($file, $path);
         }
 
