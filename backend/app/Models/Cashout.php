@@ -10,6 +10,7 @@ class Cashout extends Model
         'user_id', 'payout_method_id', 'coin_amount', 'payout_currency',
         'coin_to_currency_rate', 'fee', 'reference', 'gateway_reference', 'payout_amount',
         'net_coins_deducted', 'payout_details', 'status', 'admin_note',
+        'cancelled_at', 'cancelled_reason',
     ];
 
     protected function casts(): array
@@ -22,6 +23,7 @@ class Cashout extends Model
             'payout_amount'         => 'decimal:8',
             'net_coins_deducted'    => 'decimal:8',
             'payout_details'        => 'array',
+            'cancelled_at'          => 'datetime',
         ];
     }
 

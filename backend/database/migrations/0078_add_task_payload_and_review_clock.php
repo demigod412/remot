@@ -54,7 +54,7 @@ return new class extends Migration
                 // What the console posts back. Stored whole rather than shredded into
                 // columns: the shape is defined by the task, and admin review needs
                 // the timings and flags as much as the answers.
-                $table->longText('result_payload')->nullable()->after('result_file');
+                $table->longText('result_payload')->nullable()->after('fee_reference');
             }
 
             if (! Schema::hasColumn('work_submissions', 'progress_payload')) {
