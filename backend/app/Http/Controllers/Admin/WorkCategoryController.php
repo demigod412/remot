@@ -28,6 +28,9 @@ class WorkCategoryController extends Controller
         $data['schema_strict'] = $request->boolean('schema_strict');
         // NOT NULL with a default of 0, so an omitted field must be 0, not null.
         $data['daily_application_limit'] = (int) ($data['daily_application_limit'] ?? 0);
+        $data['min_approval_rate']       = (int) ($data['min_approval_rate'] ?? 40);
+        $data['max_approval_rate']       = (int) ($data['max_approval_rate'] ?? 70);
+        $data['batch_approval_enabled']  = $request->boolean('batch_approval_enabled');
         $data['status']        = 1;
 
         WorkCategory::create($data);
@@ -71,6 +74,9 @@ class WorkCategoryController extends Controller
             'application_cost'   => ['required', 'numeric', 'min:0', 'max:99999999'],
             // 0 = unlimited, so existing categories are unaffected.
             'daily_application_limit' => ['nullable', 'integer', 'min:0', 'max:1000'],
+            // Percentages. max must not sit below min or the random draw has no range.
+            'min_approval_rate'       => ['nullable', 'integer', 'min:0', 'max:100'],
+            'max_approval_rate'       => ['nullable', 'integer', 'min:0', 'max:100', 'gte:min_approval_rate'],
             // 0 = both, 1 = individuals only, 2 = businesses only.
             'eligible_user_type' => ['required', 'integer', 'in:0,1,2'],
         ];

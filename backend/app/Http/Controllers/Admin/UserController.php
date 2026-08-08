@@ -158,7 +158,17 @@ class UserController extends Controller
             $user->ban_reason = $request->input('ban_reason');
             $user->save();
 
+            // Synchronous, not queued. A queued job leaves a window in which a banned
+            // user's pending withdrawal could still be approved and paid, which is
+            // precisely what this rule exists to prevent.
+            $cancelled = app(\App\Services\WithdrawalPolicy::class)->cancelPendingFor($user);
+
             $msg = "User {$user->username} has been banned.";
+
+            if ($cancelled > 0) {
+                $msg .= " {$cancelled} pending withdrawal(s) cancelled. The balance was NOT returned —"
+                     . " reverse it by hand from the cashout record if that is the intention.";
+            }
         } else {
             $user->status     = 1;
             $user->ban_reason = null;

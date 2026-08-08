@@ -62,21 +62,38 @@ class AppSetting extends Model
     /**
      * Get the singleton settings instance.
      */
+    /**
+     * Memoised for the life of the process.
+     *
+     * Held in a class property rather than a function-scoped `static $instance`,
+     * because a function static cannot be reached from anywhere else — which is why
+     * forgetCache() below was an empty method that silently did nothing.
+     */
+    protected static ?self $cached = null;
+
     public static function get(): static
     {
-        static $instance = null;
-        if ($instance === null) {
-            $instance = static::first() ?? new static();
+        if (static::$cached === null) {
+            static::$cached = static::first() ?? new static();
         }
-        return $instance;
+
+        return static::$cached;
     }
 
     /**
      * Flush cached instance (call after updating settings).
      */
+    /**
+     * Drop the memoised copy so the next gs() re-reads the row.
+     *
+     * This was an empty method. Every caller that changed a setting and then called
+     * it believed the change had taken effect, and in a normal web request it had —
+     * but only because the next request is a new process, not because this did
+     * anything. Anywhere sharing a process (tests, queue workers, long-running
+     * commands) kept serving the settings loaded at boot.
+     */
     public static function forgetCache(): void
     {
-        // re-query on next call by clearing PHP static
-        // Can be extended to use Redis cache later
+        static::$cached = null;
     }
 }

@@ -9,6 +9,7 @@ class WorkCategory extends Model
     protected $fillable = [
         'name', 'icon', 'status',
         'commission_percent', 'application_cost', 'daily_application_limit',
+        'min_approval_rate', 'max_approval_rate', 'batch_approval_enabled',
         'eligible_user_type', 'description',
         'result_schema', 'schema_strict',
     ];
@@ -26,6 +27,9 @@ class WorkCategory extends Model
     {
         return [
             'daily_application_limit' => 'integer',
+            'min_approval_rate'       => 'integer',
+            'max_approval_rate'       => 'integer',
+            'batch_approval_enabled'  => 'boolean',
             'status'             => 'integer',
             'commission_percent' => 'decimal:2',
             'application_cost'   => 'decimal:2',

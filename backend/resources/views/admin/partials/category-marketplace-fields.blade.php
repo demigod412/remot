@@ -42,6 +42,50 @@
         </small>
     </div>
 
+    {{-- Batch approval. Off by default on purpose: switching it on hands approval
+         decisions to a scheduled job, and rejections do NOT refund the application
+         fee. That should be a deliberate act, not something inherited from a deploy. --}}
+    <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:14px;margin-top:4px;">
+        <label style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;">
+            <input type="checkbox" name="batch_approval_enabled" value="1"
+                   {{ old('batch_approval_enabled', $cat->batch_approval_enabled ?? false) ? 'checked' : '' }}
+                   style="margin:3px 0 0;flex-shrink:0;">
+            <span>
+                <span style="font-size:12.5px;color:var(--fg);font-weight:500;">Approve applications automatically</span>
+                <span style="display:block;font-size:11px;color:var(--fg-3);line-height:1.55;margin-top:3px;">
+                    Every 3 hours a random share of each worker's pending applications in this
+                    category is approved. The share is drawn once per worker per day, between
+                    the two rates below. Applications not selected are rejected and
+                    <strong style="color:#F59E0B;">the application fee is not refunded</strong>.
+                    Leave off to keep approving by hand at Task Review.
+                </span>
+            </span>
+        </label>
+    </div>
+
+    <div>
+        <label style="display:block;font-size:11.5px;color:var(--fg-3);margin-bottom:4px;">
+            Minimum approval rate (%)
+        </label>
+        <input type="number" name="min_approval_rate" step="1" min="0" max="100"
+               value="{{ old('min_approval_rate', $cat->min_approval_rate ?? 40) }}"
+               style="width:100%;font-size:13px;font-family:ui-monospace,monospace;">
+        @error('min_approval_rate') <div style="font-size:11.5px;color:#EF4444;margin-top:4px;">{{ $message }}</div> @enderror
+    </div>
+
+    <div>
+        <label style="display:block;font-size:11.5px;color:var(--fg-3);margin-bottom:4px;">
+            Maximum approval rate (%)
+        </label>
+        <input type="number" name="max_approval_rate" step="1" min="0" max="100"
+               value="{{ old('max_approval_rate', $cat->max_approval_rate ?? 70) }}"
+               style="width:100%;font-size:13px;font-family:ui-monospace,monospace;">
+        <small style="color:var(--fg-3);font-size:11px;">
+            A worker applying to 5 tasks at a drawn rate of 60% gets 3 approved.
+        </small>
+        @error('max_approval_rate') <div style="font-size:11.5px;color:#EF4444;margin-top:4px;">{{ $message }}</div> @enderror
+    </div>
+
     <div>
         <label style="display:block;font-size:11.5px;color:var(--fg-3);margin-bottom:4px;">Open to</label>
         <select name="eligible_user_type" required style="width:100%;font-size:13px;">

@@ -4,6 +4,25 @@
 
 @section('content')
 @php
+    $windowStatus = app(\App\Services\WithdrawalPolicy::class)->windowStatus();
+@endphp
+
+@if (! $windowStatus['open'])
+    {{-- Shown before the form, not after a rejected submit. Letting someone pick a
+         method and type a wallet address only to be refused on the day of the month
+         is a bad way to learn a rule that has nothing to do with them. --}}
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:14px 16px;border-radius:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.28);margin-bottom:18px;">
+        <i data-lucide="calendar-clock" style="width:16px;height:16px;color:#F59E0B;flex-shrink:0;margin-top:1px;"></i>
+        <div style="font-size:13px;color:var(--fg-2);line-height:1.6;">
+            <strong style="color:#F59E0B;">Withdrawals are closed today.</strong>
+            Requests can be made between the {{ $windowStatus['opens_on'] }} and the
+            {{ $windowStatus['closes_on'] }} of each month. Your balance is unaffected and
+            keeps earning in the meantime.
+        </div>
+    </div>
+@endif
+
+@php
     // Withdrawals draw on the USD earnings balance. This read coin_balance, which
     // gated the form on the wrong number entirely: a worker with plenty of coins
     // and no earnings was shown the form and would fail server-side validation.

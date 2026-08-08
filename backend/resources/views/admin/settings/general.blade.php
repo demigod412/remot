@@ -55,7 +55,55 @@
                     <input type="number" name="min_cashout" value="{{ old('min_cashout', $settings->min_cashout ?? 50) }}"
                            min="1" step="1" placeholder="e.g. 50"
                            style="width:100%;font-size:13px;font-family:ui-monospace,monospace;">
-                    <div style="font-size:11px;color:var(--fg-4);margin-top:4px;">Users with fewer coins than this cannot initiate a withdrawal. Currently: <strong>{{ number_format($settings->min_cashout ?? 50) }} {{ gs()->coin_symbol ?? 'JC' }}</strong></div>
+                    {{-- Withdrawals are USD now, not coins. The old label described the
+                         coin balance, which is no longer what this gates. --}}
+                    <div style="font-size:11px;color:var(--fg-4);margin-top:4px;">Smallest withdrawal a worker may request, in USD. Currently: <strong>{{ formatUsd($settings->min_cashout ?? 50) }}</strong></div>
+                </div>
+
+                <div style="grid-column:1/-1;border-top:1px solid var(--border);padding-top:16px;margin-top:6px;">
+                    <label style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;margin-bottom:14px;">
+                        <input type="checkbox" name="withdrawal_window_enabled" value="1"
+                               {{ old('withdrawal_window_enabled', $settings->withdrawal_window_enabled ?? false) ? 'checked' : '' }}
+                               style="margin:3px 0 0;flex-shrink:0;">
+                        <span>
+                            <span style="font-size:12.5px;color:var(--fg);font-weight:500;">Restrict withdrawals to a monthly window</span>
+                            <span style="display:block;font-size:11px;color:var(--fg-3);line-height:1.55;margin-top:3px;">
+                                Requests can only be created between the two days below. Approving and
+                                paying existing requests is unaffected. Off means any day.
+                            </span>
+                        </span>
+                    </label>
+
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;">
+                        <div>
+                            <label style="display:block;font-size:11.5px;color:var(--fg-3);margin-bottom:4px;">Window opens (day)</label>
+                            <input type="number" name="withdrawal_window_start" min="1" max="31"
+                                   value="{{ old('withdrawal_window_start', $settings->withdrawal_window_start ?? 15) }}"
+                                   style="width:110px;font-family:ui-monospace,monospace;">
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11.5px;color:var(--fg-3);margin-bottom:4px;">Window closes (day)</label>
+                            <input type="number" name="withdrawal_window_end" min="1" max="31"
+                                   value="{{ old('withdrawal_window_end', $settings->withdrawal_window_end ?? 28) }}"
+                                   style="width:110px;font-family:ui-monospace,monospace;">
+                            <div style="font-size:11px;color:var(--fg-4);margin-top:4px;">
+                                28 rather than 31, so the window exists in February too.
+                            </div>
+                        </div>
+                    </div>
+
+                    <label style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;">
+                        <input type="checkbox" name="one_withdrawal_per_month" value="1"
+                               {{ old('one_withdrawal_per_month', $settings->one_withdrawal_per_month ?? false) ? 'checked' : '' }}
+                               style="margin:3px 0 0;flex-shrink:0;">
+                        <span>
+                            <span style="font-size:12.5px;color:var(--fg);font-weight:500;">One approved withdrawal per calendar month</span>
+                            <span style="display:block;font-size:11px;color:var(--fg-3);line-height:1.55;margin-top:3px;">
+                                Counts approved requests only, so one you have not reviewed yet does not
+                                block the worker, and one you rejected does not punish them.
+                            </span>
+                        </span>
+                    </label>
                 </div>
                 <button type="submit" class="btn btn-primary btn-sm" style="white-space:nowrap;">Save</button>
             </div>

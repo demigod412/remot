@@ -280,6 +280,16 @@ class WalletController extends Controller
         // PayoutMethod::coin_to_currency_rate survives and is still meaningful: it
         // converts USD to the method's payout currency (NGN, etc). That is payout
         // FX, a different thing from a JC-to-USD rate, which does not exist.
+        // Policy gate first: banned, outside the window, or already withdrew this
+        // month. Checked here rather than only at submit so the worker is told before
+        // entering a wallet address, and again at submit because a preview can be
+        // revisited hours later — by which time the window may have closed.
+        $policy = app(\App\Services\WithdrawalPolicy::class)->check($user, (float) $request->coin_amount);
+
+        if (! $policy['allowed']) {
+            return back()->with('error', $policy['message']);
+        }
+
         $globalMin = gs()->min_cashout ?? 50;
         if ($request->coin_amount < $globalMin) {
             return back()->with('error', "Minimum cashout is \${$globalMin}.");
@@ -316,6 +326,14 @@ class WalletController extends Controller
 
         $user   = Auth::guard('web')->user();
         $method = PayoutMethod::findOrFail($preview['payout_method_id']);
+
+        // Re-checked, not trusted from the preview. The session survives for hours;
+        // the 28th does not.
+        $policy = app(\App\Services\WithdrawalPolicy::class)->check($user, (float) $preview['coin_amount']);
+
+        if (! $policy['allowed']) {
+            return redirect()->route('user.wallet.cashout')->with('error', $policy['message']);
+        }
 
         if ($preview['net_coins_deducted'] > $user->usd_balance) {
             return redirect()->route('user.wallet.cashout')->with('error', 'Insufficient balance.');

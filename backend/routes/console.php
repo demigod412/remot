@@ -19,6 +19,18 @@ Schedule::command('jobstation:process-timers')
 
 // Re-verify the CodeCanyon purchase code weekly (refreshes degraded/offline
 // installs once Envato is reachable; no-op when no token is configured).
+// Random-rate application approval. Every 3 hours, per the platform design: the
+// rate each worker gets is drawn once per category per day and reused by every run,
+// so the interval affects how promptly applications are decided, not the odds.
+//
+// withoutOverlapping because a slow run must never be joined by the next one —
+// two concurrent runs would both see the same pending applications and could
+// approve past a task's remaining slots.
+Schedule::command('jobstation:approve-applications')
+    ->everyThreeHours()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 Schedule::command('license:verify --save')
     ->weekly()
     ->when(fn () => filled(config('jobstation.envato.token')) && is_app_installed())
