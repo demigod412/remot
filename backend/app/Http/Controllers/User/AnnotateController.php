@@ -248,6 +248,13 @@ class AnnotateController extends Controller
             return 'This application has not been approved, so the task is not open yet.';
         }
 
+        if ($submission->delivery_status === WorkSubmission::DEL_SUBMITTED) {
+            // Blocked rather than reopened. Reopening would let someone change answers
+            // after delivery, and the review may already have started.
+            return 'You have already submitted this task. It is waiting to be reviewed — '
+                 . 'nothing else is needed from you.';
+        }
+
         if (in_array($submission->delivery_status, [
             WorkSubmission::DEL_APPROVED,
             WorkSubmission::DEL_REJECTED,

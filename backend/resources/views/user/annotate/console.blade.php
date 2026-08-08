@@ -393,6 +393,17 @@
     display:none; min-height:100vh; align-items:center; justify-content:center; padding:32px 20px;
   }
   #view-complete.active{ display:flex; }
+
+  /* The submitting and failed screens share the complete screen's layout. Without
+     these rules they exist in the DOM and never appear, which would have left the
+     worker on a blank page while the request was in flight. */
+  #view-submitting, #view-failed{
+    display:none; align-items:center; justify-content:center;
+    min-height:70vh; padding:40px 20px;
+  }
+  #view-submitting.active, #view-failed.active{ display:flex; }
+
+  @keyframes spin{ to{ transform:rotate(360deg); } }
   .complete-card{
     width:100%; max-width:560px; background:var(--surface); border:1px solid var(--line);
     border-radius:var(--radius); box-shadow:var(--shadow-card); padding:36px 34px; text-align:center;
@@ -529,16 +540,48 @@
   <div class="complete-card">
     <div class="complete-icon">✓</div>
     <h2>Task Submitted</h2>
-    <p style="color:var(--ink-soft); margin:10px 0 0;">Your responses have been compiled and downloaded as a results file. Send that file back to complete the task.</p>
+    <p style="color:var(--ink-soft); margin:10px 0 0;" id="complete-note">Your answers have been received.</p>
     <div class="complete-stats">
       <div class="cstat"><b id="cstat-answered">0</b><span>Answered</span></div>
       <div class="cstat"><b id="cstat-flagged">0</b><span>Flagged</span></div>
       <div class="cstat"><b id="cstat-time">0m</b><span>Duration</span></div>
     </div>
-    <div class="file-pill" id="result-filename">results.json</div>
+    {{-- The reference, in place of the filename that used to sit here. It is what a
+         worker quotes to support, so it is the one thing worth showing prominently. --}}
+    <div class="file-pill" id="result-reference">&mdash;</div>
     <div class="btn-row" style="justify-content:center;">
       <button class="btn btn-primary" id="btn-back-to-tasks">Back to My Tasks</button>
-      <button class="btn btn-ghost" id="btn-restart">Start New Session</button>
+      {{-- "Start New Session" removed: a submitted task cannot be revisited, so the
+           button could only reload into a blocked screen. --}}
+    </div>
+  </div>
+</div>
+
+<!-- ============ SUBMITTING VIEW ============ -->
+{{-- Shown while the POST is in flight. The done screen used to appear immediately,
+     which told workers their task was delivered while the request was still going —
+     or had failed. Nothing claims success until the server confirms it. --}}
+<div id="view-submitting">
+  <div class="complete-card">
+    <div class="complete-icon" style="animation:spin 1s linear infinite;">&#8635;</div>
+    <h2>Submitting your answers</h2>
+    <p style="color:var(--ink-soft); margin:10px 0 0;">Please keep this page open. This usually takes a couple of seconds.</p>
+  </div>
+</div>
+
+<!-- ============ SUBMISSION FAILED VIEW ============ -->
+<div id="view-failed">
+  <div class="complete-card">
+    <div class="complete-icon" style="background:#fee2e2; color:#b91c1c;">!</div>
+    <h2>We could not submit your answers</h2>
+    <p style="color:var(--ink-soft); margin:10px 0 0;" id="failed-reason">Something went wrong on the way to our server.</p>
+    <p style="color:var(--ink-soft); margin:14px 0 0;">
+      <strong>Your work is safe.</strong> Every answer is still saved on this device and on our
+      server from the last autosave. Nothing has been lost and you do not need to start again.
+    </p>
+    <div class="btn-row" style="justify-content:center; margin-top:20px;">
+      <button class="btn btn-primary" id="btn-retry-submit">Try again</button>
+      <button class="btn btn-ghost" id="btn-failed-back">Back to My Tasks</button>
     </div>
   </div>
 </div>
@@ -1416,10 +1459,11 @@
   $("btn-save-exit").addEventListener("click", function(){
     commitTimeSpent();
     persist();
-    /* Server submission is the only path. There is no download fallback: a worker
-       left holding a JSON file has done the work and has no way to deliver it, which
-       is worse than a visible error telling them to try again. */
-    submitToServer();
+    /* Saves and leaves. This used to call submitToServer(), which meant Save & Exit
+       delivered the task — a worker stopping halfway would have had partial work
+       submitted for review without ever pressing Finish. */
+    if (window.pushProgressNow) { window.pushProgressNow(); }
+    window.location.href = (window.REMOTOX && window.REMOTOX.tasksUrl) ? window.REMOTOX.tasksUrl : "/dashboard/tasks";
   });
 
   // ---------- cross-browser / cross-machine progress export & import ----------
@@ -1644,27 +1688,67 @@
 
   function slug(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"") || "anon"; }
 
+  /* Nothing is cleared and nothing claims success until the server has confirmed.
+     The previous version switched to the done screen, wiped localStorage and never
+     submitted at all — the POST had been wired to Save & Exit by mistake. A worker
+     saw "Task Submitted" over work that had gone nowhere and been deleted locally. */
   function finishTask(){
     commitTimeSpent();
-    var out = { filename: null };
-    try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+    persist();
 
-    viewTask.classList.remove("active");
-    viewComplete.classList.add("active");
-    $("cstat-answered").textContent = out.payload.summary.answered + "/" + out.payload.summary.total_questions;
-    $("cstat-flagged").textContent = out.payload.summary.flagged_count;
-    var mins = out.payload.duration_seconds ? Math.round(out.payload.duration_seconds/60) : 0;
-    $("cstat-time").textContent = mins + "m";
-    $("result-filename").textContent = out.fname;
+    var payload = buildResultPayload();
 
-    if ($("btn-back-to-tasks")) {
-      $("btn-back-to-tasks").onclick = function () {
-        window.location.href = (window.REMOTOX && window.REMOTOX.tasksUrl) ? window.REMOTOX.tasksUrl : "/dashboard/tasks";
-      };
-    }
+    showScreen("submitting");
+
+    submitToServer(payload)
+      .then(function (res) {
+        // Only now is it safe to drop the local copy.
+        try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+        showDone(payload, res);
+      })
+      .catch(function (err) {
+        showFailure(err && err.message ? err.message : "We could not reach the server.");
+      });
   }
 
-  $("btn-restart").addEventListener("click", function(){ window.location.reload(); });
+  function showScreen(which){
+    viewTask.classList.remove("active");
+    viewComplete.classList.remove("active");
+    $("view-submitting").classList.remove("active");
+    $("view-failed").classList.remove("active");
+
+    if (which === "submitting") { $("view-submitting").classList.add("active"); }
+    else if (which === "failed") { $("view-failed").classList.add("active"); }
+    else { viewComplete.classList.add("active"); }
+  }
+
+  function showDone(payload, res){
+    showScreen("done");
+
+    var sum = (payload && payload.summary) ? payload.summary : {};
+    $("cstat-answered").textContent = (sum.answered || 0) + "/" + (sum.total_questions || 0);
+    $("cstat-flagged").textContent  = sum.flagged_count || 0;
+    $("cstat-time").textContent     = (payload && payload.duration_seconds ? Math.round(payload.duration_seconds/60) : 0) + "m";
+
+    $("result-reference").textContent = (res && res.submission_code) ? res.submission_code : "";
+
+    $("complete-note").textContent = (res && res.already)
+      ? "This task had already been submitted and is awaiting review."
+      : (res && res.message) ? res.message : "Your answers have been received.";
+  }
+
+  function showFailure(reason){
+    showScreen("failed");
+    $("failed-reason").textContent = reason;
+  }
+
+  $("btn-retry-submit").addEventListener("click", function(){ finishTask(); });
+  $("btn-failed-back").addEventListener("click", goToTasks);
+  $("btn-back-to-tasks").addEventListener("click", goToTasks);
+
+  function goToTasks(){
+    window.location.href = (window.REMOTOX && window.REMOTOX.tasksUrl) ? window.REMOTOX.tasksUrl : "/dashboard/tasks";
+  }
 
   // ---------- boot ----------
   initStart();
@@ -1737,61 +1821,52 @@
     });
   }
 
-  window.submitToServer = function () {
-    var payload;
-    try { payload = window.buildResultPayload ? window.buildResultPayload() : null; }
-    catch (e) { payload = null; }
-
+  /* Returns a promise. It deliberately does not touch the screens: the console owns
+     what the worker sees, and having both do it is how the done screen ended up
+     showing over a failed request. */
+  window.submitToServer = function (payload) {
     if (! payload) {
-      /* No download fallback: the worker cannot deliver a file anywhere. An error
-         they can act on beats a file they cannot use. Their answers are still in
-         localStorage and on the server from the last autosave, so retrying works. */
-      say('Could not prepare your submission. Please reload and press Finish again.', true);
-      return;
+      return Promise.reject(new Error("Your answers could not be prepared. Please reload and try again."));
     }
 
-    say('Submitting…', true);
+    say("Submitting…", true);
 
-    fetch(window.REMOTOX.submitUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': window.REMOTOX.csrf, 'Accept': 'application/json' },
+    return fetch(window.REMOTOX.submitUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-TOKEN": window.REMOTOX.csrf,
+        "Accept": "application/json"
+      },
       body: JSON.stringify({ result: payload })
     })
-    .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
-    .then(function (res) {
-      if (! res.ok || ! res.body.ok) {
-        var msg = res.body && res.body.error ? res.body.error : 'Submission failed.';
-        if (res.body && res.body.missing && res.body.missing.length) {
-          msg += ' Unanswered: ' + res.body.missing.join(', ');
-        }
-        say(msg, true);
-        return;
-      }
-
-      try { localStorage.removeItem("annotation_progress__" + (window.TASK_DATA.meta.task_id || "task")); } catch (e) {}
-
-      var note = document.querySelector('#screen-done p');
-      if (note) {
-        note.innerHTML = res.body.already
-          ? 'This task was already submitted and is awaiting review.'
-          : 'Submitted successfully. Your reference is <strong>' + (res.body.submission_code || '') +
-            '</strong>. It will be reviewed, and credited automatically if nobody reviews it sooner. ' +
-            'Nothing else is needed from you.';
-      }
-
-      var back = document.getElementById('btn-back-to-tasks');
-      if (back) {
-        back.onclick = function () { window.location.href = window.REMOTOX.tasksUrl; };
-      }
-
-      say('Submitted', true);
+    .then(function (r) {
+      return r.json()
+        .catch(function () { return {}; })
+        .then(function (body) { return { status: r.status, ok: r.ok, body: body }; });
     })
-    .catch(function () {
-      /* The work is still in localStorage and still on the server from the last
-         autosave, so this is recoverable — say so rather than implying loss. */
-      say('Could not reach the server. Your answers are saved; try submitting again.', true);
+    .then(function (res) {
+      if (res.status === 419) {
+        // Session expired mid-task. Says so plainly: "try again" would just fail again.
+        throw new Error("Your session expired. Please reload the page and log in again — your answers are saved.");
+      }
+
+      if (! res.ok || ! res.body.ok) {
+        var msg = res.body && res.body.error ? res.body.error : "The server rejected the submission.";
+        if (res.body && res.body.missing && res.body.missing.length) {
+          msg += " Unanswered: " + res.body.missing.join(", ");
+        }
+        throw new Error(msg);
+      }
+
+      say("Submitted", true);
+      return res.body;
     });
   };
+
+  /* Flush progress immediately, used by Save & Exit where a debounce would lose the
+     last few seconds of typing on navigation. */
+  window.pushProgressNow = function () { pushProgress(); };
 
   /* A final push on the way out, for the case where someone closes the tab
      between the last debounce and the timer firing. */
