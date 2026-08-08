@@ -21,8 +21,12 @@ class TaskDeliveryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'task_instructions' => ['required', 'string', 'min:20', 'max:20000'],
-            'task_files'        => ['required', 'array', 'min:1', 'max:5'],
+            // Both optional now. The questions come from the work's task_json and
+            // are served by the console, so approving an application no longer means
+            // attaching anything. Files stay supported for the occasional task that
+            // genuinely needs a supporting document alongside the questions.
+            'task_instructions' => ['nullable', 'string', 'max:20000'],
+            'task_files'        => ['nullable', 'array', 'max:5'],
             'task_files.*'      => ['file', 'mimes:zip', 'mimetypes:application/zip,application/x-zip-compressed', 'max:51200'],
         ];
     }

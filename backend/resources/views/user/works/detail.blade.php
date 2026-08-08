@@ -158,7 +158,7 @@
                 @if((float) $work->application_cost > 0)
                     A non-refundable application fee of
                     <strong style="color:var(--fg-2);">{{ formatCoins($work->application_cost, 2) }}</strong>
-                    is deducted when you apply. It is only returned if an admin rejects your application.
+                    is deducted when you apply and is not refundable, including if your application is not selected.
                 @else
                     Applying is free on this task.
                 @endif

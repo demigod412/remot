@@ -113,11 +113,25 @@
             <form method="POST" action="{{ route('admin.task-review.application.approve', $submission->id) }}"
                   enctype="multipart/form-data" style="margin-bottom:22px;">
                 @csrf
-                <label for="task_files" style="display:block;font-size:12.5px;margin-bottom:6px;color:var(--fg-2);">Task package (.zip)</label>
-                <input id="task_files" type="file" name="task_files[]" accept=".zip" multiple required style="width:100%;margin-bottom:12px;font-size:12.5px;">
+                {{-- No zip upload. The questions live on the work as task_json and are
+                     served straight to the console, so there is nothing to attach here.
+                     Approving simply issues the annotate code. --}}
+                @if (empty($submission->work?->task_json))
+                    <div style="padding:11px 13px;border-radius:8px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.28);font-size:12.5px;color:#B45309;line-height:1.55;margin-bottom:12px;">
+                        This task has no question file attached. Approving now gives the worker a
+                        code that opens nothing &mdash; add the JSON on the task first.
+                    </div>
+                @else
+                    <div style="font-size:12.5px;color:var(--fg-3);line-height:1.6;margin-bottom:12px;">
+                        {{ $submission->work->question_count }} questions will be served from
+                        <strong style="color:var(--fg-2);">{{ $submission->work->task_id }}</strong>.
+                        The worker gets an annotate code and can start straight away.
+                    </div>
+                @endif
 
-                <label for="task_instructions" style="display:block;font-size:12.5px;margin-bottom:6px;color:var(--fg-2);">Instructions</label>
-                <textarea id="task_instructions" name="task_instructions" rows="5" required minlength="20"
+                <label for="task_instructions" style="display:block;font-size:12.5px;margin-bottom:6px;color:var(--fg-2);">Extra instructions (optional)</label>
+                <textarea id="task_instructions" name="task_instructions" rows="3"
+                          placeholder="Anything specific to this worker. The task's own instructions are already in the console."
                           style="width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>
 
                 <button type="submit"
@@ -129,8 +143,9 @@
             <div style="height:1px;background:var(--border);margin:20px 0;"></div>
 
             <div class="label" style="margin-bottom:10px;">Reject application</div>
-            <div style="font-size:12.5px;color:#22C55E;line-height:1.6;margin-bottom:10px;">
-                The {{ formatCoins($submission->fee_paid) }} fee will be refunded automatically.
+            <div style="font-size:12.5px;color:#F59E0B;line-height:1.6;margin-bottom:10px;">
+                The {{ formatCoins($submission->fee_paid) }} application fee is
+                <strong>not refunded</strong>. The slot is released for someone else.
             </div>
             <form method="POST" action="{{ route('admin.task-review.application.reject', $submission->id) }}"
                   onsubmit="return confirm('Reject this application and refund the fee?');">

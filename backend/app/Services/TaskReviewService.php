@@ -86,33 +86,23 @@ class TaskReviewService
                 'is_read'            => 1,
             ]);
 
-            $refunded = 0.0;
-            $fee      = (float) $submission->fee_paid;
-
-            if ($fee > 0 && $submission->fee_reference) {
-                $worker = User::find($submission->worker_id);
-
-                if ($worker) {
-                    // Reverses the exact debit recorded at application time. Refund()
-                    // refuses to run twice against the same reference, so a double
-                    // click cannot pay the fee back twice.
-                    CoinService::refund(
-                        $worker,
-                        $fee,
-                        $submission->fee_reference,
-                        'task_apply_refund',
-                        'Refund: application rejected — ' . ($submission->work->title ?? 'task')
-                    );
-                    $refunded = $fee;
-                }
-            }
+            // NO REFUND. The application fee is non-refundable in every case:
+            // rejected by an admin, rejected by the batch draw, or rejected on
+            // quality. This used to refund on admin rejection, which was the only
+            // refund path in the platform — removing it means the fee is now
+            // genuinely non-refundable everywhere, with no exception to explain.
+            //
+            // Worth being deliberate about: the worker paid to be considered and was
+            // not selected. Whether that reads as fair depends entirely on how the
+            // fee is described to them BEFORE they pay it, not on what happens after.
+            $fee = (float) $submission->fee_paid;
 
             ActivityLogger::logMoney(
                 'task.application.reject',
                 $submission,
-                $refunded,
+                0.0,
                 $submission->worker_id,
-                ['reason' => $reason, 'fee_refunded' => $refunded > 0]
+                ['reason' => $reason, 'fee_paid' => $fee, 'fee_refunded' => false]
             );
 
             $this->notifyWorker($submission, 'SUBMISSION_REJECTED', [

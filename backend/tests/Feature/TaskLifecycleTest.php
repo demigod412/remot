@@ -172,45 +172,57 @@ class TaskLifecycleTest extends FeatureTestCase
     }
 
     // -------------------------------------------------------------------------
-    // Rejecting an application refunds
-    // -------------------------------------------------------------------------
+    // ─────────────────────────────────────────────────────────────────────────
+    // The application fee is NON-REFUNDABLE, in every case.
+    //
+    // These two tests replace a pair that asserted the opposite. Admin rejection
+    // used to be the single refund path in the platform; it was removed so the fee
+    // means the same thing however an application ends — rejected by an admin,
+    // not selected by the batch draw, or rejected on quality.
+    //
+    // Whether that is fair to a worker depends on how the fee is described BEFORE
+    // they pay it, which is a wording problem on the task page, not a code one.
+    // ─────────────────────────────────────────────────────────────────────────
 
-    public function test_rejecting_an_application_refunds_the_exact_fee(): void
+    public function test_rejecting_an_application_does_not_refund_the_fee(): void
     {
+        $cat  = $this->makeCategory(fee: 10, commission: 20);
+        $work = $this->makeWork($cat, slots: 2, payout: 100);
         $user = $this->makeUser([], 100);
-        $work = $this->makeWork($this->makeCategory(fee: 25));
 
         $submission = $this->applications->apply($user, $work);
-        $this->assertSame(75.0, (float) $user->fresh()->coin_balance);
+        $this->assertSame(90.0, (float) $user->fresh()->coin_balance);
 
-        $this->reviews->rejectApplication($submission, 'Not a fit.');
+        $this->reviews->rejectApplication($submission, 'Not suitable for this task.');
 
-        $this->assertSame(100.0, (float) $user->fresh()->coin_balance);
-        $this->assertDatabaseHas('ledger_entries', [
-            'user_id'  => $user->id,
-            'category' => 'task_apply_refund',
-        ]);
+        $this->assertSame(90.0, (float) $user->fresh()->coin_balance,
+            'The fee stays spent when an application is rejected.');
+
+        $this->assertSame(0, LedgerEntry::where('user_id', $user->id)
+            ->where('category', 'task_apply_refund')->count(),
+            'No refund ledger row should exist for any rejection.');
     }
 
-    /** Refund must be idempotent, or a double click pays the fee back twice. */
-    public function test_refund_cannot_be_issued_twice_for_one_application(): void
+    public function test_a_rejected_application_still_frees_its_slot(): void
     {
-        $user = $this->makeUser([], 100);
-        $work = $this->makeWork($this->makeCategory(fee: 25));
+        // The fee is kept, but the task must not stay blocked by someone who was
+        // refused — otherwise a rejection costs the worker AND the platform.
+        $cat  = $this->makeCategory(fee: 10, commission: 20);
+        $work = $this->makeWork($cat, slots: 1, payout: 100);
 
-        $submission = $this->applications->apply($user, $work);
-        $this->reviews->rejectApplication($submission, 'Not a fit.');
+        $first  = $this->makeUser([], 100);
+        $second = $this->makeUser([], 100);
 
-        // Second attempt must not move coins again, whatever it throws.
-        try {
-            $this->reviews->rejectApplication($submission->fresh(), 'Again.');
-        } catch (\Throwable) {
-            // Expected.
-        }
+        $submission = $this->applications->apply($first, $work);
+        $this->assertSame(0, $work->fresh()->slots_remaining);
 
-        $this->assertSame(100.0, (float) $user->fresh()->coin_balance);
-        $this->assertSame(1, LedgerEntry::where('user_id', $user->id)
-            ->where('category', 'task_apply_refund')->count());
+        $this->reviews->rejectApplication($submission, 'Not suitable.');
+
+        $this->assertSame(1, $work->fresh()->slots_remaining);
+
+        // And the freed slot is genuinely usable.
+        $this->applications->apply($second, $work);
+        $this->assertSame(2, WorkSubmission::where('work_id', $work->id)->count());
     }
 
     /** A rejected application must release its slot for someone else. */
