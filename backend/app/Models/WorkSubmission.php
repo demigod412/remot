@@ -13,6 +13,8 @@ class WorkSubmission extends Model
         'status', 'is_read', 'submitted_at', 'deadline_at',
         // Two-axis lifecycle (migration 0067)
         'application_status', 'delivery_status',
+        'result_payload', 'progress_payload', 'progress_saved_at',
+        'review_deadline', 'credited_at', 'annotate_code', 'approved_by_batch',
         'task_files', 'task_instructions', 'task_delivered_at', 'revision_count',
         'fee_paid', 'fee_reference',
     ];
@@ -22,6 +24,11 @@ class WorkSubmission extends Model
         return [
             'proof_files'        => 'array',
             'task_files'         => 'array',
+            'result_payload'     => 'array',
+            'progress_payload'   => 'array',
+            'review_deadline'    => 'datetime',
+            'credited_at'        => 'datetime',
+            'progress_saved_at'  => 'datetime',
             'submitted_at'       => 'datetime',
             'deadline_at'        => 'datetime',
             'task_delivered_at'  => 'datetime',

@@ -26,6 +26,14 @@ Schedule::command('jobstation:process-timers')
 // withoutOverlapping because a slow run must never be joined by the next one —
 // two concurrent runs would both see the same pending applications and could
 // approve past a task's remaining slots.
+// Auto-approval of submitted work whose review window has elapsed. Hourly rather
+// than more often because the window is measured in days; a submission sitting an
+// extra 40 minutes past 48 hours is not a problem worth eight times the queries.
+Schedule::command('jobstation:process-review-deadlines')
+    ->hourly()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 Schedule::command('jobstation:approve-applications')
     ->everyThreeHours()
     ->withoutOverlapping()

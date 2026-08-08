@@ -69,6 +69,15 @@ Route::middleware(['auth', 'force.password'])->group(function () {
     | My Tasks (microtask lifecycle)
     |--------------------------------------------------------------------------
     */
+    // ── Annotation console ────────────────────────────────────────────────────
+    // The annotate code is the only way in, by design. Ownership is checked on top
+    // of the code, because codes end up in screenshots and support chats.
+    Route::get('annotate',                [\App\Http\Controllers\User\AnnotateController::class, 'enter'])->name('annotate.enter');
+    Route::post('annotate',               [\App\Http\Controllers\User\AnnotateController::class, 'open'])->name('annotate.open');
+    Route::get('annotate/{code}',         [\App\Http\Controllers\User\AnnotateController::class, 'console'])->name('annotate.console');
+    Route::post('annotate/{code}/save',   [\App\Http\Controllers\User\AnnotateController::class, 'save'])->name('annotate.save');
+    Route::post('annotate/{code}/submit', [\App\Http\Controllers\User\AnnotateController::class, 'submit'])->name('annotate.submit');
+
     Route::prefix('tasks')->name('tasks.')->group(function () {
         Route::get('/', [\App\Http\Controllers\User\TaskController::class, 'index'])->name('index');
         Route::get('{id}', [\App\Http\Controllers\User\TaskController::class, 'show'])->name('show');

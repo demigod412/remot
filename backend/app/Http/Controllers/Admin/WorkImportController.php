@@ -290,4 +290,99 @@ class WorkImportController extends Controller
 
         return [$prepared, $errors];
     }
+
+    /**
+     * Bulk import: many task JSON files at once, one work row per file.
+     *
+     * Category, slots and payout are set once for the whole batch rather than per
+     * file. They could live inside each JSON, but then a pricing change means
+     * editing every file, and a typo in one prices a single task wrong in a way
+     * nobody notices until a worker is paid it.
+     *
+     * All or nothing, like the CSV importer: every file is validated before any row
+     * is written. A half-imported batch cannot be told from a complete one without
+     * reading the database, and re-uploading the fix then duplicates what landed.
+     */
+    public function importJson(Request $request)
+    {
+        $data = $request->validate([
+            'category_id'  => ['required', 'exists:work_categories,id'],
+            'worker_slots' => ['required', 'integer', 'min:1', 'max:10000'],
+            'payout_usd'   => ['required', 'numeric', 'min:0', 'max:1000000'],
+            'files'        => ['required', 'array', 'min:1', 'max:100'],
+            'files.*'      => ['file', 'mimes:json,txt', 'max:2048'],
+        ]);
+
+        $validator = app(\App\Services\TaskDataValidator::class);
+        $ids       = app(\App\Services\TaskIdGenerator::class);
+
+        $prepared = [];
+        $errors   = [];
+
+        foreach ($request->file('files') as $file) {
+            $name   = $file->getClientOriginalName();
+            $result = $validator->validate(file_get_contents($file->getRealPath()));
+
+            if (! $result['ok']) {
+                foreach ($result['errors'] as $e) {
+                    $errors[] = "{$name}: {$e}";
+                }
+                continue;
+            }
+
+            $title = $result['data']['meta']['title'] ?? pathinfo($name, PATHINFO_FILENAME);
+
+            $prepared[] = [
+                'file'  => $name,
+                'attrs' => [
+                    'poster_id'        => Auth::guard('admin')->id(),
+                    'poster_type'      => 1,
+                    'category_id'      => $data['category_id'],
+                    'subcategory_id'   => null,
+                    'title'            => Str::limit($title, 200, ''),
+                    'description'      => $result['data']['meta']['instructions'] ?? 'See the task console for instructions.',
+                    'worker_slots'     => $data['worker_slots'],
+                    'payout_usd'       => $data['payout_usd'],
+                    'coins_per_worker' => 0,
+                    'total_coins'      => 0,
+                    'avg_minutes'      => $result['data']['meta']['estimated_minutes'] ?? null,
+                    'task_json'        => $result['data'],
+                    'question_count'   => $result['questions'],
+                    'work_status'      => 1,
+                    'approval_status'  => 1,
+                    'slug'             => Str::slug($title) . '-' . Str::random(6),
+                    'task_id'          => $ids->generate(),
+                ],
+            ];
+        }
+
+        if ($errors !== []) {
+            return back()
+                ->with('error', sprintf('%d file(s) have problems, so nothing was imported.', count($errors)))
+                ->with('import_errors', $errors);
+        }
+
+        DB::transaction(function () use ($prepared) {
+            foreach ($prepared as $row) {
+                Work::create($row['attrs']);
+            }
+        });
+
+        ActivityLogger::log('work.bulk_import_json', null, [
+            'files' => count($prepared),
+        ]);
+
+        // The generated IDs are shown per file, because that mapping exists nowhere
+        // else and an admin who uploaded 40 files needs to know which became which.
+        $lines = array_map(
+            fn ($r) => $r['attrs']['task_id'] . '  ←  ' . $r['file'],
+            $prepared
+        );
+
+        return redirect()
+            ->route('admin.works.index')
+            ->with('success', sprintf('Imported %d task(s).', count($prepared)))
+            ->with('import_results', $lines);
+    }
+
 }

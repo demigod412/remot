@@ -67,6 +67,7 @@ Route::middleware('admin')->group(function () {
         Route::get('import',          [\App\Http\Controllers\Admin\WorkImportController::class, 'form'])->name('import');
         Route::get('import/template', [\App\Http\Controllers\Admin\WorkImportController::class, 'template'])->name('import.template');
         Route::post('import',         [\App\Http\Controllers\Admin\WorkImportController::class, 'import'])->name('import.store');
+        Route::post('import/json',    [\App\Http\Controllers\Admin\WorkImportController::class, 'importJson'])->name('import.json');
         Route::post('/',            [\App\Http\Controllers\Admin\WorkController::class, 'store'])->name('store');
         Route::get('{id}',          [\App\Http\Controllers\Admin\WorkController::class, 'show'])->name('show');
         Route::get('{id}/edit',     [\App\Http\Controllers\Admin\WorkController::class, 'edit'])->name('edit');

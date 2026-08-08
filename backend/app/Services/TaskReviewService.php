@@ -192,6 +192,15 @@ class TaskReviewService
                 throw new ApplicationException('This work has already been approved.');
             }
 
+            // Second guard, on the money rather than the status. delivery_status is a
+            // workflow field that a future migration or a manual fix could move;
+            // credited_at exists for one purpose and is set in the same transaction
+            // as the payout, so "was this paid?" has an answer that cannot drift from
+            // whether it actually was.
+            if ($locked->credited_at !== null) {
+                throw new ApplicationException('This work was already credited at ' . $locked->credited_at->toDateTimeString() . '.');
+            }
+
             $work     = $locked->work;
             $category = $work?->category;
 
@@ -208,6 +217,7 @@ class TaskReviewService
 
             $locked->update([
                 'delivery_status' => WorkSubmission::DEL_APPROVED,
+                'credited_at'     => now(),
                 'submitted_at'    => $locked->submitted_at ?? now(),
                 'is_read'         => 1,
             ]);

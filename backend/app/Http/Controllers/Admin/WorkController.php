@@ -103,6 +103,9 @@ class WorkController extends Controller
             'display_application_boost'  => ['nullable', 'integer', 'min:0', 'max:100000'],
             // USD paid to each worker on approval. Independent of coins_per_worker.
             'payout_usd'                 => ['required', 'numeric', 'min:0', 'max:1000000'],
+            // The task payload. Required when creating, because a task with no
+            // questions is not something a worker can be charged to apply for.
+            'task_file'                  => ['nullable', 'file', 'mimes:json,txt', 'max:2048'],
             // Vestigial for admin-posted tasks. The worker's reward is payout_usd and the
             // application fee comes from the category, so there is nothing for a coin
             // figure to do here. The column stays for the legacy user-gig flow.
@@ -123,6 +126,22 @@ class WorkController extends Controller
         $data['coins_per_worker'] = $data['coins_per_worker'] ?? 0;
         $data['total_coins']      = $data['coins_per_worker'] * $data['worker_slots'];
         $data['slug']            = Str::slug($data['title']) . '-' . Str::random(6);
+
+        // The public reference, generated here and never parsed from the uploaded
+        // file — a file cannot claim an ID that belongs to another task.
+        $data['task_id'] = app(\App\Services\TaskIdGenerator::class)->generate();
+
+        $taskErrors = $this->attachTaskFile($request, $data);
+
+        if ($taskErrors !== []) {
+            return back()->withInput()->withErrors(['task_file' => implode(' ', $taskErrors)]);
+        }
+
+        if (empty($data['task_json'])) {
+            return back()->withInput()->withErrors([
+                'task_file' => 'A task JSON file is required. Workers pay a non-refundable fee to apply, so a task with no questions must not be publishable.',
+            ]);
+        }
 
         if ($request->hasFile('cover_image')) {
             $data['cover_image'] = uploadFile($request->file('cover_image'), config('jobstation.upload_paths.work_cover'));
@@ -195,6 +214,9 @@ class WorkController extends Controller
             'display_application_boost'  => ['nullable', 'integer', 'min:0', 'max:100000'],
             // USD paid to each worker on approval. Independent of coins_per_worker.
             'payout_usd'                 => ['required', 'numeric', 'min:0', 'max:1000000'],
+            // The task payload. Required when creating, because a task with no
+            // questions is not something a worker can be charged to apply for.
+            'task_file'                  => ['nullable', 'file', 'mimes:json,txt', 'max:2048'],
             // Vestigial for admin-posted tasks. The worker's reward is payout_usd and the
             // application fee comes from the category, so there is nothing for a coin
             // figure to do here. The column stays for the legacy user-gig flow.
@@ -211,6 +233,23 @@ class WorkController extends Controller
         $data['requires_kyc']               = $request->boolean('requires_kyc');
         $data['coins_per_worker'] = $data['coins_per_worker'] ?? 0;
         $data['total_coins']      = $data['coins_per_worker'] * $data['worker_slots'];
+
+        // Optional on edit. attachTaskFile only writes task_json when a file was
+        // actually sent, so saving the form without one leaves the payload intact
+        // rather than emptying it.
+        $taskErrors = $this->attachTaskFile($request, $data);
+
+        if ($taskErrors !== []) {
+            return back()->withInput()->withErrors(['task_file' => implode(' ', $taskErrors)]);
+        }
+
+        // A task already open for applications must not lose its questions.
+        $existing = Work::find($id);
+        if ($existing && empty($existing->task_json) && empty($data['task_json'])) {
+            return back()->withInput()->withErrors([
+                'task_file' => 'This task has no question file yet. Upload one before saving, or workers cannot open it.',
+            ]);
+        }
 
         if ($request->hasFile('cover_image')) {
             if ($work->cover_image) {
@@ -456,6 +495,36 @@ class WorkController extends Controller
                 'Reposted as a new task with %d slots. The original is kept for its history.',
                 $clone->worker_slots
             ));
+    }
+
+
+    /**
+     * Read, validate and attach an uploaded task payload.
+     *
+     * Returns the error list rather than throwing, so the caller can put the
+     * problems back on the form beside the other validation messages instead of
+     * losing everything the admin typed.
+     *
+     * @return array<int,string> empty when the file was accepted, or no file was sent
+     */
+    protected function attachTaskFile(\Illuminate\Http\Request $request, array &$data): array
+    {
+        if (! $request->hasFile('task_file')) {
+            return [];
+        }
+
+        $json = file_get_contents($request->file('task_file')->getRealPath());
+
+        $result = app(\App\Services\TaskDataValidator::class)->validate($json);
+
+        if (! $result['ok']) {
+            return $result['errors'];
+        }
+
+        $data['task_json']      = $result['data'];
+        $data['question_count'] = $result['questions'];
+
+        return [];
     }
 
 }
