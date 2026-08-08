@@ -126,6 +126,18 @@
         <span style="font-size:11.5px;color:var(--fg-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $work->category?->name ?? '—' }}</span>
 
         <span class="mono" style="color:#22C55E;">{{ formatUsd($work->payout_usd) }}</span>
+        {{-- A task with no questions cannot be opened by anyone approved onto it, and
+             that is invisible from the title alone. --}}
+        @if (empty($work->task_json))
+            <span title="No question file attached — workers cannot open this task"
+                  style="margin-left:7px;font-size:10.5px;padding:2px 6px;border-radius:4px;background:rgba(239,68,68,0.12);color:#EF4444;font-weight:600;">
+                NO QUESTIONS
+            </span>
+        @else
+            <span class="mono" style="margin-left:7px;font-size:10.5px;color:var(--fg-3);">
+                {{ $work->task_id }} &middot; {{ $work->question_count }}q
+            </span>
+        @endif
 
         <div style="display:flex;align-items:center;gap:8px;">
             <div style="width:50px;height:4px;background:var(--surface-3);border-radius:2px;flex-shrink:0;">

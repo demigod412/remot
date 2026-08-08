@@ -70,8 +70,77 @@
         </form>
     </div>
 
+    {{-- Bulk JSON. The route and controller existed with no page to reach them from,
+         which is the same gap that left the single-task upload field unbuilt. --}}
+    <div class="jobstation-card" style="padding:22px;margin-bottom:16px;">
+        <div style="font-size:14px;font-weight:600;color:var(--fg);margin-bottom:6px;">Or upload many task files at once</div>
+        <p style="font-size:12.5px;color:var(--fg-3);line-height:1.6;margin:0 0 18px;">
+            One task per JSON file, up to 100 at a time. Category, slots and payout below
+            apply to the whole batch &mdash; putting them inside each file means editing
+            every file to change a price, and a typo prices one task wrong without anyone
+            noticing until a worker is paid it. Every file is validated before any task is
+            created.
+        </p>
+
+        <form method="POST" action="{{ route('admin.works.import.json') }}" enctype="multipart/form-data"
+              x-data="{ count: 0, sending: false }" @submit="sending = true">
+            @csrf
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;">
+                <div>
+                    <label style="display:block;font-size:11.5px;color:var(--fg-3);margin-bottom:4px;">Category</label>
+                    <select name="category_id" required style="width:100%;font-size:13px;">
+                        @foreach($categories as $cat)
+                            <option value="{{ $cat->id }}">{{ $cat->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label style="display:block;font-size:11.5px;color:var(--fg-3);margin-bottom:4px;">Worker slots (each)</label>
+                    <input type="number" name="worker_slots" value="{{ old('worker_slots', 10) }}" min="1" max="10000" required
+                           style="width:100%;font-size:13px;font-family:ui-monospace,monospace;">
+                </div>
+                <div>
+                    <label style="display:block;font-size:11.5px;color:var(--fg-3);margin-bottom:4px;">Payout USD (each)</label>
+                    <input type="number" name="payout_usd" value="{{ old('payout_usd') }}" step="0.01" min="0" required
+                           placeholder="0.00" style="width:100%;font-size:13px;font-family:ui-monospace,monospace;">
+                </div>
+            </div>
+
+            <input type="file" name="files[]" accept=".json,application/json" multiple required
+                   @change="count = $event.target.files.length"
+                   style="width:100%;padding:9px;border:1px dashed var(--border);border-radius:8px;background:var(--surface-2);font-size:12.5px;">
+
+            <div x-show="count > 0" x-cloak style="font-size:12px;color:var(--fg-2);margin-top:8px;">
+                <span x-text="count"></span> file(s) selected.
+            </div>
+
+            @error('files') <div style="font-size:12px;color:#EF4444;margin-top:6px;">{{ $message }}</div> @enderror
+            @error('files.*') <div style="font-size:12px;color:#EF4444;margin-top:6px;">{{ $message }}</div> @enderror
+
+            <button type="submit" class="btn btn-primary" style="margin-top:14px;" x-bind:disabled="sending"
+                    x-bind:style="sending ? 'opacity:.65;cursor:progress;' : ''">
+                <span x-show="!sending">Validate and import</span>
+                <span x-show="sending" x-cloak>Importing&hellip;</span>
+            </button>
+        </form>
+    </div>
+
+    {{-- The generated task IDs, mapped back to filenames. That mapping exists nowhere
+         else, and an admin who uploaded 40 files needs to know which became which. --}}
+    @if(session('import_results'))
+    <div class="jobstation-card" style="padding:20px;margin-bottom:16px;">
+        <div style="font-size:13px;font-weight:600;color:#22C55E;margin-bottom:10px;">Imported</div>
+        <div class="mono" style="font-size:12px;color:var(--fg-2);line-height:1.9;max-height:280px;overflow:auto;">
+            @foreach(session('import_results') as $line)
+                <div>{{ $line }}</div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     <div class="jobstation-card" style="padding:22px;">
-        <div style="font-size:14px;font-weight:600;color:var(--fg);margin-bottom:14px;">Columns</div>
+        <div style="font-size:14px;font-weight:600;color:var(--fg);margin-bottom:14px;">CSV columns</div>
         <table style="width:100%;border-collapse:collapse;font-size:12.5px;">
             <thead>
                 <tr style="text-align:left;color:var(--fg-3);">

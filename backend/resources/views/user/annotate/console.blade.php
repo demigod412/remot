@@ -1,33 +1,36 @@
-{{--
-    The annotation console, served by Laravel.
-
-    This is the offline console with four hooks added and nothing else changed. It
-    still runs from a zip with a local data.js — REMOTOX is simply undefined there,
-    and every hook falls back to its original localStorage behaviour. Keeping one
-    file rather than forking it means a fix to the renderer reaches both.
-
-    The payload injected here is the BROWSER copy from TaskDataValidator::forBrowser().
-    Anything an answer could be derived from is stripped server-side rather than
-    trusted to stay unrendered — devtools shows the whole payload either way.
---}}
-<script>
-  window.TASK_DATA = @json($taskData);
-
-  window.REMOTOX = {
-      saveUrl:   @json(route('user.annotate.save', $submission->annotate_code)),
-      submitUrl: @json(route('user.annotate.submit', $submission->annotate_code)),
-      csrf:      @json(csrf_token()),
-      progress:  @json($progress),
-      tasksUrl:  @json(route('user.tasks.index')),
-      deadline:  @json(optional($deadline)->toIso8601String())
-  };
-</script>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Annotation Console</title>
+{{--
+    Server bridge. MUST sit inside <head>, not before <!DOCTYPE html>.
+
+    It was above the doctype originally, which is invalid HTML: the parser treats
+    anything before the doctype as stray content, puts the document in quirks mode,
+    and may relocate or drop the node entirely. window.REMOTOX therefore never got
+    set, the console read REMOTOX as null, and fell straight back to offline mode —
+    which is why the uploaded questions never appeared, the annotator ID was a
+    locally generated one, and finishing downloaded a file instead of submitting.
+
+    JSON_HEX_TAG and friends are deliberate. Without them a task containing the
+    characters </script> in a prompt or code block would terminate this script early
+    and break the page, and task content is admin-supplied free text.
+--}}
+<script>
+  window.TASK_DATA = {!! json_encode($taskData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_UNESCAPED_UNICODE) !!};
+
+  window.REMOTOX = {
+      saveUrl:   {!! json_encode(route('user.annotate.save', $submission->annotate_code), JSON_HEX_TAG) !!},
+      submitUrl: {!! json_encode(route('user.annotate.submit', $submission->annotate_code), JSON_HEX_TAG) !!},
+      csrf:      {!! json_encode(csrf_token(), JSON_HEX_TAG) !!},
+      progress:  {!! json_encode($progress, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!},
+      tasksUrl:  {!! json_encode(route('user.tasks.index'), JSON_HEX_TAG) !!},
+      code:      {!! json_encode($submission->annotate_code, JSON_HEX_TAG) !!},
+      deadline:  {!! json_encode(optional($deadline)->toIso8601String(), JSON_HEX_TAG) !!}
+  };
+</script>
 <style>
   :root{
     --bg:#EDF1EF;
@@ -553,6 +556,24 @@
      a zip with a local data.js — REMOTOX being undefined is the offline case,
      and every hook below falls back to the original localStorage behaviour.   */
   var REMOTOX = window.REMOTOX || null;
+
+  /* Served by Laravel but with no bridge means the injection failed, and the console
+     would otherwise carry on in offline mode: rendering fallback data, generating its
+     own annotator ID, and downloading a file at the end instead of submitting. That
+     looks like a working task and produces nothing the platform can see, which is a
+     far worse outcome than an error. */
+  if (! REMOTOX && location.protocol.indexOf("http") === 0) {
+    document.addEventListener("DOMContentLoaded", function () {
+      document.body.innerHTML =
+        '<div style="max-width:520px;margin:80px auto;padding:26px;border:1px solid #fca5a5;' +
+        'background:#fef2f2;border-radius:12px;font:14px/1.6 system-ui,sans-serif;color:#7f1d1d;">' +
+        '<strong style="display:block;font-size:16px;margin-bottom:8px;">This task could not load</strong>' +
+        'The console did not receive its task data, so nothing you do here would be saved. ' +
+        'Please reload the page. If it happens again, contact support and quote this URL.' +
+        '</div>';
+    });
+    throw new Error("REMOTOX bridge missing — refusing to run in offline mode over HTTP.");
+  }
 
   var TASK = (typeof window.TASK_DATA !== "undefined") ? window.TASK_DATA : {
     meta:{ task_id:"missing_task", title:"No task data found",
@@ -1542,6 +1563,10 @@
   }
 
   // ---------- completion & export ----------
+  /* Exposed on window for the Remotox bridge, which lives in a separate script and
+     otherwise cannot see a function declared in this one. Without this the bridge
+     found window.buildResultPayload undefined and fell back to downloading a file —
+     the exact behaviour the bridge exists to replace. */
   function buildResultPayload(){
     var answered = 0, flagged = 0;
     var responses = TASK.questions.map(function(q){
@@ -1601,6 +1626,9 @@
     URL.revokeObjectURL(url);
     return {fname: fname, payload: payload};
   }
+
+  window.buildResultPayload = buildResultPayload;
+  window.downloadResults    = downloadResults;
 
   function slug(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/(^-|-$)/g,"") || "anon"; }
 

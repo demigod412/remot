@@ -345,6 +345,54 @@ class WorkSubmission extends Model
         return $this->delivery_status_label;
     }
 
+    /**
+     * What the worker should see about this task, and what they can do next.
+     *
+     * lifecycle_label already existed but could not answer the question a worker
+     * actually has, because delivery_status has no "in progress" value — someone
+     * three questions in and someone who has never opened the task both read as
+     * "Not started". progress_saved_at is what distinguishes them, so it is folded
+     * in here rather than left for each view to work out and get wrong differently.
+     *
+     * @return array{label: string, colour: string, tint: string, action: ?string}
+     */
+    public function getWorkerStateAttribute(): array
+    {
+        $state = fn (string $label, string $colour, string $tint, ?string $action = null) =>
+            compact('label', 'colour', 'tint', 'action');
+
+        if ($this->application_status === self::APP_APPLIED) {
+            return $state('Awaiting review', '#3B82F6', 'rgba(59,130,246,0.10)');
+        }
+
+        if ($this->application_status === self::APP_REJECTED) {
+            // Deliberately not the word "rejected". Under the random batch draw most
+            // of these are not judgements on the worker at all.
+            return $state('Not selected', '#EF4444', 'rgba(239,68,68,0.10)');
+        }
+
+        if ($this->deadline_at && $this->deadline_at->isPast()
+            && in_array($this->delivery_status, [self::DEL_NOT_STARTED, self::DEL_REVISION_REQUESTED], true)) {
+            // Shown as closed the moment the deadline passes, without waiting for the
+            // hourly job to mark it expired. Otherwise the worker sees "Not started"
+            // on something they can no longer do.
+            return $state('Deadline passed', '#EF4444', 'rgba(239,68,68,0.10)');
+        }
+
+        return match ($this->delivery_status) {
+            self::DEL_NOT_STARTED => $this->progress_saved_at
+                ? $state('In progress', '#F59E0B', 'rgba(245,158,11,0.10)', 'continue')
+                : $state('Not started', '#6B7280', 'rgba(120,120,120,0.10)', 'start'),
+
+            self::DEL_SUBMITTED          => $state('Submitted, awaiting review', '#EAB308', 'rgba(234,179,8,0.10)'),
+            self::DEL_REVISION_REQUESTED => $state('Changes requested', '#F97316', 'rgba(249,115,22,0.10)', 'continue'),
+            self::DEL_APPROVED           => $state('Completed and paid', '#22C55E', 'rgba(34,197,94,0.10)'),
+            self::DEL_REJECTED           => $state('Not accepted', '#EF4444', 'rgba(239,68,68,0.10)'),
+            self::DEL_EXPIRED            => $state('Expired', '#EF4444', 'rgba(239,68,68,0.10)'),
+            default                      => $state($this->lifecycle_label, '#6B7280', 'rgba(120,120,120,0.10)'),
+        };
+    }
+
     public function getLifecycleColorAttribute(): string
     {
         if ($this->application_status === self::APP_APPLIED) {

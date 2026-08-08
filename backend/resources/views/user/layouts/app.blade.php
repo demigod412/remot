@@ -68,6 +68,9 @@
                     // The microtask lifecycle screen: application status, task package
                     // download, JSON result upload. This is where a worker actually works.
                     ['route' => 'user.tasks.index',          'icon' => 'clipboard-list',   'label' => 'My Tasks'],
+                    // The code-entry screen. Reachable only by typing the URL until now,
+                    // which makes "the code is the only way in" impossible to actually do.
+                    ['route' => 'user.annotate.enter',       'icon' => 'key-round',        'label' => 'Open with code'],
                     ['route' => 'user.works.saved',          'icon' => 'bookmark',         'label' => 'Saved Works'],
                     // My Works lists gigs the user posted themselves. The whole
                     // user.works.* group sits behind feature:enable_user_gigs, so with

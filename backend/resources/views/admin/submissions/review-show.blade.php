@@ -79,6 +79,66 @@
             ])
         @endif
 
+        {{-- The submitted answers. Without this the deliveries queue showed a
+             submission with nothing to look at, which makes approving it a coin flip.
+
+             Timing and flags are shown alongside each answer because they are what
+             distinguish real work from clicking through: nine questions answered in
+             forty seconds is visible here and invisible in the answers alone. --}}
+        @if (!empty($submission->result_payload))
+            @php
+                $payload   = $submission->result_payload;
+                $responses = $payload['responses'] ?? [];
+                $summary   = $payload['summary'] ?? [];
+                $questions = collect($submission->work->task_json['questions'] ?? [])->keyBy('id');
+                $duration  = $payload['duration_seconds'] ?? null;
+                $flagged   = collect($responses)->where('flagged', true)->count();
+            @endphp
+
+            <div class="jobstation-card" style="padding:20px;margin-bottom:16px;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px;">
+                    <div class="label" style="margin:0;">Submitted answers</div>
+                    <div style="font-size:11.5px;color:var(--fg-3);">
+                        {{ count($responses) }} answered
+                        @if($duration) &middot; {{ gmdate('H:i:s', (int) $duration) }} taken @endif
+                        @if($flagged > 0)
+                            &middot; <span style="color:#F59E0B;">{{ $flagged }} flagged</span>
+                        @endif
+                    </div>
+                </div>
+
+                @if($duration && count($responses) > 0 && ($duration / max(count($responses), 1)) < 10)
+                    {{-- Under 10 seconds a question, averaged. Not proof of anything,
+                         but worth a second look before paying for it. --}}
+                    <div style="padding:9px 12px;border-radius:8px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.28);font-size:12px;color:#B45309;line-height:1.5;margin-bottom:14px;">
+                        Averaged {{ round($duration / count($responses)) }} seconds per question. Worth reading closely before approving.
+                    </div>
+                @endif
+
+                @foreach ($responses as $r)
+                    @php
+                        $q      = $questions->get($r['question_id'] ?? '') ?? [];
+                        $answer = $r['answer'] ?? null;
+                    @endphp
+                    <div style="border-top:1px solid var(--border);padding:11px 0;">
+                        <div style="font-size:12px;color:var(--fg-3);margin-bottom:4px;">
+                            <span class="mono">{{ $r['question_id'] ?? '?' }}</span>
+                            @if(!empty($q['difficulty'])) &middot; {{ $q['difficulty'] }} @endif
+                            @if(!empty($r['time_spent_seconds'])) &middot; {{ $r['time_spent_seconds'] }}s @endif
+                            @if(!empty($r['confidence'])) &middot; confidence {{ $r['confidence'] }}/5 @endif
+                            @if(!empty($r['flagged'])) &middot; <span style="color:#F59E0B;">flagged</span> @endif
+                        </div>
+
+                        @if(!empty($q['prompt']))
+                            <div style="font-size:12.5px;color:var(--fg-3);margin-bottom:5px;line-height:1.5;">{{ Str::limit($q['prompt'], 160) }}</div>
+                        @endif
+
+                        <div style="font-size:13.5px;color:var(--fg);line-height:1.6;white-space:pre-wrap;">{{ is_array($answer) ? implode(', ', array_map(fn ($a) => is_array($a) ? json_encode($a) : $a, $answer)) : ($answer ?? '—') }}</div>
+                    </div>
+                @endforeach
+            </div>
+        @endif
+
         @if ($submission->proof_note || !empty($submission->proof_files))
         <div class="jobstation-card" style="padding:22px;">
             <div class="label" style="margin-bottom:12px;">Submitted result</div>

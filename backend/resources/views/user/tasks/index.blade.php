@@ -27,6 +27,8 @@
                 <div style="font-size:12.5px;color:var(--muted);">
                     {{ __('Applied') }} {{ $s->created_at?->diffForHumans() }}
                     @if ((float) $s->fee_paid > 0) · {{ __('fee') }} {{ formatCoins($s->fee_paid) }} @endif
+                    @if ($s->annotate_code) · <span class="mono">{{ $s->annotate_code }}</span> @endif
+                    @if ($s->progress_saved_at) · {{ __('saved') }} {{ $s->progress_saved_at->diffForHumans() }} @endif
                     @if ($s->deadline_at && $s->isOpenForWorker())
                         · <span style="color:{{ $s->deadline_at->isPast() ? '#dc2626' : 'inherit' }};">
                             {{ __('due') }} {{ $s->deadline_at->diffForHumans() }}
@@ -35,15 +37,26 @@
                 </div>
             </div>
 
+            @php $state = $s->worker_state; @endphp
+
+            {{-- Coloured by state rather than always grey, so the list can be read at a
+                 glance instead of one row at a time. --}}
             <span style="display:inline-block;padding:4px 11px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap;
-                  background:rgba(120,120,120,0.1);color:var(--muted);">
-                {{ $s->lifecycle_label }}
+                  background:{{ $state['tint'] }};color:{{ $state['colour'] }};">
+                {{ $state['label'] }}
             </span>
 
-            @if ($s->isApprovedToWork())
-                <a href="{{ route('user.tasks.show', $s->id) }}"
+            {{-- Straight into the console where there is work to do. Routing through the
+                 detail page first is an extra click on the one action that matters. --}}
+            @if ($state['action'] && $s->annotate_code && !empty($s->work?->task_json))
+                <a href="{{ route('user.annotate.console', $s->annotate_code) }}"
                    style="padding:8px 16px;border-radius:8px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;">
-                    @if ($s->isOpenForWorker()) {{ __('Open task') }} @else {{ __('View') }} @endif
+                    {{ $state['action'] === 'continue' ? __('Continue') : __('Start') }}
+                </a>
+            @elseif ($s->isApprovedToWork())
+                <a href="{{ route('user.tasks.show', $s->id) }}"
+                   style="padding:8px 16px;border-radius:8px;border:1px solid var(--border);color:var(--fg-2);font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;">
+                    {{ __('View') }}
                 </a>
             @endif
         </div>

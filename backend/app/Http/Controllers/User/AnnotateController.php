@@ -160,6 +160,20 @@ class AnnotateController extends Controller
             ], 422);
         }
 
+        // Identity is stamped server-side, not taken from the client.
+        //
+        // The console auto-generates its own annotator ID, which is right for offline
+        // use and meaningless here — a worker quoting it to support would quote
+        // something nobody can look up, and it is trivially editable in any case.
+        // Overwriting it means the stored payload always identifies the real worker
+        // and the real submission, whatever the browser sent.
+        $result['annotator'] = array_merge($result['annotator'] ?? [], [
+            'annotate_code' => $submission->annotate_code,
+            'worker_id'     => $submission->worker_id,
+            'username'      => $submission->worker?->username,
+            'task_id'       => $submission->work->task_id,
+        ]);
+
         $hours = (int) ($submission->work->auto_approve_hours ?: (gs()->default_review_hours ?? 48));
 
         $submitted = DB::transaction(function () use ($submission, $result, $hours) {
