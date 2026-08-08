@@ -108,6 +108,24 @@
                 </div>
         </div>
 
+
+        {{-- The task payload. Without this a task has no questions, so a worker who
+             pays the application fee has nothing to open. --}}
+        <div style="margin-top:14px;">
+            <label style="display:block;font-size:12px;color:var(--fg-2);margin-bottom:6px;font-weight:500;">
+                Task questions (JSON) <span style="color:#EF4444;">*</span>
+            </label>
+            <input type="file" name="task_file" accept=".json,application/json" required
+                   style="width:100%;padding:9px;border:1px dashed var(--border);border-radius:8px;background:var(--surface-2);">
+            <small style="display:block;color:var(--fg-3);font-size:11px;line-height:1.6;margin-top:6px;">
+                Required. Use the sample file as a template.
+                The file is validated on upload &mdash; unsupported question types, duplicate
+                ids and impossible scales are reported with the question number, and nothing
+                is saved until it is clean.
+            </small>
+            @error('task_file') <div style="font-size:12px;color:#EF4444;margin-top:4px;">{{ $message }}</div> @enderror
+        </div>
+
         {{-- Display-only applicant seed. Never enters slot arithmetic. --}}
         @include('admin.partials.work-display-boost-field', ['work' => null])
     </div>

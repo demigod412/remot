@@ -8,6 +8,11 @@ class AppSetting extends Model
 {
     protected $fillable = [
         'site_name', 'coin_name', 'coin_symbol', 'coin_rate', 'min_cashout', 'coin_rate_currency', 'show_coin_rate', 'cur_text', 'cur_sym',
+        // Withdrawal window and review clock. Absent from this list, the settings
+        // form validated them, reported success, and mass assignment silently threw
+        // them away — so the rules appeared configured and did nothing at all.
+        'withdrawal_window_enabled', 'withdrawal_window_start', 'withdrawal_window_end',
+        'one_withdrawal_per_month', 'default_review_hours',
         'ref_commission', 'contract_commission',
         'boost_cost_work', 'boost_days_work', 'boost_cost_job', 'boost_days_job',
         'email_from', 'email_template',
@@ -29,6 +34,11 @@ class AppSetting extends Model
     protected function casts(): array
     {
         return [
+            'withdrawal_window_enabled' => 'boolean',
+            'one_withdrawal_per_month'  => 'boolean',
+            'withdrawal_window_start'   => 'integer',
+            'withdrawal_window_end'     => 'integer',
+            'default_review_hours'      => 'integer',
             'currencies'           => 'array',
             'mail_config'          => 'array',
             'sms_config'           => 'array',
