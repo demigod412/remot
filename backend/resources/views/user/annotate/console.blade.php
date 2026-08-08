@@ -513,7 +513,9 @@
     <div class="nav-row">
       <button class="btn btn-ghost" id="btn-prev">← Previous</button>
       <div class="nav-right">
-        <button class="btn btn-ghost" id="btn-export-progress">⬇ Export Progress</button>
+        {{-- Export removed. Progress saves to the server continuously, so a file to
+             carry between machines has nothing to do — and a downloaded copy of
+             half-finished work invites someone to edit it and import it back. --}}
         <button class="btn btn-ghost" id="btn-save-exit">Save &amp; Exit</button>
         <button class="btn btn-primary" id="btn-next">Next →</button>
       </div>
@@ -535,7 +537,7 @@
     </div>
     <div class="file-pill" id="result-filename">results.json</div>
     <div class="btn-row" style="justify-content:center;">
-      <button class="btn btn-primary" id="btn-download-again">Download Again</button>
+      <button class="btn btn-primary" id="btn-back-to-tasks">Back to My Tasks</button>
       <button class="btn btn-ghost" id="btn-restart">Start New Session</button>
     </div>
   </div>
@@ -822,11 +824,17 @@
       var g = document.createElement("div");
       g.className = "field-group";
       var autoGen = !!f.auto_generate;
-      var genValue = autoGen ? genAnnotatorId(f.id_prefix) : "";
+      /* A value supplied by the task wins over the generated one. Served by Laravel
+         the annotator IS the annotate code, and a locally generated AN-R5XR9 next to
+         an AN-N96HHAT4 in the URL is two identities for one worker — the one they
+         would quote to support is the one nobody can look up. */
+      var fixedValue = (f.value !== undefined && f.value !== null && f.value !== "") ? String(f.value) : null;
+      var genValue   = fixedValue !== null ? fixedValue : (autoGen ? genAnnotatorId(f.id_prefix) : "");
+      var readOnly   = fixedValue !== null || autoGen;
       g.innerHTML = '<label>'+f.label+(f.required?' <span class="req">*</span>':'')+
-          (autoGen ? '<span class="auto-tag">auto-assigned</span>' : '')+'</label>' +
+          (readOnly ? '<span class="auto-tag">'+(fixedValue !== null ? 'from your task code' : 'auto-assigned')+'</span>' : '')+'</label>' +
         '<input type="text" data-field="'+f.id+'" placeholder="'+(f.placeholder||"")+'"' +
-          (autoGen ? ' value="'+genValue+'" readonly' : '') + '>';
+          (readOnly ? ' value="'+genValue+'" readonly' : '') + '>';
       fieldsWrap.appendChild(g);
     });
     fieldsWrap.addEventListener("input", validateStart);
@@ -1408,7 +1416,10 @@
   $("btn-save-exit").addEventListener("click", function(){
     commitTimeSpent();
     persist();
-    if (REMOTOX) { submitToServer(); } else { downloadResults(true); }
+    /* Server submission is the only path. There is no download fallback: a worker
+       left holding a JSON file has done the work and has no way to deliver it, which
+       is worse than a visible error telling them to try again. */
+    submitToServer();
   });
 
   // ---------- cross-browser / cross-machine progress export & import ----------
@@ -1437,7 +1448,8 @@
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     URL.revokeObjectURL(url);
   }
-  $("btn-export-progress").addEventListener("click", exportProgress);
+  // btn-export-progress no longer exists; guarded so the offline build does not throw.
+  if ($("btn-export-progress")) { $("btn-export-progress").addEventListener("click", exportProgress); }
 
   // Accepts both the mid-task "progress" format (from exportProgress above)
   // and the final/partial "results" format (the one Save & Exit already
@@ -1634,7 +1646,7 @@
 
   function finishTask(){
     commitTimeSpent();
-    var out = downloadResults(false);
+    var out = { filename: null };
     try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
 
     viewTask.classList.remove("active");
@@ -1645,7 +1657,11 @@
     $("cstat-time").textContent = mins + "m";
     $("result-filename").textContent = out.fname;
 
-    $("btn-download-again").onclick = function(){ downloadResults(false); };
+    if ($("btn-back-to-tasks")) {
+      $("btn-back-to-tasks").onclick = function () {
+        window.location.href = (window.REMOTOX && window.REMOTOX.tasksUrl) ? window.REMOTOX.tasksUrl : "/dashboard/tasks";
+      };
+    }
   }
 
   $("btn-restart").addEventListener("click", function(){ window.location.reload(); });
@@ -1727,10 +1743,10 @@
     catch (e) { payload = null; }
 
     if (! payload) {
-      /* Falling back to the download keeps the work recoverable rather than
-         stranding it, if the payload builder ever changes shape. */
-      say('Could not build the submission — downloading instead', true);
-      if (window.downloadResults) { window.downloadResults(true); }
+      /* No download fallback: the worker cannot deliver a file anywhere. An error
+         they can act on beats a file they cannot use. Their answers are still in
+         localStorage and on the server from the last autosave, so retrying works. */
+      say('Could not prepare your submission. Please reload and press Finish again.', true);
       return;
     }
 
@@ -1756,16 +1772,16 @@
 
       var note = document.querySelector('#screen-done p');
       if (note) {
-        note.textContent = res.body.already
+        note.innerHTML = res.body.already
           ? 'This task was already submitted and is awaiting review.'
-          : 'Submitted. Reference ' + (res.body.submission_code || '') +
-            '. It will be reviewed and credited automatically if not reviewed sooner.';
+          : 'Submitted successfully. Your reference is <strong>' + (res.body.submission_code || '') +
+            '</strong>. It will be reviewed, and credited automatically if nobody reviews it sooner. ' +
+            'Nothing else is needed from you.';
       }
 
-      var again = document.getElementById('btn-download-again');
-      if (again) {
-        again.textContent = 'Back to My Tasks';
-        again.onclick = function () { window.location.href = window.REMOTOX.tasksUrl; };
+      var back = document.getElementById('btn-back-to-tasks');
+      if (back) {
+        back.onclick = function () { window.location.href = window.REMOTOX.tasksUrl; };
       }
 
       say('Submitted', true);

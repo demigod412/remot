@@ -89,6 +89,20 @@ class AnnotateController extends Controller
         // The task ID the worker sees, so a support conversation has a reference.
         $payload['meta']['task_id'] = $work->task_id;
 
+        // One identity, not two. The console would otherwise generate its own short
+        // annotator ID and display that instead of the code in the URL, leaving the
+        // worker with two references and no way to know which one matters.
+        //
+        // Overwritten rather than merged: a task file supplying its own annotator
+        // fields would be asking the worker to self-identify, which is meaningless
+        // once they are logged in and can be typed as anybody.
+        $payload['meta']['annotator_fields'] = [[
+            'id'       => 'annotator_id',
+            'label'    => 'Your task code',
+            'required' => true,
+            'value'    => $submission->annotate_code,
+        ]];
+
         return view('user.annotate.console', [
             'submission' => $submission,
             'work'       => $work,
