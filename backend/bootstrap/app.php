@@ -10,8 +10,18 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
         then: function () {
+            // The admin path is configurable and NOT 'admin'.
+            //
+            // Route names stay 'admin.*', so every route('admin.…') call keeps working
+            // and the prefix can change again later by editing .env alone. Only literal
+            // '/admin/...' strings need hunting, and there were two — the subcategory
+            // fetch in the work create and edit forms.
+            //
+            // This is obscurity, not security: it stops opportunistic scanners hitting
+            // a known login path, and stops nothing that can read a URL over your
+            // shoulder. The throttle on the login route is what limits guessing.
             Route::middleware('web')
-                ->prefix('admin')
+                ->prefix(config('jobstation.admin_path', 'admin'))
                 ->name('admin.')
                 ->group(base_path('routes/admin.php'));
 

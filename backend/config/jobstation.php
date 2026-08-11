@@ -236,6 +236,19 @@ return [
     | strict = fail closed if Cloudflare cannot be reached. See TurnstileService.
     */
 
+    /*
+    |--------------------------------------------------------------------------
+    | Admin Path
+    |--------------------------------------------------------------------------
+    | The URL segment the admin panel lives under. Change ADMIN_PATH in .env and
+    | run `php artisan optimize:clear`. Route names are unaffected.
+    |
+    | Anything not this path simply has no route, so the old /admin returns 404
+    | with no hint that a panel exists elsewhere.
+    */
+
+    'admin_path' => env('ADMIN_PATH', 'admin'),
+
     'turnstile' => [
         'site_key'   => env('TURNSTILE_SITE_KEY', ''),
         'secret_key' => env('TURNSTILE_SECRET_KEY', ''),

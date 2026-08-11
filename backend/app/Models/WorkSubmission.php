@@ -221,10 +221,16 @@ class WorkSubmission extends Model
      */
     public function scopeAbandoned($query)
     {
+        // Measured from task_delivered_at — the moment the application was approved
+        // and the worker could begin — not from deadline_at, which used to carry the
+        // review window and so cancelled assignments after 48 hours rather than the
+        // intended 5 days.
+        $hours = (int) (gs()->abandon_after_hours ?? 120);
+
         return $query->where('application_status', self::APP_APPROVED)
                      ->whereIn('delivery_status', [self::DEL_NOT_STARTED, self::DEL_REVISION_REQUESTED])
-                     ->whereNotNull('deadline_at')
-                     ->where('deadline_at', '<=', now());
+                     ->whereNotNull('task_delivered_at')
+                     ->where('task_delivered_at', '<=', now()->subHours($hours));
     }
 
     /**

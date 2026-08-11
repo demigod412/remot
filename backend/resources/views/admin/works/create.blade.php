@@ -34,7 +34,7 @@
                 <div>
                     <label style="display:block;font-size:12px;color:var(--fg-2);margin-bottom:6px;font-weight:500;">Category <span style="color:#EF4444;">*</span></label>
                     <select name="category_id" x-model="catId"
-                            @change="$refs.subcat.innerHTML = '<option value=\'\'>&hellip;</option>'; fetch('/admin/categories/'+catId+'/subcategories').then(r=>r.json()).then(d=>{ $refs.subcat.innerHTML = '<option value=\'\'>None</option>' + d.map(s=>`<option value='${s.id}'>${s.name}</option>`).join('') })"
+                            @change="$refs.subcat.innerHTML = '<option value=\'\'>&hellip;</option>'; fetch('{{ url(config('jobstation.admin_path', 'admin')) }}/categories/'+catId+'/subcategories').then(r=>r.json()).then(d=>{ $refs.subcat.innerHTML = '<option value=\'\'>None</option>' + d.map(s=>`<option value='${s.id}'>${s.name}</option>`).join('') })"
                             @error('category_id') style="border-color:#EF4444;" @enderror required>
                         <option value="">Select category…</option>
                         @foreach($categories as $cat)

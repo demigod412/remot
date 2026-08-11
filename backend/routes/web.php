@@ -27,6 +27,8 @@ Route::get('robots.txt', function () {
     $lines = [
         'User-agent: *',
         'Disallow: /dashboard/',
+        // Deliberately still 'admin': listing the real path in a file designed to be
+        // read by anyone would undo the point of moving it.
         'Disallow: /admin/',
         'Disallow: /install',
         'Disallow: /secure/',
@@ -148,5 +150,8 @@ Route::view('/cookie-policy', 'web.pages.cookie-policy')->name('cookie-policy');
 Route::get('{slug}', [\App\Http\Controllers\Web\PageController::class, 'show'])
     // Explicitly exclude admin, dashboard, payment, api, ipn, up, install,
     // and the static legal slugs we defined above, so they don't conflict.
-    ->where('slug', '^(?!admin|dashboard|payment|api|ipn|up|install|privacy-policy|terms|cookie-policy)[a-zA-Z0-9\-_]+$')
+    // The admin path is excluded dynamically. Hardcoding 'admin' here meant that
+    // moving the panel left its new path being swallowed by the page router, which
+    // would render a "page not found" page instead of the admin login.
+    ->where('slug', '^(?!' . preg_quote(config('jobstation.admin_path', 'admin'), '/') . '|admin|dashboard|payment|api|ipn|up|install|privacy-policy|terms|cookie-policy)[a-zA-Z0-9\-_]+$')
     ->name('pages.show');

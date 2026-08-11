@@ -13,11 +13,11 @@
         "license_type": "testing",
         "supported_until": null,
         "sold_at": null,
-        "verified_at": "2026-08-02T00:00:29+00:00"
+        "verified_at": "2026-08-09T00:00:12+00:00"
     },
     "admin_email": "admin@gmail.com",
     "app_url": "http:\/\/localhost:8000",
     "demo_seeded": true,
     "installed_at": "2026-07-31T12:44:33+00:00",
-    "license_checked_at": "2026-08-02T00:00:29+00:00"
+    "license_checked_at": "2026-08-09T00:00:12+00:00"
 }

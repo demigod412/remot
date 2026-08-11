@@ -71,14 +71,19 @@ class WorkController extends Controller
     // Pending Approval
     // -------------------------------------------------------------------------
 
+    /**
+     * Kept as a redirect rather than deleted.
+     *
+     * This listed works with approval_status = 0 — works awaiting admin approval.
+     * Admin-posted tasks are auto-approved and user-posted gigs are disabled, so
+     * nothing could ever appear here; it was a permanently empty page in the menu.
+     *
+     * The route name survives because it is linked from the sidebar and will be
+     * bookmarked. Enable user gigs and this is worth restoring.
+     */
     public function pending(Request $request)
     {
-        $works = Work::with(['category', 'poster'])
-            ->where('approval_status', 0)
-            ->latest()
-            ->paginate(config('jobstation.per_page', 20));
-
-        return view('admin.works.pending', compact('works'));
+        return redirect()->route('admin.task-review.index', ['tab' => 'deliveries']);
     }
 
     // -------------------------------------------------------------------------

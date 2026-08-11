@@ -45,6 +45,8 @@ class SettingsController extends Controller
             'withdrawal_window_start'   => ['nullable', 'integer', 'min:1', 'max:31'],
             'withdrawal_window_end'     => ['nullable', 'integer', 'min:1', 'max:31', 'gte:withdrawal_window_start'],
             'one_withdrawal_per_month'  => ['nullable', 'boolean'],
+            'default_review_hours'      => ['nullable', 'integer', 'min:1', 'max:720'],
+            'abandon_after_hours'       => ['nullable', 'integer', 'min:1', 'max:720'],
             'coin_rate_currency' => ['nullable', 'string', 'max:20'],
             'show_coin_rate'     => ['nullable', 'boolean'],
             'currencies'        => ['nullable'],

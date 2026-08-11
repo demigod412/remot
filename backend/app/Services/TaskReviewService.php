@@ -55,7 +55,11 @@ class TaskReviewService
                 'task_instructions'  => $instructions,
                 'task_delivered_at'  => now(),
                 // The worker's clock starts now, not at application time.
-                'deadline_at'        => now()->addHours($hours),
+                // The worker's deadline, from the abandonment setting. This used to
+                // reuse $hours — the review window — so a 48-hour review setting gave
+                // the worker 48 hours to do the task. The review clock is set
+                // separately at submission time as review_deadline.
+                'deadline_at'        => now()->addHours((int) (gs()->abandon_after_hours ?? 120)),
                 'is_read'            => 1,
             ]);
 

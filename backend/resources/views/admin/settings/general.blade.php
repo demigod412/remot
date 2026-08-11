@@ -92,6 +92,29 @@
                         </div>
                     </div>
 
+                    {{-- The two task clocks. They shared one column until now, so setting
+                         the review window also set how long a worker had to do the task. --}}
+                    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;">
+                        <div>
+                            <label style="display:block;font-size:11.5px;color:var(--fg-3);margin-bottom:4px;">Review window (hours)</label>
+                            <input type="number" name="default_review_hours" min="1" max="720"
+                                   value="{{ old('default_review_hours', $settings->default_review_hours ?? 48) }}"
+                                   style="width:130px;font-family:ui-monospace,monospace;">
+                            <div style="font-size:11px;color:var(--fg-4);margin-top:4px;line-height:1.5;">
+                                After a worker submits, how long you have before it is<br>auto-approved and paid.
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display:block;font-size:11.5px;color:var(--fg-3);margin-bottom:4px;">Task deadline (hours)</label>
+                            <input type="number" name="abandon_after_hours" min="1" max="720"
+                                   value="{{ old('abandon_after_hours', $settings->abandon_after_hours ?? 120) }}"
+                                   style="width:130px;font-family:ui-monospace,monospace;">
+                            <div style="font-size:11px;color:var(--fg-4);margin-top:4px;line-height:1.5;">
+                                After you approve an application, how long the worker<br>has before the slot is released. 120 = 5 days.
+                            </div>
+                        </div>
+                    </div>
+
                     <label style="display:flex;align-items:flex-start;gap:9px;cursor:pointer;">
                         <input type="checkbox" name="one_withdrawal_per_month" value="1"
                                {{ old('one_withdrawal_per_month', $settings->one_withdrawal_per_month ?? false) ? 'checked' : '' }}
