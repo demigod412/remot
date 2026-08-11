@@ -29,6 +29,17 @@ class PaymentService
             str_contains($driver, 'paystack')         => Drivers\PaystackGateway::initiate($topup, $creds),
             str_contains($driver, 'flutterwave')      => Drivers\FlutterwaveGateway::initiate($topup, $creds),
             str_contains($driver, 'paytm')            => Drivers\PaytmGateway::initiate($topup, $creds),
+            // nowpayments was missing entirely. The driver, the IPN route and the
+            // process controller all existed, and MarketplaceSeeder created a channel
+            // an admin could fill in — but nothing dispatched to it, so every topup
+            // failed with "Unsupported gateway: nowpayments" and the catch upstream
+            // reported it to the worker as "could not connect to payment gateway".
+            //
+            // Placed above 'coinpayments' deliberately: str_contains matching means
+            // order decides ties, and while these two do not currently collide,
+            // appending new drivers to the end of a str_contains chain is how a
+            // future 'nowpayments-lite' would silently route to the wrong handler.
+            str_contains($driver, 'nowpayments')      => Drivers\NowPaymentsGateway::initiate($topup, $creds),
             str_contains($driver, 'coinpayments')     => Drivers\CoinPaymentsGateway::initiate($topup, $creds),
             str_contains($driver, 'coinbasecommerce') => Drivers\CoinbaseCommerceGateway::initiate($topup, $creds),
             str_contains($driver, 'instamojo')        => Drivers\InstamojoGateway::initiate($topup, $creds),
