@@ -257,14 +257,10 @@ class SettingsController extends Controller
 
     public function notifEvents()
     {
-        $groups = [
-            'Account'    => ['WELCOME', 'EMAIL_VERIFICATION', 'PASSWORD_RESET'],
-            'KYC'        => ['KYC_APPROVED', 'KYC_REJECTED'],
-            'Work & Tasks' => ['WORK_APPROVED', 'WORK_REJECTED', 'SUBMISSION_APPROVED', 'SUBMISSION_REJECTED'],
-            'Finance'    => ['TOPUP_APPROVED', 'TOPUP_REJECTED', 'CASHOUT_APPROVED', 'CASHOUT_REJECTED'],
-            'Jobs'       => ['JOB_APPROVED', 'JOB_REJECTED'],
-            'Other'      => ['REFERRAL_BONUS', 'TICKET_REPLY'],
-        ];
+        // Shared with updateNotifEvents() so the page and the save can never disagree
+        // about which templates exist. When they did, saving disabled the ones the
+        // page had never shown.
+        $groups = $this->notifEventGroups();
 
         $templates = NotificationTemplate::all()->keyBy('act');
 
@@ -275,8 +271,28 @@ class SettingsController extends Controller
     {
         $input = $request->input('templates', []);
 
-        $ids = NotificationTemplate::all();
-        foreach ($ids as $template) {
+        // Only templates this page actually rendered are updated.
+        //
+        // This used to loop EVERY template and switch off any without a submitted
+        // checkbox. The page renders from a hardcoded $groups list, so the three
+        // templates missing from it — MEMBERSHIP_APPROVED, TASK_ASSIGNED,
+        // SUBMISSION_REVISION — had no checkbox to submit and were disabled every
+        // single time this form was saved.
+        //
+        // The consequence was not obvious: MEMBERSHIP_APPROVED carries a new member's
+        // temporary password, which exists nowhere else. Saving an unrelated
+        // notification preference silently stopped every approval email, and the
+        // approval screen still reported success because the send was skipped rather
+        // than attempted.
+        //
+        // Guarding on "was it on the page" rather than "does it exist" means a
+        // template absent from $groups keeps whatever it had, and adding a template
+        // without remembering to list it here can no longer break it.
+        $rendered = collect($this->notifEventGroups())->flatten()->all();
+
+        $templates = NotificationTemplate::whereIn('act', $rendered)->get();
+
+        foreach ($templates as $template) {
             $template->update([
                 'email_status' => isset($input[$template->id]['email_status']) ? 1 : 0,
                 'sms_status'   => isset($input[$template->id]['sms_status'])   ? 1 : 0,
@@ -284,6 +300,27 @@ class SettingsController extends Controller
         }
 
         return back()->with('success', 'Notification events updated.');
+    }
+
+    /**
+     * The groups shown on the notification events page.
+     *
+     * Shared between the display and the save so they cannot drift apart. When they
+     * did, the save disabled templates the page had never offered.
+     *
+     * @return array<string, array<int, string>>
+     */
+    protected function notifEventGroups(): array
+    {
+        return [
+            'Account'      => ['WELCOME', 'EMAIL_VERIFICATION', 'PASSWORD_RESET'],
+            'Membership'   => ['MEMBERSHIP_APPROVED'],
+            'KYC'          => ['KYC_APPROVED', 'KYC_REJECTED'],
+            'Work & Tasks' => ['WORK_APPROVED', 'WORK_REJECTED', 'SUBMISSION_APPROVED', 'SUBMISSION_REJECTED', 'TASK_ASSIGNED', 'SUBMISSION_REVISION'],
+            'Finance'      => ['TOPUP_APPROVED', 'TOPUP_REJECTED', 'CASHOUT_APPROVED', 'CASHOUT_REJECTED'],
+            'Jobs'         => ['JOB_APPROVED', 'JOB_REJECTED'],
+            'Other'        => ['REFERRAL_BONUS', 'TICKET_REPLY'],
+        ];
     }
 
     // -------------------------------------------------------------------------

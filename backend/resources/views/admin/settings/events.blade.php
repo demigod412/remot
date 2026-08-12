@@ -47,6 +47,9 @@
             'CASHOUT_REJECTED'     => 'Withdrawal rejected',
             'REFERRAL_BONUS'       => 'User earned a referral bonus',
             'TICKET_REPLY'         => 'Admin replied to a support ticket',
+            'MEMBERSHIP_APPROVED'  => 'Application approved — carries the temporary password. Turning this off means new members cannot log in.',
+            'TASK_ASSIGNED'        => 'Worker approved onto a task, with their annotate code',
+            'SUBMISSION_REVISION'  => 'Changes requested on submitted work',
         ];
         @endphp
 
