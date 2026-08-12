@@ -119,7 +119,7 @@
 
             @if($work->requires_kyc && auth('web')->user()->kyc_status !== 1)
             <div style="font-size:12px; color:#b45309; background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.25); border-radius:9px; padding:11px 13px; margin-bottom:14px; line-height:1.5;">
-                🔒 This task requires KYC verification. <a href="{{ route('user.kyc') }}" style="color:#b45309; text-decoration:underline;">Verify now →</a>
+                🔒 This task requires KYC verification. <a href="{{ route('user.profile.kyc') }}" style="color:#b45309; text-decoration:underline;">Verify now →</a>
             </div>
             @endif
 
