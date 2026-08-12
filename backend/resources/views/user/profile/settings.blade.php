@@ -134,6 +134,11 @@
 
                 <div style="margin-bottom:20px;">
                     <label style="display:block; font-size:12px; color:var(--fg-2); margin-bottom:10px; font-weight:500;">Skills</label>
+                    {{-- Marks that the skills block was part of this submission, so
+                         unchecking everything can be told apart from a form that never
+                         carried skills at all. --}}
+                    <input type="hidden" name="skills_submitted" value="1">
+
                     <div style="display:flex; flex-wrap:wrap; gap:8px;" id="skill-list">
                         @foreach($skills as $skill)
                         @php $checked = in_array($skill->id, $userSkillIds); @endphp

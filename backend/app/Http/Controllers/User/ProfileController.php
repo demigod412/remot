@@ -31,6 +31,14 @@ class ProfileController extends Controller
             'mobile'       => ['nullable', 'string', 'max:20'],
             'country_code' => ['nullable', 'string', 'max:10'],
             'image'        => ['nullable', 'image', 'max:2048'],
+            // The skills checkboxes are inside THIS form, not a separate one.
+            //
+            // updateSkills() and its route exist and work, but no view ever posts to
+            // them — so skills arrived here, were not validated, and were discarded.
+            // The page said "Profile updated", which was true, while the selection
+            // silently went nowhere.
+            'skills'       => ['nullable', 'array', 'max:20'],
+            'skills.*'     => ['integer', 'exists:skills,id'],
         ]);
 
         if ($request->hasFile('image')) {
@@ -40,7 +48,20 @@ class ProfileController extends Controller
             $data['image'] = uploadFile($request->file('image'), config('jobstation.upload_paths.user_avatar'));
         }
 
+        // Removed before update(): 'skills' is a relationship, not a users column, and
+        // passing it through would attempt to write a column that does not exist.
+        $skills = $data['skills'] ?? [];
+        unset($data['skills']);
+
         $user->update($data);
+
+        // Guarded by a hidden marker field. An absent 'skills' key means either
+        // "every box was unchecked" or "this form had no skills block at all", and
+        // those need opposite handling — sync([]) on the second would wipe the
+        // selection every time an unrelated form was saved.
+        if ($request->has('skills_submitted')) {
+            $user->skills()->sync($skills);
+        }
 
         return back()->with('success', 'Profile updated successfully.');
     }
