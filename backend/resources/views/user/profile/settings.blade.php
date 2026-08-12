@@ -292,18 +292,28 @@
 </div>
 
 <script>
-document.querySelectorAll('.skill-chip').forEach(function(chip) {
-    chip.addEventListener('click', function() {
-        const cb = this.parentElement.querySelector('.skill-cb');
-        cb.checked = !cb.checked;
+/* Listen on the CHECKBOX, not the chip.
+ *
+ * The checkbox sits inside a <label>, so clicking the chip already toggles it
+ * natively. The old handler then did cb.checked = !cb.checked and toggled it back —
+ * two flips, no change. The chip turned blue because this code set its colours
+ * directly, so the selection looked applied while the checkbox underneath stayed
+ * off and the form posted nothing.
+ *
+ * Binding to the checkbox's own change event means the browser owns the toggling and
+ * this code only reflects it. */
+document.querySelectorAll('.skill-cb').forEach(function(cb) {
+    cb.addEventListener('change', function() {
+        const chip = this.parentElement.querySelector('.skill-chip');
+        if (! chip) { return; }
         if (cb.checked) {
-            this.style.background = 'var(--accent-soft)';
-            this.style.color = 'var(--accent)';
-            this.style.borderColor = 'rgba(47,84,235,0.35)';
+            chip.style.background = 'var(--accent-soft)';
+            chip.style.color = 'var(--accent)';
+            chip.style.borderColor = 'rgba(47,84,235,0.35)';
         } else {
-            this.style.background = '';
-            this.style.color = '';
-            this.style.borderColor = '';
+            chip.style.background = '';
+            chip.style.color = '';
+            chip.style.borderColor = '';
         }
     });
 });
