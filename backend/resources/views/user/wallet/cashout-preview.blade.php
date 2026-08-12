@@ -157,7 +157,7 @@
         <div>
             <button type="submit" class="btn btn-primary"
                     x-bind:disabled="sending"
-                    x-bind:style="sending ? 'opacity:.65; cursor:progress;' : ''"
+                    x-bind:class="sending ? 'is-busy' : ''"
                     style="padding:11px 28px; font-size:13.5px; display:inline-flex; align-items:center; gap:7px;">
                 <i data-lucide="send" style="width:14px; height:14px;"></i>
                 <span x-show="!sending">Confirm withdrawal</span>

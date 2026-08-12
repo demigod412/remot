@@ -60,7 +60,7 @@
 
             <div style="display:flex;gap:9px;align-items:center;margin-top:18px;flex-wrap:wrap;">
                 <button type="submit" class="btn btn-primary" x-bind:disabled="sending"
-                        x-bind:style="sending ? 'opacity:.65;cursor:progress;' : ''">
+                        x-bind:class="sending ? 'is-busy' : ''">
                     <span x-show="!sending">Validate and import</span>
                     <span x-show="sending" x-cloak>Importing…</span>
                 </button>
@@ -119,7 +119,7 @@
             @error('files.*') <div style="font-size:12px;color:#EF4444;margin-top:6px;">{{ $message }}</div> @enderror
 
             <button type="submit" class="btn btn-primary" style="margin-top:14px;" x-bind:disabled="sending"
-                    x-bind:style="sending ? 'opacity:.65;cursor:progress;' : ''">
+                    x-bind:class="sending ? 'is-busy' : ''">
                 <span x-show="!sending">Validate and import</span>
                 <span x-show="sending" x-cloak>Importing&hellip;</span>
             </button>

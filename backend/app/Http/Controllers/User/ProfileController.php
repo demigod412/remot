@@ -160,12 +160,19 @@ class ProfileController extends Controller
     {
         $user = Auth::guard('web')->user();
 
+        // The form posts skills[], not skill_ids[].
+        //
+        // Validating the wrong name meant $data never contained it, so sync([]) ran on
+        // every save and cleared the worker's selection. The page then reloaded showing
+        // nothing selected, which reads as "it did not save" when in fact it saved
+        // emptiness. Worth noting the failure mode: a validator that never sees a field
+        // does not complain about it.
         $data = $request->validate([
-            'skill_ids'   => ['nullable', 'array', 'max:20'],
-            'skill_ids.*' => ['integer', 'exists:skills,id'],
+            'skills'   => ['nullable', 'array', 'max:20'],
+            'skills.*' => ['integer', 'exists:skills,id'],
         ]);
 
-        $user->skills()->sync($data['skill_ids'] ?? []);
+        $user->skills()->sync($data['skills'] ?? []);
 
         return back()->with('success', 'Skills updated.');
     }

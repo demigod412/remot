@@ -104,7 +104,7 @@
             @enderror
         </div>
         <button type="submit" class="btn" x-bind:disabled="sending"
-                x-bind:style="sending ? 'opacity:.65;cursor:progress;' : ''"
+                x-bind:class="sending ? 'is-busy' : ''"
                 style="padding:9px 18px;font-size:13px;display:inline-flex;align-items:center;gap:7px;">
             <i data-lucide="send" style="width:14px;height:14px;"></i>
             <span x-show="!sending">Send test</span>

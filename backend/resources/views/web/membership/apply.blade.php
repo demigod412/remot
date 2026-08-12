@@ -354,9 +354,19 @@
                  fallback keeps a blue button with white text; without it the background
                  resolves to nothing and you get white-on-white — a button that is
                  present, clickable, and completely invisible. --}}
-            <button type="submit" x-bind:disabled="submitting"
-                    x-bind:style="submitting ? 'opacity:.65; cursor:progress;' : ''"
-                    style="width:100%; padding:14px; border:0; border-radius:9px; background:var(--accent, #2f54eb); color:#fff; font-size:15px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:9px;">
+            {{-- Styling lives in .apply-submit-btn, NOT in a style attribute.
+
+                 x-bind:style with a string REPLACES the whole style attribute, so
+                 while `submitting` was false it evaluated to '' and wiped the
+                 background and colour — leaving dark text on the page background with
+                 no button shape at all. The static style attribute and x-bind:style
+                 cannot coexist on the same element.
+
+                 The disabled look is a class now, which Alpine toggles without
+                 touching anything else. --}}
+            <button type="submit" class="apply-submit-btn"
+                    x-bind:disabled="submitting"
+                    x-bind:class="submitting ? 'is-sending' : ''">
                 <span x-show="submitting" x-cloak class="apply-spinner" aria-hidden="true"></span>
                 <span x-show="!submitting">{{ __('Submit application') }}</span>
                 <span x-show="submitting" x-cloak>{{ __('Uploading your application') }}</span>
@@ -396,6 +406,27 @@
     transition: width .28s ease, background .28s ease;
 }
 .apply-bar--done { background: #16a34a; }
+
+.apply-submit-btn {
+    width: 100%;
+    padding: 14px;
+    border: 0;
+    border-radius: 9px;
+    /* Explicit blue with the variable first, so it stays on-brand if --accent is
+       themed and still renders blue if the stylesheet fails to load. */
+    background: var(--accent, #2f54eb);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    transition: opacity .15s;
+}
+.apply-submit-btn:hover { opacity: .92; }
+.apply-submit-btn.is-sending { opacity: .65; cursor: progress; }
 
 /* Applicant type cards. The radio stays in the DOM and focusable; only its default
    appearance is removed, so the card can show focus for keyboard users. */

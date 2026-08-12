@@ -68,7 +68,7 @@
 
                 <button type="submit"
                         x-bind:disabled="!selectedChannel || (!selectedPackage && !customAmount)"
-                        x-bind:style="(!selectedChannel || (!selectedPackage && !customAmount)) ? 'opacity:.45; pointer-events:none;' : ''"
+                        x-bind:class="(!selectedChannel || (!selectedPackage && !customAmount)) ? 'is-disabled' : ''"
                         class="btn btn-primary"
                         style="width:100%; justify-content:center; padding:11px; font-size:13.5px; display:flex; align-items:center; gap:7px;">
                     <i data-lucide="credit-card" style="width:14px; height:14px;"></i>

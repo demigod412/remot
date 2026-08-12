@@ -372,3 +372,13 @@ nav[aria-label="Pagination"] { display: flex; justify-content: center; }
 ::-webkit-scrollbar-track { background: #F4F4F0; }
 ::-webkit-scrollbar-thumb { background: #D4D4D8; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+/* Busy and disabled states for buttons.
+ *
+ * These replace x-bind:style="… : ''" bindings. Alpine's style binding REPLACES the
+ * style attribute wholesale, so any element carrying both a static style and a style
+ * binding lost its static styling the moment the binding evaluated to an empty
+ * string. On the membership apply form that meant the submit button rendered with no
+ * background and no text colour at all. */
+.is-busy     { opacity: .65 !important; cursor: progress !important; }
+.is-disabled { opacity: .45 !important; pointer-events: none !important; }

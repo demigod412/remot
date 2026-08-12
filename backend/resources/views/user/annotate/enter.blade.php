@@ -42,7 +42,7 @@
             @enderror
 
             <button type="submit" class="btn btn-primary" x-bind:disabled="sending"
-                    x-bind:style="sending ? 'opacity:.65;cursor:progress;' : ''"
+                    x-bind:class="sending ? 'is-busy' : ''"
                     style="width:100%;margin-top:16px;padding:13px;font-size:14.5px;justify-content:center;">
                 <span x-show="!sending">Open task</span>
                 <span x-show="sending" x-cloak>Opening&hellip;</span>
