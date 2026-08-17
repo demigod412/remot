@@ -1,6 +1,6 @@
 @extends('web.layouts.app')
 
-@section('title', 'RemotioX – AI Training & Data Annotation Jobs')
+@section('title', 'PScribe AI – AI Training & Data Annotation Jobs')
 
 @section('content')
 
@@ -35,7 +35,7 @@
                 <span id="hero-typed"></span><span class="typing-cursor">|</span>
             </h1>
             <p class="anim-hero-p" style="font-size:17px; color:rgba(255,255,255,0.8); line-height:1.55; max-width:480px; margin:0 0 36px;">
-                RemotioX connects you with flexible, paid opportunities in AI training, data labeling, and prompt engineering. Join a global community contributing to smarter, safer artificial intelligence.
+                PScribe AI connects you with flexible, paid opportunities in AI training, data labeling, and prompt engineering. Join a global community contributing to smarter, safer artificial intelligence.
             </p>
             <div class="anim-hero-actions" style="display:flex; gap:12px; margin-bottom:40px; flex-wrap:wrap;">
                 <a href="{{ route('membership.apply') }}" class="btn btn-primary" style="padding:12px 20px; font-size:14px; background:#3b82f6; border:none; color:#fff; border-radius:40px; font-weight:500;">
@@ -93,7 +93,7 @@
 <section id="why" style="padding:100px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#f8fafc;">
     <div style="max-width:1200px; margin:0 auto;">
         <div data-reveal style="text-align:center; margin-bottom:60px;">
-            <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">Why RemotioX</div>
+            <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">Why PScribe AI</div>
             <h2 style="font-size:clamp(28px,3.5vw,44px); font-weight:600; letter-spacing:-1.5px; margin:0; color:#0b1120;">Work that fits your life – and shapes the future.</h2>
         </div>
         <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:24px;" class="four-col">
@@ -117,12 +117,12 @@
 <section id="about" style="padding:100px 40px; border-top:1px solid rgba(0,0,0,0.06); background:#fff;">
     <div style="max-width:1200px; margin:0 auto; display:grid; grid-template-columns:1fr 1fr; gap:60px; align-items:center;" class="about-grid">
         <div data-reveal>
-            <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">About RemotioX</div>
+            <div style="font-size:11px; font-weight:600; letter-spacing:0.08em; text-transform:uppercase; color:#3b82f6; margin-bottom:12px;">About PScribe AI</div>
             <h2 style="font-size:clamp(28px,3.5vw,44px); font-weight:600; letter-spacing:-1.5px; margin:0 0 20px; color:#0b1120; line-height:1.1;">
                 Human intelligence meets AI innovation.
             </h2>
             <p style="font-size:16px; color:#475569; line-height:1.7; margin-bottom:20px;">
-                RemotioX is a global platform that connects skilled professionals with flexible opportunities in AI training and data annotation. We partner with leading AI labs and enterprises to label data, evaluate model outputs, and fine‑tune large language models.
+                PScribe AI is a global platform that connects skilled professionals with flexible opportunities in AI training and data annotation. We partner with leading AI labs and enterprises to label data, evaluate model outputs, and fine‑tune large language models.
             </p>
             <p style="font-size:16px; color:#475569; line-height:1.7; margin-bottom:20px;">
                 Our mission is to make AI development more inclusive, transparent, and human‑centric. By empowering contributors from diverse backgrounds, we help build AI systems that are accurate, safe, and representative of the world we live in.
@@ -141,7 +141,7 @@
             <div style="margin-top:24px; display:flex; align-items:center; gap:12px;">
                 <div style="width:48px; height:48px; border-radius:50%; background:#3b82f6; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:20px;">R</div>
                 <div>
-                    <div style="font-weight:600; font-size:16px;">RemotioX Team</div>
+                    <div style="font-weight:600; font-size:16px;">PScribe AI Team</div>
                     <div style="font-size:13px; opacity:0.6;">Empowering AI contributors worldwide</div>
                 </div>
             </div>
@@ -247,7 +247,7 @@
         <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:24px;" class="three-col">
             @foreach([
                 ['🌿', 'Work‑life balance', 'Set your own hours and work from anywhere. No commuting, no fixed schedules – you’re in control.'],
-                ['📚', 'Learn new skills', 'Get hands‑on experience with cutting‑edge AI tools and workflows. Many contributors use RemotioX to pivot into AI careers.'],
+                ['📚', 'Learn new skills', 'Get hands‑on experience with cutting‑edge AI tools and workflows. Many contributors use PScribe AI to pivot into AI careers.'],
                 ['🤝', 'Supportive community', 'Join a global network of like‑minded individuals. Share tips, ask questions, and grow together.'],
                 ['🏆', 'Recognition & growth', 'Top performers gain access to premium projects and mentorship opportunities. Build a portfolio that stands out.'],
                 ['💵', 'Competitive pay', 'Earn above market rates for your skills. No fees, no hidden costs – what you see is what you get.'],
@@ -450,7 +450,7 @@
             <div class="card" data-reveal data-delay="0" style="padding:36px; display:flex; flex-direction:column; gap:20px; background:#f8fafc; border-radius:24px; border:1px solid rgba(0,0,0,0.04);">
                 <div style="font-size:40px; line-height:1; color:#3b82f6; font-weight:600; font-family:'Poppins',sans-serif;">"</div>
                 <p style="font-size:20px; line-height:1.45; font-weight:500; letter-spacing:-0.3px; margin:0; color:#0b1120;">
-                    I started with simple data labeling during my commute. Within a month, I was evaluating LLM responses – now I lead a small team of prompt engineers. RemotioX opened a whole new career path.
+                    I started with simple data labeling during my commute. Within a month, I was evaluating LLM responses – now I lead a small team of prompt engineers. PScribe AI opened a whole new career path.
                 </p>
                 <div style="display:flex; align-items:center; gap:12px; padding-top:20px; border-top:1px solid rgba(0,0,0,0.06); margin-top:auto;">
                     <div style="width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,#3b82f6,#60a5fa); display:flex; align-items:center; justify-content:center; color:white; font-weight:600; font-size:16px; flex-shrink:0;">P</div>
@@ -466,7 +466,7 @@
             </div>
             @foreach([
                 ['M', 'Maya Rhee', 'Data Labeler · Level 2', 'I love the flexibility – I can work after my classes and earn real money. The tasks are clear and the community is super supportive.', '250+ tasks completed', '#8b5cf6'],
-                ['T', 'Tom Winters', 'AI Evaluator · Level 3', 'Evaluating model outputs has improved my understanding of NLP. I’ve already recommended RemotioX to three friends.', 'Top 5% performer', '#22c55e'],
+                ['T', 'Tom Winters', 'AI Evaluator · Level 3', 'Evaluating model outputs has improved my understanding of NLP. I’ve already recommended PScribe AI to three friends.', 'Top 5% performer', '#22c55e'],
             ] as $idx => [$init, $name, $role, $quote, $meta, $color])
             <div class="card" data-reveal data-delay="{{ ($idx + 1) * 120 }}" style="padding:24px; background:#f8fafc; border-radius:20px; border:1px solid rgba(0,0,0,0.04); display:flex; flex-direction:column; gap:16px;">
                 <div style="font-size:13px; color:#f59e0b;">★★★★★</div>
@@ -517,7 +517,7 @@
         </div>
         <div x-data="{ open: 0 }" data-reveal data-delay="100">
             @foreach([
-                ['What kind of AI projects can I work on?', 'RemotioX offers data labeling (images, text, audio), RLHF (evaluating AI responses), prompt engineering, and specialized expert tasks (coding, math, science, languages).'],
+                ['What kind of AI projects can I work on?', 'PScribe AI offers data labeling (images, text, audio), RLHF (evaluating AI responses), prompt engineering, and specialized expert tasks (coding, math, science, languages).'],
                 ['Do I need previous AI experience?', 'No. Many entry-level tasks require only basic computer skills. We also have advanced tasks for experts. Assessments help match you to suitable projects.'],
                 ['How much can I earn?', 'Pay varies by task complexity. Simple labeling starts at $5–$10 per task, while expert coding or evaluation can pay $20–$50+ per task. Top contributors earn over $1,500/month.'],
                 ['How and when do I get paid?', 'Payments are processed weekly via PayPal, Wise, or bank transfer. Minimum payout is $20. We also support crypto (USDC) on request.'],
@@ -564,7 +564,7 @@
     <div style="max-width:1200px; margin:0 auto; display:grid; grid-template-columns:2fr 1fr 1fr 1fr 1fr; gap:40px;" class="footer-grid">
         {{-- Brand --}}
         <div>
-            <div style="font-size:24px; font-weight:700; color:#fff; letter-spacing:-1px; margin-bottom:12px;">RemotioX</div>
+            <div style="font-size:24px; font-weight:700; color:#fff; letter-spacing:-1px; margin-bottom:12px;">PScribe AI</div>
             <p style="font-size:13px; line-height:1.6; max-width:240px; color:rgba(255,255,255,0.5);">
                 Connecting talented professionals with flexible AI training and data annotation opportunities worldwide.
             </p>
@@ -618,7 +618,7 @@
 
     {{-- Bottom bar --}}
     <div style="max-width:1200px; margin:40px auto 0; padding-top:24px; border-top:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
-        <span style="font-size:12px; color:rgba(255,255,255,0.3);">&copy; {{ date('Y') }} RemotioX. All rights reserved.</span>
+        <span style="font-size:12px; color:rgba(255,255,255,0.3);">&copy; {{ date('Y') }} PScribe AI. All rights reserved.</span>
         <span style="font-size:12px; color:rgba(255,255,255,0.3);">
             Built with ❤️ for the AI community
         </span>
